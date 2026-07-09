@@ -1,5 +1,5 @@
 /* Service worker: cache-first for the app shell, network-first for data files. */
-const VERSION = "fuel-v8";
+const VERSION = "fuel-v9";
 const SHELL = [
   "./",
   "index.html",
@@ -13,7 +13,11 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(VERSION)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -43,7 +47,7 @@ self.addEventListener("fetch", (e) => {
   // shell: cache first, refresh in background
   e.respondWith(
     caches.match(e.request).then((cached) => {
-      const fresh = fetch(e.request)
+      const fresh = fetch(e.request, { cache: "no-cache" })
         .then((res) => {
           const copy = res.clone();
           caches.open(VERSION).then((c) => c.put(e.request, copy));

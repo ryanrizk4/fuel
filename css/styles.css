@@ -341,7 +341,8 @@ textarea.io { width: 100%; min-height: 110px; border-radius: 12px; border: 1px s
   transition: opacity .35s ease;
 }
 #splash.gone { opacity: 0; }
-.splash-logo { font-size: 3rem; animation: splash-pop .5s cubic-bezier(.3,1.4,.4,1); }
+.splash-mark { animation: splash-pop .5s cubic-bezier(.3,1.4,.4,1); border-radius: 18px; box-shadow: 0 10px 30px rgba(42,120,214,.25); }
+.splash-tag { font-size: .8rem; color: var(--muted); letter-spacing: .14em; text-transform: uppercase; font-weight: 650; animation: splash-rise .45s ease .12s both; }
 .splash-name { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; animation: splash-rise .45s ease .05s both; }
 @keyframes splash-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes splash-rise { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }

@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 
 const STORE_KEY = "fuel.state.v1";
-const APP_VERSION = "fuel-v8";
+const APP_VERSION = "fuel-v9";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -91,8 +91,8 @@ function mealTitle(m) {
 
 async function boot() {
   const [p, t] = await Promise.all([
-    fetch("data/products.json").then((r) => r.json()),
-    fetch("data/templates.json").then((r) => r.json()),
+    fetch("data/products.json", { cache: "no-cache" }).then((r) => r.json()),
+    fetch("data/templates.json", { cache: "no-cache" }).then((r) => r.json()),
   ]);
   DATA = { products: p.products, templates: t.templates };
   DATA_UPDATED = p.updated || t.updated || "";
@@ -735,6 +735,7 @@ function renderMore() {
       <div class="diag-row"><span>Last live data check</span><span>${esc(state.lastDataFetch || "—")}</span></div>
       <div class="diag-row"><span>Recipe database</span><span>${DATA.templates.length} meals · ${DATA.products.length} products</span></div>
       <div class="diag-row"><span>Database last researched</span><span>${esc(DATA_UPDATED || "unknown")}</span></div>
+      <div class="btn-row"><button class="btn" data-action="check-updates">🔄 Check for updates now</button></div>
       <div class="small muted mt8">New recipes and TJ's items land when you run an ingestion session with Claude ("add this to my rotation") — the app pulls fresh data automatically on the next open. It doesn't research on its own between sessions.</div>
     </div>
 
@@ -1186,6 +1187,23 @@ function handleAction(el) {
     }
 
     case "open-settings": return switchTab("more");
+    case "check-updates": {
+      toast("Checking for updates…");
+      navigator.serviceWorker?.getRegistration().then(async (reg) => {
+        if (!reg) { toast("Update check unavailable (no offline worker yet)"); return; }
+        await reg.update();
+        const pending = reg.waiting || reg.installing;
+        if (pending) {
+          toast("⬇️ Update found — installing…");
+          navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
+          pending.postMessage?.("skip");
+          setTimeout(() => location.reload(), 2500);
+        } else {
+          toast(`✓ You're on the latest version (${APP_VERSION})`);
+        }
+      }).catch(() => toast("Couldn't reach the server — try on WiFi"));
+      return;
+    }
     case "back-today": return switchTab("today");
     case "open-browse": return sheetBrowse(el.dataset.template);
     case "use-today": {
