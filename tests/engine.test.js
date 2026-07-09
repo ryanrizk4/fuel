@@ -296,8 +296,11 @@ test("estimated products are flagged for label verification", () => {
     "2026-07-06": { status: "planned", meals: [{ slot: "lunch", templateId: "tortilla-melt", variantId: "classic" }], snacks: [] },
   };
   const flat = E.shoppingList(DATA, s, "2026-07-06").sections.flatMap((sec) => sec.items);
+  // use a product that is still label-unverified as the fixture
+  const est = DATA.products.find((p) => p.confidence === "estimated");
+  assert.ok(est, "at least one estimated product should exist for this test");
   const cc = flat.find((i) => i.id === "tj-cottage-cheese-lowfat");
-  assert.equal(cc.needsVerify, true);
+  assert.equal(cc.needsVerify, false, "cottage cheese is now label-verified");
   const egg = flat.find((i) => i.id === "tj-large-egg");
   assert.equal(egg.needsVerify, false);
 });
@@ -327,6 +330,17 @@ test("perishable meals score urgent and get scheduled early in the week", () => 
   const idxOfUrgent = keys.findIndex((k) =>
     days[k].meals.some((m) => E.perishUrgency(DATA, E.templateById(DATA, m.templateId)) >= 4));
   if (idxOfUrgent !== -1) assert.ok(idxOfUrgent <= 3, `most-perishable meal lands day ${idxOfUrgent + 1}, expected in first 4`);
+});
+
+test("legacy state (pre-pantry/favorites/opened fields) still works everywhere", () => {
+  const legacy = { profile: { ...PROFILE }, plan: { days: {} }, weighIns: [], history: {} };
+  const days = E.generateWeek(DATA, legacy, START, "auto", 1);
+  assert.equal(Object.keys(days).length, 7, "generateWeek tolerates missing fields");
+  legacy.plan.days = days;
+  const list = E.shoppingList(DATA, legacy, START);
+  assert.ok(list.sections.length > 0, "shoppingList tolerates missing pantry");
+  assert.ok(E.effectiveBudget(legacy).budget > 0, "effectiveBudget tolerates missing overageBank");
+  assert.equal(E.calibration(legacy), null, "calibration quiet without weigh-ins");
 });
 
 // ---------- carryover ----------

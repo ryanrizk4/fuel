@@ -796,7 +796,12 @@ function renderMore() {
 
     <div class="card">
       <h3>Backup & restore</h3>
-      <div class="small muted mt8">Your logs live on this phone. Copy a backup once a week — paste it into a Claude Code session and it can be saved to GitHub too.</div>
+      ${(() => {
+        const age = state.lastBackup ? Math.round((E.parseKey(todayKey()) - E.parseKey(state.lastBackup)) / 86400000) : null;
+        if (age !== null && age < 14) return `<div class="small muted mt8">Last backup: ${age === 0 ? "today" : age + " days ago"} ✓</div>`;
+        return `<div class="trim-note">📦 ${age === null ? "No backup yet" : `Last backup was ${age} days ago`} — your logs live only on this phone. Copy one now.</div>`;
+      })()}
+      <div class="small muted mt8">Paste a backup into a Claude Code session and it can be saved to GitHub too.</div>
       <div class="btn-row">
         <button class="btn" data-action="export-data">Copy backup</button>
         <button class="btn ghost" data-action="sheet-import">Restore</button>
@@ -1463,6 +1468,7 @@ function handleAction(el) {
     }
 
     case "export-data": {
+      state.lastBackup = todayKey(); save();
       const json = JSON.stringify(state);
       (navigator.clipboard?.writeText(json) || Promise.reject())
         .then(() => alert("Backup copied to clipboard ✓"))
