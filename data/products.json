@@ -1,5 +1,6 @@
 {
   "$schema": "Product database. Units are the serving the app counts in. confidence: 'verified' = checked against label/official source; 'estimated' = best guess, app will ask user to confirm from the package. packServings = servings per purchasable pack (null = sold loose / per unit).",
+  "updated": "2026-07-09",
   "products": [
     {
       "id": "mission-carb-balance-tortilla",

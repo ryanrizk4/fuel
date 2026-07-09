@@ -1,5 +1,6 @@
 {
   "$schema": "Meal templates. A template = one dish you know how to cook, with variants that keep the same cooking motions. base = ingredients (product id + qty in product units) for ONE serving unless servings > 1 (batch). Variants add/remove ingredients from base. repeatOk = fine to eat several times a week. source: 'seed' = user's own rotation, 'trending' = ingested from TikTok/IG research.",
+  "updated": "2026-07-09",
   "templates": [
     {
       "id": "tortilla-melt",
