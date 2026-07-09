@@ -75,6 +75,12 @@ test("breakfast templates stay light (≤400 kcal)", () => {
   }
 });
 
+test("no recipe step requires a microwave (owner doesn't have one)", () => {
+  for (const t of templates)
+    for (const s of t.steps)
+      assert.ok(!/microwave/i.test(s), `${t.id}: step "${s}" needs a microwave`);
+});
+
 test("snack products exist for the auto-planner (protein snacks + at least one treat)", () => {
   const snacks = products.filter((p) => p.snack);
   assert.ok(snacks.filter((s) => !s.treat).length >= 3, "need ≥3 protein snacks for variety");
