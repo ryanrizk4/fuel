@@ -38,8 +38,13 @@ Do this:
 5. Commit + push to the designated branch. The app picks it up on the next visit (network-first data fetch).
 
 Owner preferences: high protein (gym), calorie deficit, quick weeknight cooking (≤25 min), air fryer,
-weekend batch-cook + freezer, Middle Eastern flavors welcome (za'atar, shawarma, zhoug, labneh/yogurt),
-Mission Carb Balance tortillas are a staple.
+weekend batch-cook + freezer (he owns an extra freezer — TJ's frozen products are first-class citizens),
+Middle Eastern flavors welcome (za'atar, shawarma, zhoug, labneh/yogurt), Mission Carb Balance tortillas
+are a staple.
+
+**NO MICROWAVE** (enforced by tests/data.test.js): never write a step that needs one. Alternatives that
+keep it quick: frozen rice pouch → covered pan + splash of water ~4 min; frozen veg → air fryer 400°F
+~8 min or pan-steam; reheat frozen portions → air fryer 350°F ~5 min or covered pan.
 
 ## Product verification loop
 
