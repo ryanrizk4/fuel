@@ -207,7 +207,7 @@ test("shopping list aggregates the week, skips freezer meals, multiplies batch +
     "2026-07-08": { status: "planned", meals: [{ slot: "dinner", templateId: "beef-ragu-batch", variantId: "classic", fromFreezer: true }], snacks: [] },
     "2026-07-09": { status: "skipped", meals: [{ slot: "dinner", templateId: "shawarma-bowl", variantId: "classic" }], snacks: [] },
   };
-  const list = E.shoppingList(DATA, s, "2026-07-06");
+  const { sections: list } = E.shoppingList(DATA, s, "2026-07-06");
   const flat = list.flatMap((sec) => sec.items);
   const patties = flat.find((i) => i.id === "tj-turkey-patty");
   assert.equal(patties.qty, 4, "2 patties × 2 portions");
@@ -225,11 +225,38 @@ test("estimated products are flagged for label verification", () => {
   s.plan.days = {
     "2026-07-06": { status: "planned", meals: [{ slot: "lunch", templateId: "tortilla-melt", variantId: "classic" }], snacks: [] },
   };
-  const flat = E.shoppingList(DATA, s, "2026-07-06").flatMap((sec) => sec.items);
+  const flat = E.shoppingList(DATA, s, "2026-07-06").sections.flatMap((sec) => sec.items);
   const cc = flat.find((i) => i.id === "tj-cottage-cheese-lowfat");
   assert.equal(cc.needsVerify, true);
   const egg = flat.find((i) => i.id === "tj-large-egg");
   assert.equal(egg.needsVerify, false);
+});
+
+test("stocked staples move off the buy list; marking one 'out' brings it back", () => {
+  const s = freshState();
+  s.plan.days = {
+    "2026-07-06": { status: "planned", meals: [{ slot: "dinner", templateId: "turkey-burgers", variantId: "classic" }], snacks: [] },
+  };
+  const before = E.shoppingList(DATA, s, "2026-07-06");
+  assert.ok(before.sections.flatMap((x) => x.items).some((i) => i.id === "mustard-yellow"), "mustard on first-ever list");
+  s.pantry = { "mustard-yellow": true, "ketchup": true, "hot-sauce": true };
+  const after = E.shoppingList(DATA, s, "2026-07-06");
+  const buyIds = after.sections.flatMap((x) => x.items).map((i) => i.id);
+  assert.ok(!buyIds.includes("mustard-yellow"), "stocked staple not re-listed");
+  assert.ok(after.stocked.some((i) => i.id === "mustard-yellow"), "shown on the staples shelf instead");
+  assert.ok(buyIds.includes("tj-turkey-patty"), "non-staples unaffected");
+});
+
+test("perishable meals score urgent and get scheduled early in the week", () => {
+  const salmon = E.templateById(DATA, "zaatar-salmon-bowl");
+  const burgers = E.templateById(DATA, "turkey-burgers"); // frozen patties, shelf-stable
+  assert.ok(E.perishUrgency(DATA, salmon) > E.perishUrgency(DATA, burgers), "fresh salmon more urgent than frozen patties");
+  const s = freshState();
+  const days = E.generateWeek(DATA, s, "2026-07-06", "auto");
+  const keys = Object.keys(days).sort();
+  const idxOfUrgent = keys.findIndex((k) =>
+    days[k].meals.some((m) => E.perishUrgency(DATA, E.templateById(DATA, m.templateId)) >= 4));
+  if (idxOfUrgent !== -1) assert.ok(idxOfUrgent <= 3, `most-perishable meal lands day ${idxOfUrgent + 1}, expected in first 4`);
 });
 
 // ---------- carryover ----------
