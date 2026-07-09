@@ -154,7 +154,7 @@ function renderToday() {
   const day = state.plan.days[key];
   const p = state.profile;
   if (!p) return;
-  const { budget: effBudget, trim } = E.effectiveBudget(state);
+  const { budget: effBudget, trim, credit } = E.effectiveBudget(state, day);
   const pTarget = E.proteinTarget(p);
   const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
@@ -217,6 +217,7 @@ function renderToday() {
         <button class="btn" data-action="sheet-ate-out" data-date="${key}">🍽 Ate out</button>
         <button class="btn" data-action="sheet-over" data-date="${key}">⚠️ Went over</button>
       </div>
+      <div class="btn-row"><button class="btn ghost" data-action="sheet-activity" data-date="${key}">🥾 Unusually active today?</button></div>
     </div>` : `
     <div class="card">
       <h3>Day logged: ${{ done: "on plan ✓", skipped: "ate out", over: "went over" }[day.status] || day.status}</h3>
@@ -254,6 +255,7 @@ function renderToday() {
         </div>
       </div>
       ${trim > 0 ? `<div class="trim-note">💪 Absorbing a past overage: budget trimmed by ${trim} kcal/day until ${state.overageBank} kcal is paid off.</div>` : ""}
+      ${credit > 0 ? `<div class="trim-note">🥾 ${esc(day.activityCredit.label)}: +${credit} kcal credited today. <button class="btn small ghost" data-action="remove-activity" data-date="${key}" style="margin-left:6px">Remove</button></div>` : ""}
     </div>
 
     <div class="card">
@@ -439,6 +441,17 @@ function renderProgress() {
         Fuel trims up to ${E.MAX_DAILY_TRIM} kcal/day off your budget until it's paid back — never more,
         so you don't starve and rebound. Whatever trimming can't cover just moves your goal date. The math
         is stark but honest: one big weekend ≈ a few extra days, not a failed plan.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Why "calories burned" ≠ calories to eat</h3>
+      <div class="small muted mt8">
+        Your budget already includes your daily ~10k steps and gym sessions — that's the activity multiplier.
+        Watches overestimate burn by 27–93% (Stanford wearables study), and a lifting session actually costs
+        ~150–300 kcal, not 500+. Eating back tracker calories double-counts and erases the deficit. Only log
+        genuinely unusual days (long hike, double your normal steps) via “Unusually active?” on the Today tab —
+        Fuel credits 50%, capped at ${E.ACTIVITY_CAP} kcal. Your weekly weigh-in trend is the real referee.
       </div>
     </div>`;
 }
@@ -704,6 +717,28 @@ function sheetAddSnack(dateK) {
   `);
 }
 
+function sheetActivity(dateK) {
+  openSheet(`
+    <h3>🥾 Unusually active?</h3>
+    <div class="sub">Your budget already includes your daily ~10k steps and gym sessions — that's what the activity multiplier is. Lifting earns 0 extra: it builds muscle, it doesn't burn much (~150–300 kcal/session, not what the watch says).</div>
+    <div class="trim-note" style="margin-bottom:12px">Trackers overestimate burn by 27–93%, so Fuel credits <b>50%</b> of genuinely extra activity, capped at <b>${E.ACTIVITY_CAP} kcal/day</b> — a bad estimate can never erase your deficit. Your weekly weigh-in is the real referee.</div>
+    <button class="option-row" data-action="log-activity" data-date="${dateK}" data-kcal="500" data-label="Long hike / big outdoor day">
+      <div class="o-main"><div class="o-name">Long hike or multi-hour outdoor day</div><div class="o-sub">90+ min beyond your routine</div></div><div class="o-kcal">+${E.activityCreditFromTracker(500)}</div>
+    </button>
+    <button class="option-row" data-action="log-activity" data-date="${dateK}" data-kcal="300" data-label="Way more steps than usual">
+      <div class="o-main"><div class="o-name">Way more steps than usual</div><div class="o-sub">~18–20k+ vs your normal 10k</div></div><div class="o-kcal">+${E.activityCreditFromTracker(300)}</div>
+    </button>
+    <button class="option-row" data-action="log-activity" data-date="${dateK}" data-kcal="250" data-label="Extra cardio session">
+      <div class="o-main"><div class="o-name">Extra cardio session</div><div class="o-sub">On top of your normal training</div></div><div class="o-kcal">+${E.activityCreditFromTracker(250)}</div>
+    </button>
+    <div class="ob-section">Or from your watch / Samsung Health</div>
+    <div class="field-row">
+      <div class="field" style="margin:0"><input id="activity-input" type="number" inputmode="numeric" placeholder="Tracker says I burned…" /></div>
+      <button class="btn primary" data-action="log-activity" data-date="${dateK}" data-kcal="input" data-label="Tracker-reported activity">Credit 50%</button>
+    </div>
+  `);
+}
+
 function sheetVerify(productId) {
   const prod = E.productById(DATA, state, productId);
   openSheet(`
@@ -823,6 +858,20 @@ function handleAction(el) {
     case "sheet-ate-out": closeSheet(); return sheetAteOut(el.dataset.date);
     case "sheet-over": closeSheet(); return sheetOver(el.dataset.date);
     case "sheet-add-snack": return sheetAddSnack(el.dataset.date);
+    case "sheet-activity": return sheetActivity(el.dataset.date);
+    case "log-activity": {
+      const raw = el.dataset.kcal === "input" ? +($("#activity-input")?.value || 0) : +el.dataset.kcal;
+      if (!raw || raw < 0) return;
+      const day = state.plan.days[el.dataset.date];
+      if (!day) return;
+      day.activityCredit = { kcal: E.activityCreditFromTracker(raw), label: el.dataset.label, reported: raw };
+      save(); closeSheet(); renderAll(); return;
+    }
+    case "remove-activity": {
+      const day = state.plan.days[el.dataset.date];
+      if (day) delete day.activityCredit;
+      save(); renderAll(); return;
+    }
     case "sheet-verify": return sheetVerify(el.dataset.product);
     case "sheet-add-freezer": return sheetAddFreezer();
     case "sheet-import": return sheetImport();

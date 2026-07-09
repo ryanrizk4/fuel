@@ -11,6 +11,13 @@ const KCAL_PER_LB = 3500;
 const MAX_DAILY_TRIM = 150; // never trim more than this off the daily budget to absorb an overage
 const BUDGET_FLOOR = { male: 1500, female: 1200 };
 
+// Extra-activity credits. The TDEE activity multiplier already covers routine
+// training and daily steps; trackers overestimate burn by 27-93% (Stanford 2017,
+// 2025 meta-analyses). So: only genuinely unusual activity earns a credit, at a
+// 50% discount, capped so a bad estimate can never zero out the deficit.
+const ACTIVITY_DISCOUNT = 0.5;
+const ACTIVITY_CAP = 300;
+
 // ---------- dates ----------
 
 function dateKey(d) {
@@ -68,11 +75,17 @@ function proteinTarget(p) {
   return Math.round(p.weightLb * (p.proteinPerLb || 0.8));
 }
 
-// Effective budget today = budget minus the trim currently applied to pay down the overage bank
-function effectiveBudget(state) {
+// Effective budget today = budget − overage-bank trim + any extra-activity credit for the day
+function effectiveBudget(state, day) {
   const p = state.profile;
   const trim = Math.min(MAX_DAILY_TRIM, Math.max(0, state.overageBank || 0));
-  return { budget: dailyBudget(p) - trim, trim };
+  const credit = day?.activityCredit?.kcal || 0;
+  return { budget: dailyBudget(p) - trim + credit, trim, credit };
+}
+
+// Convert a tracker-reported "calories burned" into an edible credit
+function activityCreditFromTracker(reportedKcal) {
+  return Math.min(ACTIVITY_CAP, Math.round(Math.max(0, reportedKcal) * ACTIVITY_DISCOUNT));
 }
 
 // How the bank shifts the goal date if it were never trimmed away
@@ -392,9 +405,9 @@ function shoppingList(data, state, startKey) {
 }
 
 export {
-  ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB,
+  ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP,
   dateKey, parseKey, addDays, weekStart, fmtDay,
-  bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, goalProjection, latestWeight,
+  bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
   generateWeek, recordHistory, shoppingList, collectCarryover,
 };

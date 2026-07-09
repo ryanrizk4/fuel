@@ -54,6 +54,35 @@ Tokens in `css/styles.css` follow a validated light/dark palette (accent blue #2
 protein green #1baf7a). Mobile-first, bottom nav, bottom sheets for all pickers. Keep charts single-axis,
 2px lines, direct labels, tabular numerals. Don't add frameworks or a build step.
 
+## The quality gate (non-negotiable, Sentinel-style)
+
+Before ANY commit/push:
+
+1. `node --test` must pass (engine math + data integrity — `tests/`). New engine logic or data
+   rules get a test in the same commit. GitHub Actions runs the same suite on every push.
+2. For UI changes: drive the real app in headless Chromium at phone size (390×844), click through
+   the affected flow, screenshot, and check for console errors before pushing. A drive script
+   pattern lives in the session scratchpad approach — recreate as needed with Playwright
+   (`executablePath: '/opt/pw-browsers/chromium'` in this environment).
+3. Data edits (products/templates) are covered by `tests/data.test.js` house rules:
+   mains ≤700 kcal & ≥25g protein per serving (every variant), breakfasts ≤400 kcal,
+   1–5 terse steps, first variant id must be `classic`, all product refs must resolve.
+
+## Exercise calories (research-backed policy — don't "improve" it casually)
+
+The owner walks ~10k steps/day and lifts; his TDEE multiplier (moderate, 1.55) already includes that.
+Trackers overestimate burn 27–93% (Stanford 2017; 2025 Apple Watch meta-analysis ~28% MAPE), and a
+lifting session really costs ~150–300 kcal. So the app NEVER treats tracker "calories burned" as
+edible budget. Only user-flagged unusual days (long hike, ~2× normal steps) earn a credit:
+50% of the estimate, capped at 300 kcal/day (`ACTIVITY_DISCOUNT` / `ACTIVITY_CAP` in engine.js).
+Weekly weigh-in trend is the real calibrator. There is no Samsung Health/Health Connect web API for
+PWAs — the 2-tap manual log is intentional, not a gap.
+
+## Owner's device
+
+Samsung Galaxy (Android) — test decisions against Chrome/Samsung Internet PWA behavior, not iOS.
+Maskable icon is `icons/icon-maskable.png` (full-bleed). Install path: Chrome → ⋮ → Add to Home screen.
+
 ## Bump the service worker
 
 Any change to shell files (`index.html`, `css/`, `js/`) should bump `VERSION` in `sw.js`

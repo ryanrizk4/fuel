@@ -157,7 +157,7 @@
       "variants": [
         { "id": "classic", "name": "Cream cheese", "add": [], "remove": [], "note": "" },
         { "id": "egg", "name": "+ Fried egg", "add": [{ "product": "tj-large-egg", "qty": 1 }], "remove": [], "note": "Breakfast sandwich mode" },
-        { "id": "protein", "name": "Egg + turkey bacon", "add": [{ "product": "tj-large-egg", "qty": 1 }, { "product": "tj-turkey-bacon", "qty": 2 }], "remove": [], "note": "Full sandwich" }
+        { "id": "protein", "name": "Egg + turkey bacon", "add": [{ "product": "tj-large-egg", "qty": 1 }, { "product": "tj-turkey-bacon", "qty": 1 }], "remove": [], "note": "Full sandwich" }
       ]
     },
     {
@@ -367,7 +367,7 @@
       ],
       "variants": [
         { "id": "classic", "name": "Za'atar classic", "add": [], "remove": [], "note": "" },
-        { "id": "hot-honey", "name": "Hot honey (the viral one)", "add": [{ "product": "tj-honey", "qty": 1 }, { "product": "sriracha", "qty": 2 }], "remove": ["zaatar"], "note": "Sriracha + honey glaze" },
+        { "id": "hot-honey", "name": "Hot honey (the viral one)", "add": [{ "product": "tj-honey", "qty": 1 }, { "product": "sriracha", "qty": 2 }], "remove": ["zaatar", "olive-oil"], "note": "Sriracha + honey glaze instead of oil" },
         { "id": "shrimp", "name": "Shrimp swap", "add": [{ "product": "tj-red-shrimp", "qty": 1.5 }], "remove": ["tj-salmon-fillet"], "note": "5-min cook, leaner" },
         { "id": "cauli-rice", "name": "Lighter: cauliflower rice", "add": [{ "product": "tj-riced-cauliflower", "qty": 1 }], "remove": ["tj-frozen-jasmine-rice"], "note": "Saves ~160 kcal" }
       ]

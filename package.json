@@ -1,0 +1,10 @@
+{
+  "name": "fuel-meal-planner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static PWA meal planner — no build step; package.json exists only so node --test can run the suite",
+  "scripts": {
+    "test": "node --test"
+  }
+}
