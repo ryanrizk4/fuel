@@ -296,8 +296,11 @@ test("estimated products are flagged for label verification", () => {
     "2026-07-06": { status: "planned", meals: [{ slot: "lunch", templateId: "tortilla-melt", variantId: "classic" }], snacks: [] },
   };
   const flat = E.shoppingList(DATA, s, "2026-07-06").sections.flatMap((sec) => sec.items);
+  // use a product that is still label-unverified as the fixture
+  const est = DATA.products.find((p) => p.confidence === "estimated");
+  assert.ok(est, "at least one estimated product should exist for this test");
   const cc = flat.find((i) => i.id === "tj-cottage-cheese-lowfat");
-  assert.equal(cc.needsVerify, true);
+  assert.equal(cc.needsVerify, false, "cottage cheese is now label-verified");
   const egg = flat.find((i) => i.id === "tj-large-egg");
   assert.equal(egg.needsVerify, false);
 });
