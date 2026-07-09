@@ -234,13 +234,15 @@ function scoreTemplate(state, tpl, todayKey, usedThisWeek, carryover, data, dayI
   return score;
 }
 
-function pickVariant(state, tpl, todayKey) {
-  let best = tpl.variants[0], bestAge = -1;
+function pickVariant(state, tpl, todayKey, rng) {
+  let bestAge = -1;
   for (const v of tpl.variants) {
     const age = daysSinceUse(state, `v:${tpl.id}:${v.id}`, todayKey);
-    if (age > bestAge) { bestAge = age; best = v; }
+    if (age > bestAge) bestAge = age;
   }
-  return best.id;
+  const candidates = tpl.variants.filter((v) => daysSinceUse(state, `v:${tpl.id}:${v.id}`, todayKey) === bestAge);
+  const idx = rng ? Math.floor(rng() * candidates.length) : 0;
+  return candidates[Math.min(idx, candidates.length - 1)].id;
 }
 
 /**
@@ -292,7 +294,7 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
     if (bLocked) meals.push(bLocked);
     else {
       const bTpl = templateById(data, p.breakfastDefault) || templateById(data, "latte");
-      meals.push({ slot: "breakfast", templateId: bTpl.id, variantId: pickVariant(state, bTpl, key) });
+      meals.push({ slot: "breakfast", templateId: bTpl.id, variantId: pickVariant(state, bTpl, key, rng) });
     }
 
     // lunch — weekday lunches respect the work-time cap (he cooks at/for work)
@@ -307,7 +309,7 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
       if (quick.length) pool = quick;
       const tpl = pool.sort((a, b) =>
         scoreTemplate(state, b, key, usedThisWeek, carryover, data, i, rng, recentTpls) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i, rng, recentTpls))[0];
-      meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });
+      meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key, rng) });
       usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
     }
 
@@ -319,7 +321,7 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
       const dow = addDays(start, i).getDay();
       const isWeekend = dow === 0 || dow === 6;
       if (mode === "prep" && batchTpl && isWeekend && !Object.keys(usedThisWeek).includes(batchTpl.id + ":batch")) {
-        meals.push({ slot: "dinner", templateId: batchTpl.id, variantId: pickVariant(state, batchTpl, key), batchCook: true });
+        meals.push({ slot: "dinner", templateId: batchTpl.id, variantId: pickVariant(state, batchTpl, key, rng), batchCook: true });
         usedThisWeek[batchTpl.id + ":batch"] = 1;
         usedThisWeek[batchTpl.id] = (usedThisWeek[batchTpl.id] || 0) + 1;
       } else if (frz && (mode === "easy" || i % 2 === 1)) {
@@ -334,7 +336,7 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
         }
         const tpl = pool.sort((a, b) =>
           scoreTemplate(state, b, key, usedThisWeek, carryover, data, i, rng, recentTpls) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i, rng, recentTpls))[0];
-        meals.push({ slot: "dinner", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });
+        meals.push({ slot: "dinner", templateId: tpl.id, variantId: pickVariant(state, tpl, key, rng) });
         usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
       }
     }
@@ -365,10 +367,10 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
       }
       // protein snacks to close the gap (max 3)
       let guard = 0;
-      while (room > 150 && day.snacks.length < 4 && guard < 6) {
+      while ((room > 150 || (room > 70 && dayTotals(data, state, day).protein < pTarget)) && day.snacks.length < 4 && guard < 8) {
         const s = proteins[(i + guard) % proteins.length];
         guard++;
-        if (!s || s.calories > room - 60) continue;
+        if (!s || s.calories > room - 40) continue;
         if (day.snacks.some((x) => x.productId === s.id)) continue;
         day.snacks.push({ productId: s.id, qty: 1 });
         room -= s.calories;

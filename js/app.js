@@ -427,7 +427,7 @@ function renderPlan() {
     const snackSummary = (day.snacks || []).length
       ? `<div class="small muted" style="padding:8px 0 10px">🥨 ${(day.snacks || []).map((s) => esc(s.custom ? s.custom.name : E.productById(DATA, state, s.productId)?.name || "?")).join(" · ")}</div>` : "";
     return `
-      <div class="card day-card">
+      <div class="card day-card${key < todayKey() ? " past" : ""}" data-daykey="${key}">
         <div class="day-head" data-action="sheet-day" data-date="${key}">
           <div>
             <div class="d-name">${E.fmtDay(d)}</div>
@@ -732,6 +732,15 @@ function renderMore() {
 }
 
 // ---------- sheets ----------
+
+function toast(msg) {
+  document.querySelector(".toast")?.remove();
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("show"));
+  setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 300); }, 3200);
+}
 
 function openSheet(html, ctx) {
   sheetCtx = ctx || null;
@@ -1180,9 +1189,27 @@ function handleAction(el) {
     }
     case "generate-week": {
       state.planSeed = (state.planSeed || 1) + 1;
+      const before = JSON.parse(JSON.stringify(state.plan.days));
       const days = E.generateWeek(DATA, state, el.dataset.start, state.planMode, state.planSeed);
       Object.assign(state.plan.days, days);
-      save(); renderAll(); return;
+      const changedKeys = Object.keys(days).filter((k) =>
+        JSON.stringify(days[k].meals) !== JSON.stringify(before[k]?.meals) ||
+        JSON.stringify(days[k].snacks) !== JSON.stringify(before[k]?.snacks));
+      const nMeals = changedKeys.reduce((n, k) => n + days[k].meals.filter((m, i) =>
+        JSON.stringify(m) !== JSON.stringify(before[k]?.meals?.[i])).length, 0);
+      save(); renderAll();
+      if (!changedKeys.length) {
+        toast("Nothing to shuffle — remaining days are done, locked, or in the past.");
+      } else {
+        const first = changedKeys.sort()[0];
+        toast(`♻️ Re-planned ${changedKeys.length} day${changedKeys.length > 1 ? "s" : ""} · ${nMeals} meal${nMeals !== 1 ? "s" : ""} changed`);
+        setTimeout(() => {
+          const card = document.querySelector(`[data-daykey="${first}"]`);
+          card?.scrollIntoView({ behavior: "smooth", block: "start" });
+          changedKeys.forEach((k) => document.querySelector(`[data-daykey="${k}"]`)?.classList.add("flash"));
+        }, 60);
+      }
+      return;
     }
 
     case "shop-check": {
