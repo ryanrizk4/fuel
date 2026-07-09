@@ -94,3 +94,11 @@ test("packServings present for anything the shopping list needs to count into pa
     }
   }
 });
+
+test("app version constant stays in sync with the service worker", () => {
+  const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
+  const swV = sw.match(/VERSION = "(fuel-v\d+)"/)[1];
+  const appV = app.match(/APP_VERSION = "(fuel-v\d+)"/)[1];
+  assert.equal(swV, appV, "bump both together");
+});

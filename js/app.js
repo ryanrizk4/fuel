@@ -3,6 +3,8 @@
 import * as E from "./engine.js";
 
 const STORE_KEY = "fuel.state.v1";
+const APP_VERSION = "fuel-v8";
+let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
 let currentTab = "today";
@@ -93,7 +95,10 @@ async function boot() {
     fetch("data/templates.json").then((r) => r.json()),
   ]);
   DATA = { products: p.products, templates: t.templates };
+  DATA_UPDATED = p.updated || t.updated || "";
   load();
+  state.lastDataFetch = new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  save();
   applyTheme();
   if (!state.profile) {
     $("#onboarding").hidden = false;
@@ -101,7 +106,18 @@ async function boot() {
   } else {
     renderAll();
   }
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  setTimeout(() => { const s = $("#splash"); s?.classList.add("gone"); setTimeout(() => s?.remove(), 400); }, 550);
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const w = reg.installing;
+        w?.addEventListener("statechange", () => {
+          if (w.state === "installed" && navigator.serviceWorker.controller)
+            toast("✨ Fuel just updated — you're on the newest version");
+        });
+      });
+    }).catch(() => {});
+  }
 }
 
 function applyTheme() {
@@ -201,10 +217,6 @@ function renderMeals() {
     <div class="card" style="padding:4px 16px">${seed}</div>
     <div class="ob-section">Learned from TikTok / IG 🔥</div>
     <div class="card" style="padding:4px 16px">${trending}</div>
-    <div class="card mt8" data-action="sheet-products" style="cursor:pointer">
-      <div class="list-title-row"><h3>🏪 TJ's product library</h3><span class="muted">›</span></div>
-      <div class="small muted">${DATA.products.length} products with calories & protein — ${DATA.products.filter((p) => E.productById(DATA, state, p.id).confidence === "estimated").length} still need a label check.</div>
-    </div>
     <div class="card mt8">
       <h3>Add a new one</h3>
       <div class="small muted mt8">See something online? Open a Claude Code session on the <b>fuel</b> repo and say “add this to my rotation” + the link. It lands here with TJ's ingredients and macros worked out.</div>
@@ -517,6 +529,10 @@ function renderShop() {
       </div>
       <div class="small muted" style="margin:4px 2px 12px">Bought once, remembered. Tap "Out" when a jar runs dry and it goes back on the list.</div>
     </div>` : ""}
+    <div class="card mt8" data-action="sheet-products" style="cursor:pointer">
+      <div class="list-title-row"><h3>🏪 TJ's product library</h3><span class="muted">›</span></div>
+      <div class="small muted">${DATA.products.length} products with calories & protein — ${DATA.products.filter((p) => E.productById(DATA, state, p.id).confidence === "estimated").length} still need a label check.</div>
+    </div>
     ${total && checked === total ? `<button class="btn primary" style="width:100%" data-action="shop-complete" data-start="${startK}">✅ Shop complete — slot perishables first</button>
     <div class="small muted mt8">Re-plans the remaining days so fresh stuff (greens, raw meat, salmon) gets cooked before it turns.</div>` : ""}`;
 }
@@ -709,6 +725,17 @@ function renderMore() {
       <div class="seg mt8" style="margin-bottom:0">
         ${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<button class="${state.theme === v ? "on" : ""}" data-action="set-theme" data-theme="${v}">${l}</button>`).join("")}
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Diagnostics</h3>
+      <div class="diag-row"><span>App version</span><span class="ok">${APP_VERSION} ✓</span></div>
+      <div class="diag-row"><span>Offline mode ready</span><span class="${navigator.serviceWorker?.controller ? "ok" : "warn"}">${navigator.serviceWorker?.controller ? "yes ✓" : "first visit"}</span></div>
+      <div class="diag-row"><span>Connection</span><span class="${navigator.onLine ? "ok" : "warn"}">${navigator.onLine ? "online ✓" : "offline — cached data"}</span></div>
+      <div class="diag-row"><span>Last live data check</span><span>${esc(state.lastDataFetch || "—")}</span></div>
+      <div class="diag-row"><span>Recipe database</span><span>${DATA.templates.length} meals · ${DATA.products.length} products</span></div>
+      <div class="diag-row"><span>Database last researched</span><span>${esc(DATA_UPDATED || "unknown")}</span></div>
+      <div class="small muted mt8">New recipes and TJ's items land when you run an ingestion session with Claude ("add this to my rotation") — the app pulls fresh data automatically on the next open. It doesn't research on its own between sessions.</div>
     </div>
 
     <div class="card">
