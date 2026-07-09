@@ -329,6 +329,17 @@ test("perishable meals score urgent and get scheduled early in the week", () => 
   if (idxOfUrgent !== -1) assert.ok(idxOfUrgent <= 3, `most-perishable meal lands day ${idxOfUrgent + 1}, expected in first 4`);
 });
 
+test("legacy state (pre-pantry/favorites/opened fields) still works everywhere", () => {
+  const legacy = { profile: { ...PROFILE }, plan: { days: {} }, weighIns: [], history: {} };
+  const days = E.generateWeek(DATA, legacy, START, "auto", 1);
+  assert.equal(Object.keys(days).length, 7, "generateWeek tolerates missing fields");
+  legacy.plan.days = days;
+  const list = E.shoppingList(DATA, legacy, START);
+  assert.ok(list.sections.length > 0, "shoppingList tolerates missing pantry");
+  assert.ok(E.effectiveBudget(legacy).budget > 0, "effectiveBudget tolerates missing overageBank");
+  assert.equal(E.calibration(legacy), null, "calibration quiet without weigh-ins");
+});
+
 // ---------- carryover ----------
 
 test("skipped days prioritize their templates next week (groceries already bought)", () => {
