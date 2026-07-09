@@ -227,6 +227,12 @@ function scoreTemplate(state, tpl, todayKey, usedThisWeek, carryover, data, dayI
   else score -= uses * 25; // non-repeat meals strongly resist repeating in-week
   if (carryover?.has(tpl.id)) score += 15; // groceries already bought from a skipped day
   if (state.favorites?.[tpl.id]) score += 10; // "add to rotation" boost
+  if (state.opened) { // an opened tub/pack should get used before it turns
+    for (const ing of tpl.base) {
+      const od = state.opened[ing.product];
+      if (od && Math.abs(Math.round((parseKey(todayKey) - parseKey(od)) / 86400000)) <= 3) { score += 9; break; }
+    }
+  }
   if (recentTpls?.has(tpl.id) && !tpl.repeatOk) score -= 14; // planned in an adjacent week already
   score -= Math.max(0, tpl.prepMinutes - 30) * 0.2; // keep overall prep short
   if (data) score += perishUrgency(data, tpl) * (6 - dayIndex) * 0.8;
@@ -309,7 +315,7 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
       if (quick.length) pool = quick;
       const tpl = pool.sort((a, b) =>
         scoreTemplate(state, b, key, usedThisWeek, carryover, data, i, rng, recentTpls) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i, rng, recentTpls))[0];
-      meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key, rng) });
+      meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key, rng), why: mealWhy(data, state, tpl, key, i, carryover) });
       usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
     }
 
@@ -321,11 +327,11 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
       const dow = addDays(start, i).getDay();
       const isWeekend = dow === 0 || dow === 6;
       if (mode === "prep" && batchTpl && isWeekend && !Object.keys(usedThisWeek).includes(batchTpl.id + ":batch")) {
-        meals.push({ slot: "dinner", templateId: batchTpl.id, variantId: pickVariant(state, batchTpl, key, rng), batchCook: true });
+        meals.push({ slot: "dinner", templateId: batchTpl.id, variantId: pickVariant(state, batchTpl, key, rng), batchCook: true, why: "Weekend batch cook — one session, portions for the freezer" });
         usedThisWeek[batchTpl.id + ":batch"] = 1;
         usedThisWeek[batchTpl.id] = (usedThisWeek[batchTpl.id] || 0) + 1;
       } else if (frz && (mode === "easy" || i % 2 === 1)) {
-        meals.push({ slot: "dinner", templateId: frz.templateId, variantId: frz.variantId || "classic", fromFreezer: true });
+        meals.push({ slot: "dinner", templateId: frz.templateId, variantId: frz.variantId || "classic", fromFreezer: true, why: "From your freezer stock — zero cooking, just reheat" });
         frz.portions -= 1;
         usedThisWeek[frz.templateId] = (usedThisWeek[frz.templateId] || 0) + 1;
       } else {
@@ -336,7 +342,7 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
         }
         const tpl = pool.sort((a, b) =>
           scoreTemplate(state, b, key, usedThisWeek, carryover, data, i, rng, recentTpls) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i, rng, recentTpls))[0];
-        meals.push({ slot: "dinner", templateId: tpl.id, variantId: pickVariant(state, tpl, key, rng) });
+        meals.push({ slot: "dinner", templateId: tpl.id, variantId: pickVariant(state, tpl, key, rng), why: mealWhy(data, state, tpl, key, i, carryover) });
         usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
       }
     }
@@ -379,6 +385,62 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
     days[key] = day;
   }
   return days;
+}
+
+// Human explanation for why the planner picked this meal
+function mealWhy(data, state, tpl, key, dayIndex, carryover) {
+  if (state.favorites?.[tpl.id]) return "One of your ❤️ favorites — boosted in the rotation";
+  if (carryover?.has(tpl.id)) return "Uses groceries already bought for a day you skipped";
+  if (state.opened) {
+    for (const ing of tpl.base) {
+      const od = state.opened[ing.product];
+      if (od && Math.abs(Math.round((parseKey(key) - parseKey(od)) / 86400000)) <= 3) {
+        const prod = data.products.find((x) => x.id === ing.product);
+        return `Uses the ${prod?.name || "item"} you already opened`;
+      }
+    }
+  }
+  if (perishUrgency(data, tpl) >= 4 && dayIndex <= 2) return "Fresh ingredients — scheduled early so nothing turns";
+  const age = daysSinceUse(state, `t:${tpl.id}`, key);
+  if (age >= 14 && age < 999) return `Haven't had this in ${age} days — variety pick`;
+  if (tpl.prepMinutes <= 15) return `Quick (${tpl.prepMinutes} min) — fits a busy day`;
+  return "Rotation pick — variety without relearning anything";
+}
+
+// Plan quality: how good is this week at a glance?
+function weekQuality(data, state, days) {
+  const target = proteinTarget(state.profile);
+  let proteinDays = 0, prep = 0, freshLate = 0;
+  const uniq = new Set();
+  const keys = Object.keys(days).sort();
+  keys.forEach((k, i) => {
+    const d = days[k];
+    if (dayTotals(data, state, d).protein >= target * 0.9) proteinDays++; // within 10% counts — planner floor is 85%
+    for (const m of d.meals || []) {
+      uniq.add(m.templateId + ":" + m.variantId);
+      const tpl = templateById(data, m.templateId);
+      if (!tpl) continue;
+      prep += m.fromFreezer ? 5 : tpl.prepMinutes;
+      if (perishUrgency(data, tpl) >= 4 && i > 3 && !m.fromFreezer) freshLate++;
+    }
+  });
+  return { proteinDays, totalDays: keys.length, uniqueMeals: uniq.size, prepMinutes: prep, freshnessOk: freshLate === 0 };
+}
+
+// Weight-trend calibration: the weekly weigh-in is the real referee
+function calibration(state) {
+  const ws = [...(state.weighIns || [])].sort((a, b) => a.date.localeCompare(b.date));
+  if (ws.length < 3) return null;
+  const first = ws[0], last = ws[ws.length - 1];
+  const span = Math.round((parseKey(last.date) - parseKey(first.date)) / 86400000);
+  if (span < 10) return null;
+  const actual = ((first.lb - last.lb) / span) * 7;
+  const planned = (state.profile.deficit * 7) / KCAL_PER_LB;
+  const ratio = planned ? actual / planned : 1;
+  let status = "on-track", note = "Your weight trend matches the plan — the math is working. Keep going.";
+  if (ratio < 0.5) { status = "behind"; note = `Trend: losing ${actual.toFixed(1)} lb/wk vs ${planned.toFixed(1)} planned over ${span} days. If this holds another week, re-check portions and snacks, or raise the deficit a notch in Settings.`; }
+  else if (ratio > 1.7 && actual > 1.4) { status = "fast"; note = `Trend: losing ${actual.toFixed(1)} lb/wk — faster than the ${planned.toFixed(1)} planned. Consider easing the deficit to protect muscle while lifting.`; }
+  return { actualPerWeek: Math.round(actual * 10) / 10, plannedPerWeek: Math.round(planned * 10) / 10, days: span, status, note };
 }
 
 // Templates from skipped days in the prior 10 days → their groceries are likely sitting unused
@@ -450,5 +512,5 @@ export {
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
-  generateWeek, recordHistory, shoppingList, collectCarryover, perishUrgency,
+  generateWeek, recordHistory, shoppingList, collectCarryover, perishUrgency, weekQuality, calibration,
 };

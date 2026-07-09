@@ -1,5 +1,5 @@
 /* Service worker: cache-first for the app shell, network-first for data files. */
-const VERSION = "fuel-v10";
+const VERSION = "fuel-v11";
 const SHELL = [
   "./",
   "index.html",
