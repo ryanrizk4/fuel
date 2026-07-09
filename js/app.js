@@ -159,8 +159,87 @@ function renderAll() {
   renderToday();
   renderPlan();
   renderShop();
+  renderMeals();
   renderProgress();
   renderMore();
+}
+
+function daysSinceEaten(tplId) {
+  const last = state.history?.[`t:${tplId}`];
+  if (!last) return null;
+  return Math.round((E.parseKey(todayKey()) - E.parseKey(last)) / 86400000);
+}
+
+function renderMeals() {
+  const el = $("#view-meals");
+  if (!state.profile) return;
+  const row = (t) => {
+    const mm = E.mealMacros(DATA, state, t.id, "classic");
+    const ago = daysSinceEaten(t.id);
+    const agoStr = ago === null ? "never eaten yet" : ago === 0 ? "eaten today" : `eaten ${ago}d ago`;
+    return `
+      <div class="meal-row" data-action="open-browse" data-template="${t.id}">
+        <div class="meal-emoji">${t.emoji || "🍽"}</div>
+        <div class="meal-info">
+          <div class="meal-name">${esc(t.name)}</div>
+          <div class="meal-meta">${mm.calories} kcal · ${mm.protein}g · ⏱ ${t.prepMinutes} min · ${agoStr}</div>
+        </div>
+        <span class="muted">›</span>
+      </div>`;
+  };
+  const seed = DATA.templates.filter((t) => t.source !== "trending").map(row).join("");
+  const trending = DATA.templates.filter((t) => t.source === "trending").map(row).join("");
+  el.innerHTML = `
+    <div class="list-title-row"><div class="screen-title">Meals</div>
+      <button class="btn small ghost" data-action="open-settings">⚙️ Settings</button></div>
+    <div class="screen-sub">Everything in your rotation — tap any meal to read the full recipe.</div>
+    <div class="ob-section">Your rotation</div>
+    <div class="card" style="padding:4px 16px">${seed}</div>
+    <div class="ob-section">Learned from TikTok / IG 🔥</div>
+    <div class="card" style="padding:4px 16px">${trending}</div>
+    <div class="card mt8">
+      <h3>Add a new one</h3>
+      <div class="small muted mt8">See something online? Open a Claude Code session on the <b>fuel</b> repo and say “add this to my rotation” + the link. It lands here with TJ's ingredients and macros worked out.</div>
+    </div>`;
+}
+
+function sheetBrowse(tplId) {
+  const tpl = E.templateById(DATA, tplId);
+  const mm = E.mealMacros(DATA, state, tpl.id, "classic");
+  const ingredients = E.mealIngredients(tpl, "classic").map((ing) => {
+    const prod = E.productById(DATA, state, ing.product);
+    return prod ? `<div class="ing-row"><span class="ing-qty">${fmtIngQty(Math.round(ing.qty * 100) / 100, prod.unit)}</span><span>${esc(prod.name)}</span></div>` : "";
+  }).join("");
+  const steps = (tpl.steps || []).map((s, i) =>
+    `<div class="step-row"><div class="step-num">${i + 1}</div><div class="step-text">${esc(s)}</div></div>`).join("");
+  const variants = tpl.variants.map((v) => {
+    const vm = E.mealMacros(DATA, state, tpl.id, v.id);
+    return `<div class="option-row"><div class="o-main"><div class="o-name">${esc(v.name)}</div>${v.note ? `<div class="o-sub">${esc(v.note)}</div>` : ""}</div><div class="o-kcal">${vm.calories} · ${vm.protein}g</div></div>`;
+  }).join("");
+  const slots = tpl.mealType.filter((s) => ["lunch", "dinner", "breakfast"].includes(s));
+  openSheet(`
+    <div class="recipe-head">
+      <div class="r-emoji">${tpl.emoji || "🍽"}</div>
+      <div><h3>${esc(tpl.name)}</h3><div class="small muted">${tpl.mealType.map(slotLabel).join(" · ")}</div></div>
+    </div>
+    <div class="meta-chips">
+      <span class="meta-chip">⏱ ${tpl.prepMinutes} min</span>
+      <span class="meta-chip accent">${mm.calories} kcal</span>
+      <span class="meta-chip accent">${mm.protein}g protein</span>
+      ${tpl.freezerFriendly ? '<span class="meta-chip">❄️ freezes well</span>' : ""}
+      ${tpl.source === "trending" ? '<span class="meta-chip">🔥 trending</span>' : ""}
+    </div>
+    ${tpl.origin ? `<div class="small muted" style="margin-bottom:10px">${esc(tpl.origin)}</div>` : ""}
+    <div class="ob-section" style="margin-top:2px">Ingredients · 1 serving</div>
+    ${ingredients}
+    <div class="ob-section">Steps</div>
+    ${steps}
+    <div class="ob-section">Variations (same cooking motions)</div>
+    ${variants}
+    <div class="btn-row">
+      ${slots.map((s) => `<button class="btn primary" data-action="use-today" data-template="${tpl.id}" data-slot="${s}">Eat for ${s} today</button>`).join("")}
+    </div>
+  `);
 }
 
 function switchTab(tab) {
@@ -251,7 +330,8 @@ function renderToday() {
     </div>`;
 
   el.innerHTML = `
-    <div class="screen-title">Today</div>
+    <div class="list-title-row"><div class="screen-title">Today</div>
+      <button class="btn small ghost" data-action="open-settings">⚙️</button></div>
     <div class="screen-sub">${dateStr}</div>
 
     <div class="card">
@@ -368,6 +448,7 @@ function renderPlan() {
       ${{ auto: "Balanced rotation — variety without relearning anything.", prep: "Batch-cook on the weekend, freezer portions through the week.", easy: "Quick meals and freezer stock only — for low-energy weeks." }[state.planMode]}
     </div>
 
+    ${hasAny && planWeekOffset <= 1 ? `<div class="trim-note" style="margin-bottom:12px">Week planned ✓ — step 2: <button class="btn small" data-action="go-shop">🛒 Shop the list</button></div>` : ""}
     ${dayCards || '<div class="card empty">No plan for this week yet — hit Auto-plan.</div>'}`;
 }
 
@@ -409,6 +490,7 @@ function renderShop() {
       <button class="chip ${shopWeekOffset === 0 ? "on" : ""}" data-action="shop-week" data-offset="0">This week</button>
       <button class="chip ${shopWeekOffset === 1 ? "on" : ""}" data-action="shop-week" data-offset="1">Next week</button>
     </div>
+    ${total && checked === total ? `<div class="trim-note" style="margin-bottom:10px">All shopped ✓ — you're set. <button class="btn small" data-action="go-today">☀️ See Today</button></div>` : ""}
     ${total ? `<div class="small muted" style="margin-bottom:4px">${checked}/${total} picked up</div>` : ""}
     ${estCount ? `<div class="trim-note" style="margin-bottom:10px">🏷 ${estCount} item${estCount > 1 ? "s have" : " has"} <b>estimated</b> macros. Tap “Check label” at the store and Fuel remembers the real numbers forever.</div>` : ""}
     ${sections || '<div class="card empty">Nothing to buy — plan a week first on the Plan tab.</div>'}`;
@@ -546,7 +628,8 @@ function renderMore() {
   }).join("");
 
   el.innerHTML = `
-    <div class="screen-title">More</div>
+    <div class="list-title-row"><div class="screen-title">Settings</div>
+      <button class="btn small ghost" data-action="back-today">← Back</button></div>
     <div class="screen-sub">Profile, freezer, data.</div>
 
     <div class="card">
@@ -1013,8 +1096,28 @@ function handleAction(el) {
       save(); closeSheet(); renderAll(); return;
     }
 
+    case "open-settings": return switchTab("more");
+    case "back-today": return switchTab("today");
+    case "open-browse": return sheetBrowse(el.dataset.template);
+    case "use-today": {
+      const key = todayKey();
+      let day = state.plan.days[key];
+      if (!day) {
+        const days = E.generateWeek(DATA, state, E.dateKey(E.weekStart(new Date())), state.planMode);
+        Object.assign(state.plan.days, days);
+        day = state.plan.days[key];
+      }
+      const meal = day.meals.find((x) => x.slot === el.dataset.slot);
+      if (meal) {
+        meal.templateId = el.dataset.template; meal.variantId = "classic"; meal.locked = true;
+        delete meal.fromFreezer; delete meal.batchCook; delete meal.portions;
+      }
+      save(); closeSheet(); renderAll(); switchTab("today"); return;
+    }
     case "plan-week": planWeekOffset = +el.dataset.offset; return renderPlan();
     case "shop-week": shopWeekOffset = +el.dataset.offset; return renderShop();
+    case "go-shop": return switchTab("shop");
+    case "go-today": return switchTab("today");
     case "plan-mode": state.planMode = el.dataset.mode; save(); return renderPlan();
     case "plan-this-week": {
       const days = E.generateWeek(DATA, state, E.dateKey(E.weekStart(new Date())), state.planMode);
