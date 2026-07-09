@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 
 const STORE_KEY = "fuel.state.v1";
-const APP_VERSION = "fuel-v9";
+const APP_VERSION = "fuel-v10";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -27,6 +27,8 @@ function defaultState() {
     pantry: {},
     favorites: {},
     planSeed: 1,
+    recipeInbox: [],
+    checkinDismissed: "",
     overageBank: 0,
     planMode: "auto",
     theme: "auto",
@@ -219,8 +221,15 @@ function renderMeals() {
     <div class="ob-section">Learned from TikTok / IG 🔥</div>
     <div class="card" style="padding:4px 16px">${trending}</div>
     <div class="card mt8">
-      <h3>Add a new one</h3>
-      <div class="small muted mt8">See something online? Open a Claude Code session on the <b>fuel</b> repo and say “add this to my rotation” + the link. It lands here with TJ's ingredients and macros worked out.</div>
+      <h3>📥 Recipe inbox</h3>
+      <div class="small muted" style="margin-bottom:8px">Saw something on TikTok/IG? Paste the link or describe it — it's saved here so the moment isn't lost. Next Claude session, say “ingest my recipe inbox”.</div>
+      <div class="field-row">
+        <div class="field" style="margin:0"><input id="inbox-input" placeholder="Link or description…" /></div>
+        <button class="btn primary" data-action="inbox-add">Save</button>
+      </div>
+      ${(state.recipeInbox || []).map((r, i) => `
+        <div class="freezer-row"><div style="flex:1;min-width:0;overflow-wrap:anywhere" class="small">${esc(r.text)} <span class="muted">· ${esc(r.date)}</span></div>
+        <button class="btn small ghost danger" data-action="inbox-del" data-idx="${i}">✕</button></div>`).join("")}
     </div>`;
 }
 
@@ -353,6 +362,26 @@ function renderToday() {
       <div class="btn-row"><button class="btn ghost" data-action="undo-status" data-date="${key}">Undo</button></div>
     </div>`;
 
+  // weekly check-in: weekends, or when the last weigh-in is stale
+  const lastW = [...state.weighIns].sort((x, y) => y.date.localeCompare(x.date))[0];
+  const weighAge = lastW ? Math.round((E.parseKey(key) - E.parseKey(lastW.date)) / 86400000) : 99;
+  const dow = new Date().getDay();
+  const thisWeekKey = E.dateKey(E.weekStart(new Date()));
+  const showCheckin = state.checkinDismissed !== thisWeekKey && (dow === 0 || dow === 6 || weighAge >= 7);
+  const checkinCard = showCheckin ? `
+    <div class="card" style="border-color: var(--accent)">
+      <div class="list-title-row"><h3>🗓 Weekly check-in</h3>
+        <button class="btn small ghost" data-action="checkin-dismiss" aria-label="dismiss">✕</button></div>
+      <div class="small muted">Weigh in, review the week, plan the next one — the whole Sunday ritual in one flow.</div>
+      <div class="btn-row"><button class="btn primary" data-action="sheet-checkin">Start check-in</button></div>
+    </div>` : "";
+
+  // defrost reminder: tomorrow has a freezer meal -> move it to the fridge tonight
+  const tomorrow = state.plan.days[E.dateKey(E.addDays(new Date(), 1))];
+  const frzTomorrow = (tomorrow?.meals || []).find((m) => m.fromFreezer);
+  const defrostNote = frzTomorrow ? `
+    <div class="trim-note">🧊 Tonight: move <b>${esc(mealTitle(frzTomorrow).name)}</b> from the freezer to the fridge — it's on tomorrow's plan.</div>` : "";
+
   el.innerHTML = `
     <div class="list-title-row"><div class="screen-title">Today</div>
       <button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
@@ -399,6 +428,8 @@ function renderToday() {
       ${snackRows || '<div class="small muted">No snacks planned — add one if you\'re hungry, it counts against today\'s budget.</div>'}
     </div>
 
+    ${defrostNote}
+    ${checkinCard}
     ${statusCard}`;
 }
 
@@ -944,6 +975,41 @@ function sheetAddSnack(dateK) {
   `);
 }
 
+function sheetCheckin() {
+  const p = state.profile;
+  const today = new Date();
+  let on = 0, over = 0, out = 0, overKcal = 0;
+  for (let i = 1; i <= 7; i++) {
+    const d = state.plan.days[E.dateKey(E.addDays(today, -i))];
+    if (!d) continue;
+    if (d.status === "done") on++;
+    if (d.status === "over") { over++; overKcal += d.overage || 0; }
+    if (d.status === "skipped") { out++; overKcal += d.overage || 0; }
+  }
+  const ws = [...state.weighIns].sort((x, y) => x.date.localeCompare(y.date));
+  const delta = ws.length >= 2 ? Math.round((ws[ws.length - 1].lb - ws[ws.length - 2].lb) * 10) / 10 : null;
+  const proj = E.goalProjection(state);
+  openSheet(`
+    <h3>🗓 Weekly check-in</h3>
+    <div class="sub">Three steps, one minute</div>
+    <div class="ob-section" style="margin-top:2px">1 · Weigh in</div>
+    <div class="field-row">
+      <div class="field" style="margin:0"><input id="ci-weight" type="number" inputmode="decimal" placeholder="This morning's weight (lb)" /></div>
+      <button class="btn primary" data-action="checkin-weight">Log</button>
+    </div>
+    <div class="ob-section">2 · Last 7 days</div>
+    <div class="diag-row"><span>On plan</span><span class="ok">${on} day${on !== 1 ? "s" : ""} ✓</span></div>
+    <div class="diag-row"><span>Ate out / skipped</span><span>${out}</span></div>
+    <div class="diag-row"><span>Went over</span><span class="${over ? "warn" : "ok"}">${over}${overKcal ? ` (+${overKcal} kcal)` : ""}</span></div>
+    <div class="diag-row"><span>Weight change</span><span class="${delta !== null && delta <= 0 ? "ok" : ""}">${delta === null ? "need 2 weigh-ins" : (delta > 0 ? "+" : "") + delta + " lb"}</span></div>
+    <div class="diag-row"><span>Overage bank</span><span class="${state.overageBank ? "warn" : "ok"}">${state.overageBank || 0} kcal</span></div>
+    <div class="diag-row"><span>Goal pace</span><span>${proj.remainingLb.toFixed(1)} lb to go · ~${proj.daysLeft} days</span></div>
+    <div class="ob-section">3 · Set up next week</div>
+    <div class="btn-row"><button class="btn primary" data-action="checkin-plan-next">✨ Plan next week</button></div>
+    <div class="small muted mt8">Uses your ${state.planMode === "prep" ? "Prep Sunday" : state.planMode === "easy" ? "Low energy" : "Balanced"} mode — change it on the Plan tab first if this week is different.</div>
+  `);
+}
+
 function sheetActivity(dateK) {
   openSheet(`
     <h3>🥾 Unusually active?</h3>
@@ -1108,6 +1174,30 @@ function handleAction(el) {
     case "sheet-over": closeSheet(); return sheetOver(el.dataset.date);
     case "sheet-add-snack": return sheetAddSnack(el.dataset.date);
     case "sheet-activity": return sheetActivity(el.dataset.date);
+    case "sheet-checkin": return sheetCheckin();
+    case "checkin-dismiss": {
+      state.checkinDismissed = E.dateKey(E.weekStart(new Date()));
+      save(); return renderToday();
+    }
+    case "checkin-weight": {
+      const v = +($("#ci-weight")?.value || 0);
+      if (!v || v < 50 || v > 700) return;
+      state.weighIns = state.weighIns.filter((w) => w.date !== todayKey());
+      state.weighIns.push({ date: todayKey(), lb: v });
+      state.profile.weightLb = v;
+      save(); renderAll(); sheetCheckin(); toast("⚖️ Logged " + v + " lb"); return;
+    }
+    case "checkin-plan-next": {
+      state.planSeed = (state.planSeed || 1) + 1;
+      const nextStart = E.dateKey(E.addDays(E.weekStart(new Date()), 7));
+      const days = E.generateWeek(DATA, state, nextStart, state.planMode, state.planSeed);
+      Object.assign(state.plan.days, days);
+      state.checkinDismissed = E.dateKey(E.weekStart(new Date()));
+      save(); closeSheet(); renderAll();
+      planWeekOffset = 1; renderPlan(); switchTab("plan");
+      toast("✨ Next week planned — review it, then hit Shop");
+      return;
+    }
     case "log-activity": {
       const raw = el.dataset.kcal === "input" ? +($("#activity-input")?.value || 0) : +el.dataset.kcal;
       if (!raw || raw < 0) return;
@@ -1125,6 +1215,16 @@ function handleAction(el) {
     case "sheet-add-freezer": return sheetAddFreezer();
     case "sheet-import": return sheetImport();
     case "sheet-products": return sheetProducts();
+    case "inbox-add": {
+      const t = $("#inbox-input")?.value.trim();
+      if (!t) return;
+      (state.recipeInbox = state.recipeInbox || []).push({ text: t, date: todayKey() });
+      save(); renderMeals(); toast("📥 Saved to your recipe inbox"); return;
+    }
+    case "inbox-del": {
+      state.recipeInbox.splice(+el.dataset.idx, 1);
+      save(); return renderMeals();
+    }
     case "toggle-favorite": {
       if (state.favorites?.[el.dataset.template]) delete state.favorites[el.dataset.template];
       else (state.favorites = state.favorites || {})[el.dataset.template] = true;
