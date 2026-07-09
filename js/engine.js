@@ -199,12 +199,24 @@ function daysSinceUse(state, key, today) {
   return Math.round((parseKey(today) - parseKey(last)) / 86400000);
 }
 
-function scoreTemplate(state, tpl, todayKey, usedThisWeek, carryover) {
+// How urgently a template's fresh ingredients need to be cooked (0 = shelf-stable)
+function perishUrgency(data, tpl) {
+  let worst = 0;
+  for (const ing of tpl.base) {
+    const prod = data.products.find((x) => x.id === ing.product);
+    if (prod?.perishDays) worst = Math.max(worst, 6 - Math.min(prod.perishDays, 6));
+  }
+  return worst;
+}
+
+function scoreTemplate(state, tpl, todayKey, usedThisWeek, carryover, data, dayIndex = 3) {
   let score = Math.min(daysSinceUse(state, `t:${tpl.id}`, todayKey), 30);
   const uses = usedThisWeek[tpl.id] || 0;
   if (tpl.repeatOk) score += 6 - uses * 2; // favorites can repeat, with decay
   else score -= uses * 25; // non-repeat meals strongly resist repeating in-week
   if (carryover?.has(tpl.id)) score += 15; // groceries already bought from a skipped day
+  // fresh salmon/greens cook early in the week; freezer/pantry meals can wait
+  if (data) score += perishUrgency(data, tpl) * (6 - dayIndex) * 0.8;
   return score;
 }
 
@@ -240,7 +252,7 @@ function generateWeek(data, state, startKey, mode) {
   if (mode === "prep") {
     const batchables = dinners.filter((t) => t.freezerFriendly && t.servings > 1);
     batchTpl = batchables.sort((a, b) =>
-      scoreTemplate(state, b, startKey, {}, carryover) - scoreTemplate(state, a, startKey, {}, carryover))[0] || null;
+      scoreTemplate(state, b, startKey, {}, carryover, data, 5) - scoreTemplate(state, a, startKey, {}, carryover, data, 5))[0] || null;
   }
 
   const days = {};
@@ -271,7 +283,7 @@ function generateWeek(data, state, startKey, mode) {
       const quick = pool.filter((t) => t.prepMinutes <= lunchCap);
       if (quick.length) pool = quick;
       const tpl = pool.sort((a, b) =>
-        scoreTemplate(state, b, key, usedThisWeek, carryover) - scoreTemplate(state, a, key, usedThisWeek, carryover))[0];
+        scoreTemplate(state, b, key, usedThisWeek, carryover, data, i) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i))[0];
       meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });
       usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
     }
@@ -298,7 +310,7 @@ function generateWeek(data, state, startKey, mode) {
           if (quick.length) pool = quick;
         }
         const tpl = pool.sort((a, b) =>
-          scoreTemplate(state, b, key, usedThisWeek, carryover) - scoreTemplate(state, a, key, usedThisWeek, carryover))[0];
+          scoreTemplate(state, b, key, usedThisWeek, carryover, data, i) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i))[0];
         meals.push({ slot: "dinner", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });
         usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
       }
@@ -389,6 +401,7 @@ function shoppingList(data, state, startKey) {
   }
 
   const sections = {};
+  const stocked = [];
   for (const [pid, qty] of Object.entries(need)) {
     const prod = productById(data, state, pid);
     if (!prod) continue;
@@ -396,13 +409,15 @@ function shoppingList(data, state, startKey) {
     const item = {
       id: pid, name: prod.name, unit: prod.unit, qty: Math.round(qty * 10) / 10,
       packs, packLabel: prod.packLabel || "", note: prod.note || "",
-      needsVerify: prod.confidence === "estimated",
+      needsVerify: prod.confidence === "estimated", staple: !!prod.staple,
       calories: prod.calories, protein: prod.protein,
     };
+    if (prod.staple && state.pantry?.[pid]) { stocked.push(item); continue; }
     (sections[prod.section] = sections[prod.section] || []).push(item);
   }
   const order = ["Produce", "Meat & Seafood", "Dairy & Eggs", "Frozen", "Bread & Bakery", "Pantry", "Snacks", "Condiments & Sauces", "Beverages"];
-  return order.filter((s) => sections[s]).map((s) => ({ section: s, items: sections[s].sort((a, b) => a.name.localeCompare(b.name)) }));
+  const buy = order.filter((s) => sections[s]).map((s) => ({ section: s, items: sections[s].sort((a, b) => a.name.localeCompare(b.name)) }));
+  return { sections: buy, stocked: stocked.sort((a, b) => a.name.localeCompare(b.name)) };
 }
 
 export {
@@ -410,5 +425,5 @@ export {
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
-  generateWeek, recordHistory, shoppingList, collectCarryover,
+  generateWeek, recordHistory, shoppingList, collectCarryover, perishUrgency,
 };

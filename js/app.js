@@ -21,6 +21,7 @@ function defaultState() {
     history: {},
     productOverrides: {},
     shopChecks: {},
+    pantry: {},
     overageBank: 0,
     planMode: "auto",
     theme: "auto",
@@ -197,6 +198,10 @@ function renderMeals() {
     <div class="card" style="padding:4px 16px">${seed}</div>
     <div class="ob-section">Learned from TikTok / IG 🔥</div>
     <div class="card" style="padding:4px 16px">${trending}</div>
+    <div class="card mt8" data-action="sheet-products" style="cursor:pointer">
+      <div class="list-title-row"><h3>🏪 TJ's product library</h3><span class="muted">›</span></div>
+      <div class="small muted">${DATA.products.length} products with calories & protein — ${DATA.products.filter((p) => E.productById(DATA, state, p.id).confidence === "estimated").length} still need a label check.</div>
+    </div>
     <div class="card mt8">
       <h3>Add a new one</h3>
       <div class="small muted mt8">See something online? Open a Claude Code session on the <b>fuel</b> repo and say “add this to my rotation” + the link. It lands here with TJ's ingredients and macros worked out.</div>
@@ -459,7 +464,7 @@ function renderShop() {
   if (!state.profile) return;
   const start = E.addDays(E.weekStart(new Date()), shopWeekOffset * 7);
   const startK = E.dateKey(start);
-  const list = E.shoppingList(DATA, state, startK);
+  const { sections: list, stocked } = E.shoppingList(DATA, state, startK);
   const estCount = list.flatMap((s) => s.items).filter((i) => i.needsVerify).length;
   let total = 0, checked = 0;
 
@@ -493,7 +498,21 @@ function renderShop() {
     ${total && checked === total ? `<div class="trim-note" style="margin-bottom:10px">All shopped ✓ — you're set. <button class="btn small" data-action="go-today">☀️ See Today</button></div>` : ""}
     ${total ? `<div class="small muted" style="margin-bottom:4px">${checked}/${total} picked up</div>` : ""}
     ${estCount ? `<div class="trim-note" style="margin-bottom:10px">🏷 ${estCount} item${estCount > 1 ? "s have" : " has"} <b>estimated</b> macros. Tap “Check label” at the store and Fuel remembers the real numbers forever.</div>` : ""}
-    ${sections || '<div class="card empty">Nothing to buy — plan a week first on the Plan tab.</div>'}`;
+    ${sections || '<div class="card empty">Nothing to buy — plan a week first on the Plan tab.</div>'}
+    ${stocked.length ? `
+    <div class="shop-section"><h4>🧂 Staples you already have</h4>
+      <div class="card" style="padding:4px 16px">
+        ${stocked.map((i) => `
+          <div class="shop-item">
+            <span style="width:26px;text-align:center">✓</span>
+            <div style="flex:1"><div class="shop-name" style="color:var(--muted)">${esc(i.name)}</div></div>
+            <button class="btn small ghost" data-action="pantry-out" data-product="${i.id}">Out — re-buy</button>
+          </div>`).join("")}
+      </div>
+      <div class="small muted" style="margin:4px 2px 12px">Bought once, remembered. Tap "Out" when a jar runs dry and it goes back on the list.</div>
+    </div>` : ""}
+    ${total && checked === total ? `<button class="btn primary" style="width:100%" data-action="shop-complete" data-start="${startK}">✅ Shop complete — slot perishables first</button>
+    <div class="small muted mt8">Re-plans the remaining days so fresh stuff (greens, raw meat, salmon) gets cooked before it turns.</div>` : ""}`;
 }
 
 // ----- Progress -----
@@ -927,6 +946,28 @@ function sheetAddFreezer() {
   openSheet(`<h3>Add freezer portions</h3><div class="sub">What's sitting in the freezer?</div>${rows}`);
 }
 
+function sheetProducts() {
+  const groups = {};
+  for (const p of DATA.products) {
+    const eff = E.productById(DATA, state, p.id);
+    (groups[p.section] = groups[p.section] || []).push({ ...eff, staple: p.staple, perishDays: p.perishDays });
+  }
+  const html = Object.entries(groups).map(([sec, items]) => `
+    <div class="ob-section">${esc(sec)}</div>
+    ${items.map((p) => `
+      <button class="option-row" data-action="sheet-verify" data-product="${p.id}">
+        <div class="o-main"><div class="o-name">${esc(p.name)}</div>
+        <div class="o-sub">${esc(p.unit)}${p.staple ? " · 🧂 staple" : ""}${p.perishDays ? ` · 🥬 ~${p.perishDays}d fresh` : ""}</div></div>
+        <div class="o-kcal">${p.calories} · ${p.protein}g ${p.confidence === "estimated" ? '<span class="badge est">est.</span>' : "✓"}</div>
+      </button>`).join("")}`).join("");
+  openSheet(`
+    <h3>🏪 TJ's product library</h3>
+    <div class="sub">Every product the app knows. Tap any to correct its numbers from the label — verified ones show ✓.</div>
+    ${html}
+    <div class="small muted mt16">Spot something new at TJ's (like those Egyptian flatbreads)? Tell Claude to add it and it lands here.</div>
+  `);
+}
+
 function sheetImport() {
   openSheet(`
     <h3>Restore backup</h3>
@@ -1039,6 +1080,7 @@ function handleAction(el) {
     case "sheet-verify": return sheetVerify(el.dataset.product);
     case "sheet-add-freezer": return sheetAddFreezer();
     case "sheet-import": return sheetImport();
+    case "sheet-products": return sheetProducts();
 
     case "mark-done": return markDone(el.dataset.date);
     case "undo-status": {
@@ -1133,7 +1175,22 @@ function handleAction(el) {
     case "shop-check": {
       const k = el.dataset.key;
       state.shopChecks[k] = !state.shopChecks[k];
+      const pid = k.split(":")[1];
+      const prod = DATA.products.find((x) => x.id === pid);
+      if (prod?.staple) {
+        if (state.shopChecks[k]) state.pantry[pid] = true;
+        else delete state.pantry[pid];
+      }
       save(); return renderShop();
+    }
+    case "pantry-out": {
+      delete state.pantry[el.dataset.product];
+      save(); return renderShop();
+    }
+    case "shop-complete": {
+      const days = E.generateWeek(DATA, state, el.dataset.start, state.planMode);
+      Object.assign(state.plan.days, days);
+      save(); renderAll(); switchTab("today"); return;
     }
     case "save-verify": {
       const cal = +($("#v-cal").value || 0), pro = +($("#v-pro").value || 0);
