@@ -8,6 +8,7 @@ let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
 let currentTab = "today";
+let lastTab = "today";
 let planWeekOffset = 0;
 let shopWeekOffset = 0;
 let sheetCtx = null;
@@ -211,7 +212,7 @@ function renderMeals() {
   const trending = DATA.templates.filter((t) => t.source === "trending").map(row).join("");
   el.innerHTML = `
     <div class="list-title-row"><div class="screen-title">Meals</div>
-      <button class="btn small ghost" data-action="open-settings">⚙️ Settings</button></div>
+      <button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">Everything in your rotation — tap any meal to read the full recipe.</div>
     <div class="ob-section">Your rotation</div>
     <div class="card" style="padding:4px 16px">${seed}</div>
@@ -354,7 +355,7 @@ function renderToday() {
 
   el.innerHTML = `
     <div class="list-title-row"><div class="screen-title">Today</div>
-      <button class="btn small ghost" data-action="open-settings">⚙️</button></div>
+      <button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">${dateStr}</div>
 
     <div class="card">
@@ -452,7 +453,7 @@ function renderPlan() {
   }).join("");
 
   el.innerHTML = `
-    <div class="screen-title">Plan</div>
+    <div class="list-title-row"><div class="screen-title">Plan</div><button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">Auto-plan decides for you. Shuffling only touches today onward — done and locked days are safe.</div>
 
     <div class="chips">
@@ -507,7 +508,7 @@ function renderShop() {
   }).join("");
 
   el.innerHTML = `
-    <div class="screen-title">Shop</div>
+    <div class="list-title-row"><div class="screen-title">Shop</div><button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">Trader Joe's list for the planned week — grouped the way the store flows.</div>
     <div class="chips">
       <button class="chip ${shopWeekOffset === 0 ? "on" : ""}" data-action="shop-week" data-offset="0">This week</button>
@@ -557,7 +558,7 @@ function renderProgress() {
     </div>`).join("");
 
   el.innerHTML = `
-    <div class="screen-title">Progress</div>
+    <div class="list-title-row"><div class="screen-title">Progress</div><button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">Goal: ${target} lb (−${p.goalLossLb} from ${p.startWeightLb})</div>
 
     <div class="tiles">
@@ -1186,7 +1187,7 @@ function handleAction(el) {
       save(); closeSheet(); renderAll(); return;
     }
 
-    case "open-settings": return switchTab("more");
+    case "open-settings": lastTab = currentTab; return switchTab("more");
     case "check-updates": {
       toast("Checking for updates…");
       navigator.serviceWorker?.getRegistration().then(async (reg) => {
@@ -1204,7 +1205,7 @@ function handleAction(el) {
       }).catch(() => toast("Couldn't reach the server — try on WiFi"));
       return;
     }
-    case "back-today": return switchTab("today");
+    case "back-today": return switchTab(lastTab === "more" ? "today" : lastTab);
     case "open-browse": return sheetBrowse(el.dataset.template);
     case "use-today": {
       const key = todayKey();
