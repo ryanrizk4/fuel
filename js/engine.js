@@ -72,7 +72,8 @@ function budgetIsFloored(p) {
 }
 
 function proteinTarget(p) {
-  return Math.round(p.weightLb * (p.proteinPerLb || 0.8));
+  const ideal = (p.startWeightLb && p.goalLossLb) ? p.startWeightLb - p.goalLossLb : p.weightLb;
+  return Math.round(ideal * (p.proteinPerLb || 1.0));
 }
 
 // Effective budget today = budget − overage-bank trim + any extra-activity credit for the day
@@ -193,6 +194,16 @@ function dayConsumed(data, state, day) {
 
 // ---------- rotation / auto-plan ----------
 
+// deterministic rng so each "re-plan" press explores a different valid plan
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function daysSinceUse(state, key, today) {
   const last = state.history?.[key];
   if (!last) return 999;
@@ -209,14 +220,17 @@ function perishUrgency(data, tpl) {
   return worst;
 }
 
-function scoreTemplate(state, tpl, todayKey, usedThisWeek, carryover, data, dayIndex = 3) {
+function scoreTemplate(state, tpl, todayKey, usedThisWeek, carryover, data, dayIndex = 3, rng = null, recentTpls = null) {
   let score = Math.min(daysSinceUse(state, `t:${tpl.id}`, todayKey), 30);
   const uses = usedThisWeek[tpl.id] || 0;
   if (tpl.repeatOk) score += 6 - uses * 2; // favorites can repeat, with decay
   else score -= uses * 25; // non-repeat meals strongly resist repeating in-week
   if (carryover?.has(tpl.id)) score += 15; // groceries already bought from a skipped day
-  // fresh salmon/greens cook early in the week; freezer/pantry meals can wait
+  if (state.favorites?.[tpl.id]) score += 10; // "add to rotation" boost
+  if (recentTpls?.has(tpl.id) && !tpl.repeatOk) score -= 14; // planned in an adjacent week already
+  score -= Math.max(0, tpl.prepMinutes - 30) * 0.2; // keep overall prep short
   if (data) score += perishUrgency(data, tpl) * (6 - dayIndex) * 0.8;
+  if (rng) score += rng() * 7; // seeded variety — each re-plan explores a different plan
   return score;
 }
 
@@ -234,7 +248,15 @@ function pickVariant(state, tpl, todayKey) {
  * mode: 'auto' (balanced) | 'prep' (weekend batch + freezer through week) | 'easy' (quick + freezer only)
  * Preserves days that already have status !== 'planned' and meals the user locked.
  */
-function generateWeek(data, state, startKey, mode) {
+function generateWeek(data, state, startKey, mode, seed = 1) {
+  const rng = mulberry32(seed * 2654435761 + 97);
+  const recentTpls = new Set();
+  for (const [k, d] of Object.entries(state.plan.days)) {
+    const diff = Math.round((parseKey(k) - parseKey(startKey)) / 86400000);
+    if ((diff >= -7 && diff < 0) || (diff >= 7 && diff < 14))
+      for (const m of d.meals || []) recentTpls.add(m.templateId);
+  }
+  const nowKey = dateKey(new Date());
   const p = state.profile;
   const budget = dailyBudget(p);
   const pTarget = proteinTarget(p);
@@ -252,14 +274,15 @@ function generateWeek(data, state, startKey, mode) {
   if (mode === "prep") {
     const batchables = dinners.filter((t) => t.freezerFriendly && t.servings > 1);
     batchTpl = batchables.sort((a, b) =>
-      scoreTemplate(state, b, startKey, {}, carryover, data, 5) - scoreTemplate(state, a, startKey, {}, carryover, data, 5))[0] || null;
+      scoreTemplate(state, b, startKey, {}, carryover, data, 5, rng, recentTpls) - scoreTemplate(state, a, startKey, {}, carryover, data, 5, rng, recentTpls))[0] || null;
   }
 
   const days = {};
   for (let i = 0; i < 7; i++) {
     const key = dateKey(addDays(start, i));
     const existing = state.plan.days[key];
-    if (existing && existing.status !== "planned") { days[key] = existing; continue; }
+    if (existing && (existing.status !== "planned" || key < nowKey)) { days[key] = existing; continue; }
+    if (key < nowKey) continue; // never plan days already in the past
 
     const meals = [];
     const keepLocked = (slot) => existing?.meals?.find((m) => m.slot === slot && m.locked);
@@ -283,7 +306,7 @@ function generateWeek(data, state, startKey, mode) {
       const quick = pool.filter((t) => t.prepMinutes <= lunchCap);
       if (quick.length) pool = quick;
       const tpl = pool.sort((a, b) =>
-        scoreTemplate(state, b, key, usedThisWeek, carryover, data, i) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i))[0];
+        scoreTemplate(state, b, key, usedThisWeek, carryover, data, i, rng, recentTpls) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i, rng, recentTpls))[0];
       meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });
       usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
     }
@@ -310,7 +333,7 @@ function generateWeek(data, state, startKey, mode) {
           if (quick.length) pool = quick;
         }
         const tpl = pool.sort((a, b) =>
-          scoreTemplate(state, b, key, usedThisWeek, carryover, data, i) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i))[0];
+          scoreTemplate(state, b, key, usedThisWeek, carryover, data, i, rng, recentTpls) - scoreTemplate(state, a, key, usedThisWeek, carryover, data, i, rng, recentTpls))[0];
         meals.push({ slot: "dinner", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });
         usedThisWeek[tpl.id] = (usedThisWeek[tpl.id] || 0) + 1;
       }
