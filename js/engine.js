@@ -260,15 +260,16 @@ function generateWeek(data, state, startKey, mode) {
       meals.push({ slot: "breakfast", templateId: bTpl.id, variantId: pickVariant(state, bTpl, key) });
     }
 
-    // lunch
+    // lunch — weekday lunches respect the work-time cap (he cooks at/for work)
     const lLocked = keepLocked("lunch");
     if (lLocked) meals.push(lLocked);
     else {
       let pool = lunches;
-      if (mode === "easy") {
-        const quick = pool.filter((t) => t.prepMinutes <= 15);
-        if (quick.length) pool = quick;
-      }
+      const dowL = addDays(start, i).getDay();
+      const isWorkday = dowL >= 1 && dowL <= 5;
+      const lunchCap = mode === "easy" ? 15 : isWorkday ? (p.maxLunchMinutes || 60) : 60;
+      const quick = pool.filter((t) => t.prepMinutes <= lunchCap);
+      if (quick.length) pool = quick;
       const tpl = pool.sort((a, b) =>
         scoreTemplate(state, b, key, usedThisWeek, carryover) - scoreTemplate(state, a, key, usedThisWeek, carryover))[0];
       meals.push({ slot: "lunch", templateId: tpl.id, variantId: pickVariant(state, tpl, key) });

@@ -50,6 +50,30 @@ function slotLabel(slot) {
   return { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" }[slot] || slot;
 }
 
+// "2 × 1 tortilla" reads like math homework — render "2 tortillas", "¼ cup", "9 oz" instead
+function fmtIngQty(qty, unit) {
+  const nice = (n) => {
+    const map = { 0.25: "¼", 0.33: "⅓", 0.5: "½", 0.67: "⅔", 0.75: "¾", 1.25: "1¼", 1.33: "1⅓", 1.5: "1½", 2.5: "2½" };
+    return map[n] || (Number.isInteger(n) ? String(n) : String(n));
+  };
+  const m1 = unit.match(/^1 (.+)$/);
+  if (m1) {
+    let rest = m1[1];
+    // scale numeric sub-units: "1 cup (240ml)" → drop parens; "3 oz" handled below
+    rest = rest.replace(/\s*\(.*\)$/, "");
+    const noPlural = /^(tbsp|tsp|oz|g|min)$/i.test(rest);
+    const plural = qty > 1 && /^[a-z]+$/i.test(rest) && !/s$/.test(rest) && !noPlural ? "s" : "";
+    return `${nice(qty)} ${rest}${plural}`;
+  }
+  const mNum = unit.match(/^(\d+(?:\.\d+)?)\s*(oz|g|tbsp|tsp|shots?|cups?)(.*)$/i);
+  if (mNum) {
+    const scaled = Math.round(+mNum[1] * qty * 10) / 10;
+    return `${scaled} ${mNum[2]}${mNum[3] || ""}`;
+  }
+  if (qty === 1) return unit;
+  return `${nice(qty)} × ${unit}`;
+}
+
 function mealTitle(m) {
   const tpl = E.templateById(DATA, m.templateId);
   if (!tpl) return { name: "?", variant: "", emoji: "🍽" };
@@ -95,6 +119,7 @@ function readOnboarding() {
     goalLossLb: +($("#ob-loss").value || 10),
     breakfastDefault: $("#ob-breakfast").value,
     treatsPerWeek: +$("#ob-treats").value,
+    maxLunchMinutes: +$("#ob-lunch-time").value,
     proteinPerLb: 0.8,
   };
 }
@@ -555,6 +580,11 @@ function renderMore() {
           </select>
         </div>
       </div>
+      <div class="field"><label>Weekday lunch time cap</label>
+        <select id="s-lunch-time">
+          ${[[10, "10 min"], [15, "15 min"], [25, "25 min"], [60, "No limit"]].map(([v, l]) => `<option value="${v}" ${(p.maxLunchMinutes || 60) === v ? "selected" : ""}>${l}</option>`).join("")}
+        </select>
+      </div>
       <button class="btn primary" data-action="save-profile" style="width:100%">Save</button>
     </div>
 
@@ -597,9 +627,34 @@ function renderMore() {
 
 function openSheet(html, ctx) {
   sheetCtx = ctx || null;
-  $("#sheet").innerHTML = `<div class="sheet-handle"></div>${html}`;
-  $("#sheet").classList.add("open");
+  const sheet = $("#sheet");
+  sheet.innerHTML = `<div class="sheet-grab"><div class="sheet-handle"></div>
+    <button class="sheet-close" data-action="close-sheet" aria-label="close">✕</button></div>${html}`;
+  sheet.scrollTop = 0;
+  sheet.classList.add("open");
   $("#sheet-backdrop").classList.add("open");
+  bindSheetDrag(sheet);
+}
+
+// swipe-down on the grab area (or anywhere when scrolled to top) dismisses the sheet
+function bindSheetDrag(sheet) {
+  let startY = null, delta = 0;
+  const grab = sheet.querySelector(".sheet-grab");
+  const onStart = (e) => { startY = e.touches[0].clientY; delta = 0; sheet.classList.add("dragging"); };
+  const onMove = (e) => {
+    if (startY === null) return;
+    delta = Math.max(0, e.touches[0].clientY - startY);
+    sheet.style.transform = `translateY(${delta}px)`;
+  };
+  const onEnd = () => {
+    sheet.classList.remove("dragging");
+    sheet.style.transform = "";
+    if (delta > 90) closeSheet();
+    startY = null;
+  };
+  grab.addEventListener("touchstart", onStart, { passive: true });
+  grab.addEventListener("touchmove", onMove, { passive: true });
+  grab.addEventListener("touchend", onEnd);
 }
 
 function closeSheet() {
@@ -634,17 +689,43 @@ function sheetMeal(dateK, idx) {
         </button>`;
     }).join("");
 
-  const steps = tpl.steps?.length ? `<div class="small muted" style="padding:10px 4px 0">👨‍🍳 ${tpl.steps.map(esc).join(" → ")}</div>` : "";
+  const mm = E.mealMacros(DATA, state, tpl.id, m.variantId, por);
+  const ingredients = E.mealIngredients(tpl, m.variantId).map((ing) => {
+    const prod = E.productById(DATA, state, ing.product);
+    if (!prod) return "";
+    const qty = Math.round(ing.qty * por * 100) / 100;
+    return `<div class="ing-row"><span class="ing-qty">${fmtIngQty(qty, prod.unit)}</span><span>${esc(prod.name)}</span></div>`;
+  }).join("");
+  const steps = (tpl.steps || []).map((s, i) =>
+    `<div class="step-row"><div class="step-num">${i + 1}</div><div class="step-text">${esc(s)}</div></div>`).join("");
+  const v = E.variantOf(tpl, m.variantId);
 
   openSheet(`
-    <h3>${tpl.emoji || ""} ${esc(tpl.name)}</h3>
-    <div class="sub">${slotLabel(m.slot)} · ${E.fmtDay(E.parseKey(dateK))} · pick a variation (same cooking motions)</div>
+    <div class="recipe-head">
+      <div class="r-emoji">${tpl.emoji || "🍽"}</div>
+      <div>
+        <h3>${esc(tpl.name)}</h3>
+        <div class="small muted">${slotLabel(m.slot)} · ${E.fmtDay(E.parseKey(dateK))}${v.id !== "classic" ? ` · ${esc(v.name)}` : ""}</div>
+      </div>
+    </div>
+    <div class="meta-chips">
+      <span class="meta-chip">⏱ ${tpl.prepMinutes} min</span>
+      <span class="meta-chip accent">${mm.calories} kcal</span>
+      <span class="meta-chip accent">${mm.protein}g protein</span>
+      ${tpl.freezerFriendly ? '<span class="meta-chip">❄️ freezes well</span>' : ""}
+      ${tpl.source === "trending" ? '<span class="meta-chip">🔥 trending</span>' : ""}
+    </div>
+    <div class="ob-section" style="margin-top:4px">Ingredients${por !== 1 ? ` · ×${por} portions` : ""}</div>
+    ${ingredients}
+    <div class="ob-section">Steps</div>
+    ${steps}
+    ${tpl.origin ? `<div class="small muted mt8">${esc(tpl.origin)}</div>` : ""}
+    <div class="ob-section">Make it yours</div>
     ${!m.batchCook && !m.fromFreezer ? `
     <div class="seg" style="margin-bottom:8px">
       ${[1, 1.5, 2].map((x) => `<button class="${por === x ? "on" : ""}" data-action="set-portions" data-portions="${x}">×${x} portion${x !== 1 ? "s" : ""}</button>`).join("")}
     </div>` : ""}
     ${variants}
-    ${steps}
     <div class="ob-section">Switch to a different meal</div>
     ${others || '<div class="small muted">No alternatives for this slot.</div>'}
   `, { type: "meal", dateK, idx });
@@ -979,6 +1060,7 @@ function handleAction(el) {
       p.deficit = +$("#s-deficit").value;
       p.breakfastDefault = $("#s-breakfast").value;
       p.treatsPerWeek = +$("#s-treats").value;
+      p.maxLunchMinutes = +$("#s-lunch-time").value;
       save(); renderAll(); return;
     }
     case "set-theme": {
@@ -1045,6 +1127,7 @@ document.addEventListener("click", (e) => {
   const nav = e.target.closest(".nav button");
   if (nav) return switchTab(nav.dataset.tab);
   if (e.target.closest("#sheet-backdrop")) return closeSheet();
+  if (e.target.closest('[data-action="close-sheet"]')) return closeSheet();
   const el = e.target.closest("[data-action]");
   if (el) handleAction(el);
 });

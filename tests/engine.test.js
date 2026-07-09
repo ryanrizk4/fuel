@@ -174,6 +174,18 @@ test("freezer portions get scheduled and prep mode schedules a weekend batch coo
   assert.ok(dow === 0 || dow === 6, "batch cook lands on a weekend");
 });
 
+test("weekday lunches respect the work-time cap; weekends are free", () => {
+  const s = freshState();
+  s.profile.maxLunchMinutes = 15;
+  const days = E.generateWeek(DATA, s, "2026-07-06", "auto"); // Mon start
+  const keys = Object.keys(days).sort();
+  for (let i = 0; i < 5; i++) { // Mon-Fri
+    const lunch = days[keys[i]].meals.find((m) => m.slot === "lunch");
+    const tpl = E.templateById(DATA, lunch.templateId);
+    assert.ok(tpl.prepMinutes <= 15, `${keys[i]} weekday lunch ${tpl.id} takes ${tpl.prepMinutes} min`);
+  }
+});
+
 test("non-repeatable meals don't appear twice in a week", () => {
   const days = E.generateWeek(DATA, freshState(), "2026-07-06", "auto");
   const counts = {};
