@@ -1,0 +1,503 @@
+{
+  "$schema": "Meal templates. A template = one dish you know how to cook, with variants that keep the same cooking motions. base = ingredients (product id + qty in product units) for ONE serving unless servings > 1 (batch). Variants add/remove ingredients from base. repeatOk = fine to eat several times a week. source: 'seed' = user's own rotation, 'trending' = ingested from TikTok/IG research.",
+  "templates": [
+    {
+      "id": "tortilla-melt",
+      "name": "Air-Fryer Tortilla Melt",
+      "emoji": "🌯",
+      "mealType": ["lunch", "breakfast"],
+      "prepMinutes": 15,
+      "freezerFriendly": false,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        { "product": "mission-carb-balance-tortilla", "qty": 1 },
+        { "product": "tj-large-egg", "qty": 2 },
+        { "product": "tj-cottage-cheese-lowfat", "qty": 1 },
+        { "product": "zaatar", "qty": 1 },
+        { "product": "tj-lite-mozzarella", "qty": 1 }
+      ],
+      "steps": [
+        "Scramble eggs with cottage cheese and za'atar",
+        "Spread on tortilla, fold or roll",
+        "Air-fry ~6 min at 375°F",
+        "Sprinkle cheese on top, air-fry 2 more min"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Za'atar classic", "add": [], "remove": [], "note": "The one you know by heart" },
+        { "id": "turkey-bacon", "name": "+ Turkey bacon", "add": [{ "product": "tj-turkey-bacon", "qty": 2 }], "remove": [], "note": "Crisp the bacon first, chop it in" },
+        { "id": "salsa", "name": "Salsa swap", "add": [{ "product": "tj-salsa", "qty": 1 }], "remove": ["zaatar"], "note": "Mexican direction, same motions" },
+        { "id": "zhoug", "name": "Zhoug kick", "add": [{ "product": "tj-zhoug", "qty": 1 }], "remove": [], "note": "Spicy herby — drizzle after air-frying" }
+      ]
+    },
+    {
+      "id": "turkey-burgers",
+      "name": "Turkey Burgers & Sauce",
+      "emoji": "🍔",
+      "mealType": ["dinner"],
+      "prepMinutes": 15,
+      "freezerFriendly": false,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        { "product": "tj-turkey-patty", "qty": 2 },
+        { "product": "mustard-yellow", "qty": 1 },
+        { "product": "hot-sauce", "qty": 1 },
+        { "product": "ketchup", "qty": 1 }
+      ],
+      "steps": [
+        "Cook 2 patties from frozen (pan or air fryer)",
+        "Mix mustard + hot sauce + ketchup",
+        "Sauce on top, eat"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Classic sauce", "add": [], "remove": [], "note": "Mustard–hot sauce–ketchup" },
+        { "id": "zhoug-mayo", "name": "Zhoug mayo sauce", "add": [{ "product": "tj-zhoug", "qty": 1 }, { "product": "mayo", "qty": 0.5 }], "remove": ["mustard-yellow", "ketchup"], "note": "Herby heat instead" },
+        { "id": "pita-wrap", "name": "In a pita", "add": [{ "product": "tj-pita", "qty": 1 }], "remove": [], "note": "Stuff patties + sauce in a pita" },
+        { "id": "cheese-top", "name": "Cheese-topped", "add": [{ "product": "tj-lite-mozzarella", "qty": 1 }], "remove": [], "note": "Melt cheese on patties last minute" }
+      ]
+    },
+    {
+      "id": "tuna-pasta-salad",
+      "name": "Tuna Pasta Salad & Slaw",
+      "emoji": "🥗",
+      "mealType": ["lunch", "dinner"],
+      "prepMinutes": 20,
+      "freezerFriendly": false,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        { "product": "tj-pasta-dry", "qty": 1 },
+        { "product": "tj-tuna-water", "qty": 1 },
+        { "product": "tj-shredded-cabbage-carrots", "qty": 2 },
+        { "product": "tj-greek-yogurt-nonfat", "qty": 0.25 },
+        { "product": "mustard-yellow", "qty": 1 },
+        { "product": "mayo", "qty": 1 },
+        { "product": "hot-sauce", "qty": 1 }
+      ],
+      "steps": [
+        "Boil 100g pasta, rinse cold",
+        "Mix sauce: yogurt + mustard + mayo + hot sauce + seasonings",
+        "Toss pasta, tuna, cabbage & carrots with sauce"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Tuna classic", "add": [], "remove": [], "note": "" },
+        { "id": "chicken", "name": "Chicken swap", "add": [{ "product": "tj-chicken-breast", "qty": 1 }], "remove": ["tj-tuna-water"], "note": "Use leftover or grilled chicken" },
+        { "id": "lighter", "name": "Lighter (no mayo)", "add": [], "remove": ["mayo"], "note": "Saves ~90 kcal, extra yogurt if needed" },
+        { "id": "lentil-pasta", "name": "Protein pasta swap", "add": [{ "product": "tj-lentil-pasta", "qty": 1 }], "remove": ["tj-pasta-dry"], "note": "More protein, fewer carbs" }
+      ]
+    },
+    {
+      "id": "beef-ragu-batch",
+      "name": "Beef Ragu (weekend batch)",
+      "emoji": "🍝",
+      "mealType": ["dinner"],
+      "prepMinutes": 35,
+      "freezerFriendly": true,
+      "repeatOk": true,
+      "servings": 4,
+      "source": "seed",
+      "base": [
+        { "product": "tj-ground-beef-90", "qty": 4 },
+        { "product": "tj-marinara", "qty": 4 },
+        { "product": "tj-pasta-dry", "qty": 4 }
+      ],
+      "steps": [
+        "Brown 1 lb beef, add jar of marinara, simmer 15 min",
+        "Portion into 4, freeze what you won't eat in 2 days",
+        "Per meal: defrost a portion, boil 100g pasta, combine"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Beef classic", "add": [], "remove": [], "note": "" },
+        { "id": "turkey", "name": "Ground turkey swap", "add": [{ "product": "tj-ground-turkey-93", "qty": 4 }], "remove": ["tj-ground-beef-90"], "note": "Leaner, same motions" },
+        { "id": "cauli-base", "name": "Lighter: cauliflower rice base", "add": [{ "product": "tj-riced-cauliflower", "qty": 4 }], "remove": ["tj-pasta-dry"], "note": "Saves ~335 kcal per serving" },
+        { "id": "spicy", "name": "Spicy zhoug ragu", "add": [{ "product": "tj-zhoug", "qty": 2 }], "remove": [], "note": "Stir zhoug in at the end" }
+      ]
+    },
+    {
+      "id": "latte",
+      "name": "Latte",
+      "emoji": "☕",
+      "mealType": ["breakfast"],
+      "prepMinutes": 5,
+      "freezerFriendly": false,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        { "product": "espresso", "qty": 1 },
+        { "product": "tj-whole-milk", "qty": 1 }
+      ],
+      "steps": ["Pull espresso, steam milk, done"],
+      "variants": [
+        { "id": "classic", "name": "Whole milk", "add": [], "remove": [], "note": "" },
+        { "id": "2pct", "name": "2% milk", "add": [{ "product": "tj-2pct-milk", "qty": 1 }], "remove": ["tj-whole-milk"], "note": "Saves 30 kcal" },
+        { "id": "almond", "name": "Almond milk", "add": [{ "product": "tj-almond-milk", "qty": 1 }], "remove": ["tj-whole-milk"], "note": "Lightest option" },
+        { "id": "oat", "name": "Oat milk", "add": [{ "product": "tj-oat-milk", "qty": 1 }], "remove": ["tj-whole-milk"], "note": "" }
+      ]
+    },
+    {
+      "id": "bagel-breakfast",
+      "name": "Bagel Breakfast",
+      "emoji": "🥯",
+      "mealType": ["breakfast"],
+      "prepMinutes": 8,
+      "freezerFriendly": false,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        { "product": "tj-plain-bagel", "qty": 1 },
+        { "product": "tj-cream-cheese-light", "qty": 1 }
+      ],
+      "steps": ["Toast bagel, schmear, eat"],
+      "variants": [
+        { "id": "classic", "name": "Cream cheese", "add": [], "remove": [], "note": "" },
+        { "id": "egg", "name": "+ Fried egg", "add": [{ "product": "tj-large-egg", "qty": 1 }], "remove": [], "note": "Breakfast sandwich mode" },
+        { "id": "protein", "name": "Egg + turkey bacon", "add": [{ "product": "tj-large-egg", "qty": 1 }, { "product": "tj-turkey-bacon", "qty": 1 }], "remove": [], "note": "Full sandwich" }
+      ]
+    },
+    {
+      "id": "yogurt-bowl",
+      "name": "Greek Yogurt Bowl",
+      "emoji": "🫐",
+      "mealType": ["breakfast"],
+      "prepMinutes": 3,
+      "freezerFriendly": false,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        { "product": "tj-greek-yogurt-nonfat", "qty": 1 },
+        { "product": "tj-frozen-berries", "qty": 1 },
+        { "product": "tj-honey", "qty": 1 }
+      ],
+      "steps": ["Yogurt in bowl, berries on top, drizzle honey"],
+      "variants": [
+        { "id": "classic", "name": "Berries & honey", "add": [], "remove": [], "note": "" },
+        { "id": "plain", "name": "No honey", "add": [], "remove": ["tj-honey"], "note": "Saves 60 kcal" }
+      ]
+    },
+    {
+      "id": "cottage-cheese-pasta",
+      "name": "Cottage Cheese Pasta (Protein Alfredo)",
+      "emoji": "🧀",
+      "mealType": ["lunch", "dinner"],
+      "prepMinutes": 15,
+      "freezerFriendly": false,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "The blended cottage cheese sauce that blew up on TikTok — creamy alfredo texture, huge protein",
+      "base": [
+        { "product": "tj-lentil-pasta", "qty": 1.25 },
+        { "product": "tj-cottage-cheese-lowfat", "qty": 1.5 },
+        { "product": "tj-parmesan", "qty": 1 },
+        { "product": "garlic", "qty": 1 },
+        { "product": "tj-spinach", "qty": 1 }
+      ],
+      "steps": [
+        "Boil pasta, reserve a splash of pasta water",
+        "Blend cottage cheese + parmesan + garlic + salt until totally smooth",
+        "Toss hot pasta with sauce off-heat, loosen with pasta water",
+        "Fold in spinach, finish with black pepper"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Alfredo style", "add": [], "remove": [], "note": "" },
+        { "id": "pink-sauce", "name": "Pink sauce", "add": [{ "product": "tj-marinara", "qty": 0.5 }], "remove": [], "note": "Blend in marinara — the viral 'pink sauce'" },
+        { "id": "regular-pasta", "name": "Regular pasta swap", "add": [{ "product": "tj-pasta-dry", "qty": 0.75 }], "remove": ["tj-lentil-pasta"], "note": "If sedanini is out of stock" },
+        { "id": "chicken-boost", "name": "+ Grilled chicken", "add": [{ "product": "tj-grilled-chicken-strips", "qty": 1 }], "remove": [], "note": "For big training days" }
+      ]
+    },
+    {
+      "id": "cottage-cheese-flatbread",
+      "name": "Cottage Cheese Flatbread Wrap",
+      "emoji": "🫓",
+      "mealType": ["lunch", "breakfast"],
+      "prepMinutes": 40,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "The 2-ingredient cottage cheese flatbread that went mega-viral in 2025 — blend, bake, wrap",
+      "base": [
+        { "product": "tj-cottage-cheese-lowfat", "qty": 1 },
+        { "product": "tj-large-egg", "qty": 1 },
+        { "product": "tj-turkey-breast-sliced", "qty": 1 },
+        { "product": "tj-spinach", "qty": 1 },
+        { "product": "dijon-mustard", "qty": 0.5 },
+        { "product": "tj-ebtb", "qty": 1 }
+      ],
+      "steps": [
+        "Blend cottage cheese + egg smooth, season with EBTB",
+        "Pour thin on parchment-lined sheet pan",
+        "Bake 350°F ~35 min until set (hands-off)",
+        "Load with dijon, turkey, spinach; roll and toast seam-side down"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Turkey & spinach", "add": [], "remove": [], "note": "Batch flatbreads and freeze between parchment" },
+        { "id": "pizza", "name": "Pizza flatbread", "add": [{ "product": "tj-marinara", "qty": 0.5 }, { "product": "tj-lite-mozzarella", "qty": 1 }], "remove": ["tj-turkey-breast-sliced", "dijon-mustard", "tj-spinach"], "note": "Top instead of rolling" },
+        { "id": "zaatar", "name": "Za'atar & yogurt", "add": [{ "product": "zaatar", "qty": 1 }, { "product": "tj-greek-yogurt-nonfat", "qty": 0.25 }, { "product": "tj-persian-cucumbers", "qty": 1 }], "remove": ["dijon-mustard", "tj-ebtb"], "note": "Labneh-style — season the batter with za'atar" }
+      ]
+    },
+    {
+      "id": "shawarma-bowl",
+      "name": "Air Fryer Shawarma Bowl",
+      "emoji": "🥙",
+      "mealType": ["dinner", "lunch"],
+      "prepMinutes": 20,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "TJ's Shawarma Chicken Thighs are a fitness-TikTok staple — air-fried into the trending bowl format",
+      "base": [
+        { "product": "tj-shawarma-thighs", "qty": 1.5 },
+        { "product": "tj-frozen-jasmine-rice", "qty": 1 },
+        { "product": "tj-persian-cucumbers", "qty": 1 },
+        { "product": "tj-cherry-tomatoes", "qty": 1 },
+        { "product": "tj-toum", "qty": 1 },
+        { "product": "lemon", "qty": 1 }
+      ],
+      "steps": [
+        "Air fry shawarma thighs 400°F 16–18 min (batch the whole pack on weekends)",
+        "Microwave rice 3 min",
+        "Chop cucumber-tomato salad with lemon and salt",
+        "Slice chicken over rice, add salad, dollop toum"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Toum classic", "add": [], "remove": [], "note": "" },
+        { "id": "wrap", "name": "Tortilla wrap", "add": [{ "product": "mission-carb-balance-tortilla", "qty": 1 }], "remove": ["tj-frozen-jasmine-rice"], "note": "Wrap it instead of rice" },
+        { "id": "tahini", "name": "Tahini sauce", "add": [{ "product": "tj-tahini-sauce", "qty": 1 }], "remove": ["tj-toum"], "note": "Tahini + lemon instead of toum" },
+        { "id": "cauli-rice", "name": "Lighter: cauliflower rice", "add": [{ "product": "tj-riced-cauliflower", "qty": 1 }], "remove": ["tj-frozen-jasmine-rice"], "note": "Saves ~160 kcal" }
+      ]
+    },
+    {
+      "id": "big-mac-bowl",
+      "name": "Big Mac Bowl",
+      "emoji": "🥩",
+      "mealType": ["dinner"],
+      "prepMinutes": 15,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "The deconstructed Big Mac bowl all over macro-friendly TikTok — burger flavors, no bun",
+      "base": [
+        { "product": "tj-ground-beef-96", "qty": 1.5 },
+        { "product": "tj-romaine", "qty": 1 },
+        { "product": "tj-pickles", "qty": 1 },
+        { "product": "tj-lite-mozzarella", "qty": 1 },
+        { "product": "tj-greek-yogurt-nonfat", "qty": 0.2 },
+        { "product": "ketchup", "qty": 1 },
+        { "product": "mustard-yellow", "qty": 0.5 },
+        { "product": "red-onion", "qty": 1 }
+      ],
+      "steps": [
+        "Brown beef with salt, pepper, onion powder; drain",
+        "Special sauce: yogurt + ketchup + mustard + chopped pickles + paprika",
+        "Pile lettuce, hot beef, cheese, pickles, onion in a bowl",
+        "Drizzle sauce, optional sesame seeds"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Beef classic", "add": [], "remove": [], "note": "" },
+        { "id": "turkey", "name": "Ground turkey swap", "add": [{ "product": "tj-ground-turkey-93", "qty": 1.5 }], "remove": ["tj-ground-beef-96"], "note": "" },
+        { "id": "training-day", "name": "+ Rice (training day)", "add": [{ "product": "tj-frozen-jasmine-rice", "qty": 1 }], "remove": [], "note": "Adds 180 kcal of carbs" },
+        { "id": "taco", "name": "Taco bowl", "add": [{ "product": "tj-salsa", "qty": 1 }, { "product": "tj-taco-seasoning", "qty": 2 }], "remove": ["ketchup", "mustard-yellow", "tj-pickles"], "note": "Salsa instead of special sauce" }
+      ]
+    },
+    {
+      "id": "turkey-soyaki-bowl",
+      "name": "Ground Turkey Soyaki Rice Bowl",
+      "emoji": "🍚",
+      "mealType": ["dinner", "lunch"],
+      "prepMinutes": 15,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "The 15-minute ground turkey teriyaki bowl is a core high-protein meal-prep format — TJ's Soyaki does the sauce work",
+      "base": [
+        { "product": "tj-ground-turkey-93", "qty": 1.5 },
+        { "product": "tj-soyaki", "qty": 1.5 },
+        { "product": "tj-frozen-jasmine-rice", "qty": 1 },
+        { "product": "tj-frozen-broccoli", "qty": 1.5 },
+        { "product": "sriracha", "qty": 1 }
+      ],
+      "steps": [
+        "Brown turkey in one pan, breaking up, ~6 min",
+        "Add Soyaki, simmer 2 min to glaze",
+        "Microwave rice and broccoli meanwhile",
+        "Assemble; top with sriracha and scallions"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Soyaki classic", "add": [], "remove": [], "note": "Batch 2 lb and freeze portions" },
+        { "id": "egg-roll", "name": "Egg-roll-in-a-bowl", "add": [{ "product": "tj-shredded-cabbage-carrots", "qty": 2 }], "remove": ["tj-frozen-jasmine-rice"], "note": "Cabbage instead of rice, saves ~140 kcal" },
+        { "id": "beef", "name": "Firecracker beef", "add": [{ "product": "tj-ground-beef-96", "qty": 1.5 }, { "product": "tj-honey", "qty": 0.5 }], "remove": ["tj-ground-turkey-93"], "note": "Lean beef + sriracha-honey glaze" }
+      ]
+    },
+    {
+      "id": "zaatar-salmon-bowl",
+      "name": "Za'atar Salmon Bites Bowl",
+      "emoji": "🐟",
+      "mealType": ["dinner"],
+      "prepMinutes": 15,
+      "freezerFriendly": false,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "Air-fryer salmon bites bowls are everywhere on TikTok — this one leans Middle Eastern with za'atar and garlicky yogurt",
+      "base": [
+        { "product": "tj-salmon-fillet", "qty": 1 },
+        { "product": "zaatar", "qty": 3 },
+        { "product": "olive-oil", "qty": 1 },
+        { "product": "tj-frozen-jasmine-rice", "qty": 1 },
+        { "product": "tj-greek-yogurt-nonfat", "qty": 0.33 },
+        { "product": "tj-persian-cucumbers", "qty": 1 },
+        { "product": "lemon", "qty": 1 }
+      ],
+      "steps": [
+        "Cube salmon, toss with oil, za'atar, salt",
+        "Air fry 400°F 7–8 min until edges crisp",
+        "Microwave rice; stir yogurt with lemon + grated garlic + salt",
+        "Bowl it: rice, yogurt sauce, salmon, cucumber, extra za'atar"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Za'atar classic", "add": [], "remove": [], "note": "" },
+        { "id": "hot-honey", "name": "Hot honey (the viral one)", "add": [{ "product": "tj-honey", "qty": 1 }, { "product": "sriracha", "qty": 2 }], "remove": ["zaatar", "olive-oil"], "note": "Sriracha + honey glaze instead of oil" },
+        { "id": "shrimp", "name": "Shrimp swap", "add": [{ "product": "tj-red-shrimp", "qty": 1.5 }], "remove": ["tj-salmon-fillet"], "note": "5-min cook, leaner" },
+        { "id": "cauli-rice", "name": "Lighter: cauliflower rice", "add": [{ "product": "tj-riced-cauliflower", "qty": 1 }], "remove": ["tj-frozen-jasmine-rice"], "note": "Saves ~160 kcal" }
+      ]
+    },
+    {
+      "id": "zhoug-chicken-wrap",
+      "name": "Zhoug Grilled Chicken Wrap",
+      "emoji": "🌮",
+      "mealType": ["lunch"],
+      "prepMinutes": 10,
+      "freezerFriendly": false,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "trending",
+      "origin": "The 'high-protein wrap, tucked and toasted' TikTok format, flavored Middle Eastern with TJ's cult-favorite Zhoug",
+      "base": [
+        { "product": "mission-carb-balance-tortilla", "qty": 1 },
+        { "product": "tj-grilled-chicken-strips", "qty": 1.5 },
+        { "product": "tj-zhoug", "qty": 1 },
+        { "product": "tj-greek-yogurt-nonfat", "qty": 0.125 },
+        { "product": "tj-persian-cucumbers", "qty": 1 },
+        { "product": "tj-cherry-tomatoes", "qty": 0.5 }
+      ],
+      "steps": [
+        "Warm chicken strips in pan or air fryer 3–4 min",
+        "Mix yogurt with pinch of salt + lemon (quick labneh spread)",
+        "Layer yogurt, zhoug, chicken, veg on tortilla",
+        "Roll tight; toast seam-side down 2 min per side"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Zhoug classic", "add": [], "remove": [], "note": "" },
+        { "id": "shawarma", "name": "Shawarma leftovers", "add": [{ "product": "tj-shawarma-thighs", "qty": 1.25 }], "remove": ["tj-grilled-chicken-strips"], "note": "Use batch-cooked shawarma thighs" },
+        { "id": "feta", "name": "Hummus & feta", "add": [{ "product": "tj-feta", "qty": 0.5 }], "remove": ["tj-greek-yogurt-nonfat"], "note": "" },
+        { "id": "crispy", "name": "Crispy quadrant fold", "add": [{ "product": "tj-lite-mozzarella", "qty": 1 }], "remove": [], "note": "The folded wrap hack, cheese in one quadrant" }
+      ]
+    },
+    {
+      "id": "chicken-tzatziki-bowl",
+      "name": "Chicken Tzatziki Bowl",
+      "emoji": "🥒",
+      "mealType": ["dinner", "lunch"],
+      "prepMinutes": 20,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "One of 2025's biggest TikTok meal-prep formats — lemony chicken, rice, cucumber salad, cold tzatziki",
+      "base": [
+        { "product": "tj-chicken-breast", "qty": 1.5 },
+        { "product": "olive-oil", "qty": 1 },
+        { "product": "tj-21-seasoning", "qty": 1 },
+        { "product": "tj-frozen-jasmine-rice", "qty": 1 },
+        { "product": "tj-tzatziki", "qty": 1.5 },
+        { "product": "tj-feta", "qty": 0.5 },
+        { "product": "tj-persian-cucumbers", "qty": 1 },
+        { "product": "tj-cherry-tomatoes", "qty": 0.5 }
+      ],
+      "steps": [
+        "Cube chicken, toss with oil, oregano, seasoning, lemon zest",
+        "Sear in one hot pan 6–8 min (or air fry 400°F 10 min)",
+        "Microwave rice; chop the salad",
+        "Assemble: rice, chicken, salad, tzatziki, feta, lemon squeeze"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Tzatziki classic", "add": [], "remove": [], "note": "Batch the chicken Sunday, bowls assemble in 5 min" },
+        { "id": "shrimp", "name": "Shrimp swap", "add": [{ "product": "tj-red-shrimp", "qty": 1.5 }], "remove": ["tj-chicken-breast"], "note": "" },
+        { "id": "toum", "name": "Toum swap", "add": [{ "product": "tj-toum", "qty": 1 }], "remove": ["tj-tzatziki"], "note": "Garlicky instead of cool" }
+      ]
+    },
+    {
+      "id": "egg-white-bites",
+      "name": "Za'atar Egg White Bites (freezer batch)",
+      "emoji": "🥚",
+      "mealType": ["breakfast"],
+      "prepMinutes": 30,
+      "freezerFriendly": true,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "trending",
+      "origin": "Starbucks-copycat egg bites with blended cottage cheese — viral high-protein breakfast prep",
+      "base": [
+        { "product": "tj-egg-whites", "qty": 4 },
+        { "product": "tj-cottage-cheese-lowfat", "qty": 0.5 },
+        { "product": "tj-feta", "qty": 0.5 },
+        { "product": "tj-spinach", "qty": 0.5 },
+        { "product": "tj-cherry-tomatoes", "qty": 0.5 },
+        { "product": "zaatar", "qty": 0.5 }
+      ],
+      "steps": [
+        "Blend egg whites + cottage cheese until smooth",
+        "Divide spinach, tomato, feta into greased muffin tin (4 cups = 1 serving)",
+        "Pour egg mix over, sprinkle za'atar; bake 350°F ~22 min",
+        "Triple the batch, freeze; reheat 60–90 sec from frozen"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Za'atar feta", "add": [], "remove": [], "note": "" },
+        { "id": "bacon-cheese", "name": "Turkey bacon & mozzarella", "add": [{ "product": "tj-turkey-bacon", "qty": 2 }, { "product": "tj-lite-mozzarella", "qty": 0.5 }], "remove": ["tj-feta", "zaatar"], "note": "" }
+      ]
+    },
+    {
+      "id": "turkey-taco-bowl",
+      "name": "Turkey Taco Meal-Prep Bowl",
+      "emoji": "🌶️",
+      "mealType": ["dinner", "lunch"],
+      "prepMinutes": 20,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "origin": "Turkey taco bowls are the workhorse of high-protein meal-prep TikTok — batch, portion, freeze, reheat",
+      "base": [
+        { "product": "tj-ground-turkey-93", "qty": 1.5 },
+        { "product": "tj-taco-seasoning", "qty": 2 },
+        { "product": "tj-black-beans", "qty": 1 },
+        { "product": "tj-frozen-jasmine-rice", "qty": 0.67 },
+        { "product": "tj-salsa", "qty": 1 },
+        { "product": "tj-lite-mozzarella", "qty": 0.5 }
+      ],
+      "steps": [
+        "Brown turkey; add taco seasoning + splash of water, simmer 2 min",
+        "Stir in black beans to warm; microwave rice",
+        "Layer rice, turkey-bean mix, salsa, cheese",
+        "Freeze extras flat; reheat 2–3 min"
+      ],
+      "variants": [
+        { "id": "classic", "name": "Taco classic", "add": [], "remove": [], "note": "" },
+        { "id": "shawarma-spiced", "name": "Shawarma-spiced", "add": [{ "product": "zaatar", "qty": 1 }, { "product": "tj-greek-yogurt-nonfat", "qty": 0.25 }], "remove": ["tj-salsa"], "note": "Cumin-coriander-za'atar turkey, yogurt drizzle" },
+        { "id": "lettuce-cups", "name": "Lettuce cups", "add": [{ "product": "tj-romaine", "qty": 1 }], "remove": ["tj-frozen-jasmine-rice"], "note": "Saves ~120 kcal" },
+        { "id": "guac", "name": "+ Guac (higher-cal day)", "add": [{ "product": "tj-guacamole", "qty": 1 }, { "product": "lemon", "qty": 1 }], "remove": [], "note": "" }
+      ]
+    }
+  ]
+}
