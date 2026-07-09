@@ -13,8 +13,11 @@ const PROFILE = {
   sex: "male", age: 28, heightIn: 70, weightLb: 185,
   activity: "moderate", deficit: 500, goalLossLb: 10,
   startWeightLb: 185, startDate: "2026-07-01",
-  breakfastDefault: "latte", treatsPerWeek: 3, proteinPerLb: 0.8,
+  breakfastDefault: "latte", treatsPerWeek: 3, proteinPerLb: 1.0,
 };
+
+const START = E.dateKey(E.weekStart(E.addDays(new Date(), 7))); // next Monday
+const DAY2 = E.dateKey(E.addDays(E.parseKey(START), 1));
 
 function freshState(extra = {}) {
   return {
@@ -44,8 +47,39 @@ test("daily budget = TDEE − deficit, floored for safety", () => {
   assert.ok(E.budgetIsFloored(tiny));
 });
 
-test("protein target scales with bodyweight", () => {
-  assert.equal(E.proteinTarget(PROFILE), Math.round(185 * 0.8));
+test("protein target: 1g per lb of IDEAL body weight", () => {
+  assert.equal(E.proteinTarget(PROFILE), 175, "185 start − 10 goal = 175 lb ideal → 175g");
+});
+
+test("re-planning with a new seed produces a different week; same seed is stable", () => {
+  const s = freshState();
+  const a = E.generateWeek(DATA, s, START, "auto", 1);
+  const b = E.generateWeek(DATA, s, START, "auto", 2);
+  const c = E.generateWeek(DATA, s, START, "auto", 1);
+  const sig = (w) => JSON.stringify(Object.values(w).map((d) => d.meals.map((m) => m.templateId + ":" + m.variantId)));
+  assert.notEqual(sig(a), sig(b), "different seeds must explore different plans");
+  assert.equal(sig(a), sig(c), "same seed reproduces the same plan");
+});
+
+test("next week avoids repeating this week's non-repeatable meals", () => {
+  const s = freshState();
+  s.plan.days = E.generateWeek(DATA, s, START, "auto", 1);
+  const week2Start = E.dateKey(E.addDays(E.parseKey(START), 7));
+  const week2 = E.generateWeek(DATA, s, week2Start, "auto", 1);
+  const w1 = new Set(Object.values(s.plan.days).flatMap((d) => d.meals.map((m) => m.templateId)));
+  const repeats = Object.values(week2).flatMap((d) => d.meals)
+    .filter((m) => { const tpl = E.templateById(DATA, m.templateId); return tpl && !tpl.repeatOk && w1.has(m.templateId); });
+  assert.ok(repeats.length <= 2, `${repeats.length} non-repeatable meals repeated across weeks`);
+});
+
+test("past days are never rewritten by re-planning", () => {
+  const s = freshState();
+  const thisWeek = E.dateKey(E.weekStart(new Date()));
+  const yesterdayish = thisWeek; // Monday of the current week is today-or-past
+  s.plan.days[yesterdayish] = { status: "planned", meals: [{ slot: "dinner", templateId: "turkey-burgers", variantId: "classic" }], snacks: [] };
+  const regen = E.generateWeek(DATA, s, thisWeek, "auto", 99);
+  if (yesterdayish < E.dateKey(new Date()))
+    assert.equal(regen[yesterdayish].meals[0].templateId, "turkey-burgers", "past day untouched");
 });
 
 test("effective budget trims at most MAX_DAILY_TRIM for the overage bank", () => {
@@ -125,7 +159,7 @@ test("custom snacks count their own macros; uneaten snacks don't count as consum
 
 test("generateWeek plans 7 days near budget, protein at/above target", () => {
   const s = freshState();
-  const days = E.generateWeek(DATA, s, "2026-07-06", "auto");
+  const days = E.generateWeek(DATA, s, START, "auto");
   const keys = Object.keys(days);
   assert.equal(keys.length, 7);
   const budget = E.dailyBudget(PROFILE);
@@ -141,7 +175,7 @@ test("generateWeek plans 7 days near budget, protein at/above target", () => {
 test("treats respect the weekly allowance", () => {
   const s = freshState();
   s.profile.treatsPerWeek = 2;
-  const days = E.generateWeek(DATA, s, "2026-07-06", "auto");
+  const days = E.generateWeek(DATA, s, START, "auto");
   const treats = Object.values(days).flatMap((d) => d.snacks)
     .filter((sn) => sn.productId && DATA.products.find((p) => p.id === sn.productId)?.treat);
   assert.ok(treats.length <= 2, `planned ${treats.length} treats, allowance is 2`);
@@ -149,25 +183,25 @@ test("treats respect the weekly allowance", () => {
 
 test("locked meals and completed days survive re-planning", () => {
   const s = freshState();
-  const days = E.generateWeek(DATA, s, "2026-07-06", "auto");
+  const days = E.generateWeek(DATA, s, START, "auto");
   s.plan.days = days;
-  const k1 = "2026-07-06", k2 = "2026-07-07";
+  const k1 = START, k2 = DAY2;
   s.plan.days[k1].status = "done";
   const frozenMeals = JSON.stringify(s.plan.days[k1].meals);
   s.plan.days[k2].meals.find((m) => m.slot === "lunch").locked = true;
   s.plan.days[k2].meals.find((m) => m.slot === "lunch").templateId = "tuna-pasta-salad";
-  const regen = E.generateWeek(DATA, s, "2026-07-06", "auto");
+  const regen = E.generateWeek(DATA, s, START, "auto");
   assert.equal(JSON.stringify(regen[k1].meals), frozenMeals, "done day untouched");
   assert.equal(regen[k2].meals.find((m) => m.slot === "lunch").templateId, "tuna-pasta-salad", "locked meal kept");
 });
 
 test("freezer portions get scheduled and prep mode schedules a weekend batch cook", () => {
   const s = freshState({ freezer: [{ templateId: "beef-ragu-batch", portions: 2 }] });
-  const days = E.generateWeek(DATA, s, "2026-07-06", "easy");
+  const days = E.generateWeek(DATA, s, START, "easy");
   const fromFreezer = Object.values(days).flatMap((d) => d.meals).filter((m) => m.fromFreezer);
   assert.ok(fromFreezer.length >= 1 && fromFreezer.length <= 2, "uses freezer stock without exceeding it");
 
-  const prep = E.generateWeek(DATA, freshState(), "2026-07-06", "prep");
+  const prep = E.generateWeek(DATA, freshState(), START, "prep");
   const batch = Object.entries(prep).filter(([, d]) => d.meals.some((m) => m.batchCook));
   assert.equal(batch.length, 1, "exactly one batch-cook day");
   const dow = new Date(batch[0][0] + "T12:00:00").getDay();
@@ -177,7 +211,7 @@ test("freezer portions get scheduled and prep mode schedules a weekend batch coo
 test("weekday lunches respect the work-time cap; weekends are free", () => {
   const s = freshState();
   s.profile.maxLunchMinutes = 15;
-  const days = E.generateWeek(DATA, s, "2026-07-06", "auto"); // Mon start
+  const days = E.generateWeek(DATA, s, START, "auto"); // Mon start
   const keys = Object.keys(days).sort();
   for (let i = 0; i < 5; i++) { // Mon-Fri
     const lunch = days[keys[i]].meals.find((m) => m.slot === "lunch");
@@ -187,7 +221,7 @@ test("weekday lunches respect the work-time cap; weekends are free", () => {
 });
 
 test("non-repeatable meals don't appear twice in a week", () => {
-  const days = E.generateWeek(DATA, freshState(), "2026-07-06", "auto");
+  const days = E.generateWeek(DATA, freshState(), START, "auto");
   const counts = {};
   for (const d of Object.values(days))
     for (const m of d.meals) counts[m.templateId] = (counts[m.templateId] || 0) + 1;
@@ -252,7 +286,7 @@ test("perishable meals score urgent and get scheduled early in the week", () => 
   const burgers = E.templateById(DATA, "turkey-burgers"); // frozen patties, shelf-stable
   assert.ok(E.perishUrgency(DATA, salmon) > E.perishUrgency(DATA, burgers), "fresh salmon more urgent than frozen patties");
   const s = freshState();
-  const days = E.generateWeek(DATA, s, "2026-07-06", "auto");
+  const days = E.generateWeek(DATA, s, START, "auto");
   const keys = Object.keys(days).sort();
   const idxOfUrgent = keys.findIndex((k) =>
     days[k].meals.some((m) => E.perishUrgency(DATA, E.templateById(DATA, m.templateId)) >= 4));

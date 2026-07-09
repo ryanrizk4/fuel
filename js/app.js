@@ -22,6 +22,8 @@ function defaultState() {
     productOverrides: {},
     shopChecks: {},
     pantry: {},
+    favorites: {},
+    planSeed: 1,
     overageBank: 0,
     planMode: "auto",
     theme: "auto",
@@ -35,6 +37,7 @@ function load() {
   } catch {
     state = defaultState();
   }
+  if (state.profile && state.profile.proteinPerLb === 0.8) state.profile.proteinPerLb = 1.0;
 }
 
 function save() {
@@ -121,7 +124,7 @@ function readOnboarding() {
     breakfastDefault: $("#ob-breakfast").value,
     treatsPerWeek: +$("#ob-treats").value,
     maxLunchMinutes: +$("#ob-lunch-time").value,
-    proteinPerLb: 0.8,
+    proteinPerLb: 1.0,
   };
 }
 
@@ -147,7 +150,7 @@ function finishOnboarding() {
   p.startDate = todayKey();
   state.profile = p;
   state.weighIns.push({ date: todayKey(), lb: p.weightLb });
-  const days = E.generateWeek(DATA, state, E.dateKey(E.weekStart(new Date())), state.planMode);
+  const days = E.generateWeek(DATA, state, E.dateKey(E.weekStart(new Date())), state.planMode, 1);
   Object.assign(state.plan.days, days);
   save();
   $("#onboarding").hidden = true;
@@ -182,7 +185,7 @@ function renderMeals() {
       <div class="meal-row" data-action="open-browse" data-template="${t.id}">
         <div class="meal-emoji">${t.emoji || "🍽"}</div>
         <div class="meal-info">
-          <div class="meal-name">${esc(t.name)}</div>
+          <div class="meal-name">${state.favorites?.[t.id] ? "❤️ " : ""}${esc(t.name)}</div>
           <div class="meal-meta">${mm.calories} kcal · ${mm.protein}g · ⏱ ${t.prepMinutes} min · ${agoStr}</div>
         </div>
         <span class="muted">›</span>
@@ -241,6 +244,9 @@ function sheetBrowse(tplId) {
     ${steps}
     <div class="ob-section">Variations (same cooking motions)</div>
     ${variants}
+    <div class="btn-row">
+      <button class="btn ${state.favorites?.[tpl.id] ? "" : "ghost"}" data-action="toggle-favorite" data-template="${tpl.id}">${state.favorites?.[tpl.id] ? "❤️ In your rotation" : "🤍 Add to rotation"}</button>
+    </div>
     <div class="btn-row">
       ${slots.map((s) => `<button class="btn primary" data-action="use-today" data-template="${tpl.id}" data-slot="${s}">Eat for ${s} today</button>`).join("")}
     </div>
@@ -435,7 +441,7 @@ function renderPlan() {
 
   el.innerHTML = `
     <div class="screen-title">Plan</div>
-    <div class="screen-sub">Auto-plan decides for you. Tap any meal to overrule it.</div>
+    <div class="screen-sub">Auto-plan decides for you. Shuffling only touches today onward — done and locked days are safe.</div>
 
     <div class="chips">
       ${weekLabels.map((l, i) => `<button class="chip ${i === planWeekOffset ? "on" : ""}" data-action="plan-week" data-offset="${i}">${l}</button>`).join("")}
@@ -447,7 +453,7 @@ function renderPlan() {
     </div>
 
     <button class="btn primary" style="width:100%" data-action="generate-week" data-start="${startK}">
-      ${hasAny ? "↻ Re-plan remaining days" : "✨ Auto-plan this week"}
+      ${hasAny ? "🔀 Shuffle the rest of this week" : "✨ Auto-plan this week"}
     </button>
     <div class="small muted mt8" style="margin-bottom:12px">
       ${{ auto: "Balanced rotation — variety without relearning anything.", prep: "Batch-cook on the weekend, freezer portions through the week.", easy: "Quick meals and freezer stock only — for low-energy weeks." }[state.planMode]}
@@ -1081,6 +1087,11 @@ function handleAction(el) {
     case "sheet-add-freezer": return sheetAddFreezer();
     case "sheet-import": return sheetImport();
     case "sheet-products": return sheetProducts();
+    case "toggle-favorite": {
+      if (state.favorites?.[el.dataset.template]) delete state.favorites[el.dataset.template];
+      else (state.favorites = state.favorites || {})[el.dataset.template] = true;
+      save(); sheetBrowse(el.dataset.template); renderMeals(); return;
+    }
 
     case "mark-done": return markDone(el.dataset.date);
     case "undo-status": {
@@ -1162,12 +1173,14 @@ function handleAction(el) {
     case "go-today": return switchTab("today");
     case "plan-mode": state.planMode = el.dataset.mode; save(); return renderPlan();
     case "plan-this-week": {
-      const days = E.generateWeek(DATA, state, E.dateKey(E.weekStart(new Date())), state.planMode);
+      state.planSeed = (state.planSeed || 1) + 1;
+      const days = E.generateWeek(DATA, state, E.dateKey(E.weekStart(new Date())), state.planMode, state.planSeed);
       Object.assign(state.plan.days, days);
       save(); renderAll(); return;
     }
     case "generate-week": {
-      const days = E.generateWeek(DATA, state, el.dataset.start, state.planMode);
+      state.planSeed = (state.planSeed || 1) + 1;
+      const days = E.generateWeek(DATA, state, el.dataset.start, state.planMode, state.planSeed);
       Object.assign(state.plan.days, days);
       save(); renderAll(); return;
     }
@@ -1188,7 +1201,7 @@ function handleAction(el) {
       save(); return renderShop();
     }
     case "shop-complete": {
-      const days = E.generateWeek(DATA, state, el.dataset.start, state.planMode);
+      const days = E.generateWeek(DATA, state, el.dataset.start, state.planMode, state.planSeed || 1);
       Object.assign(state.plan.days, days);
       save(); renderAll(); switchTab("today"); return;
     }
