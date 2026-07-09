@@ -231,6 +231,42 @@ test("non-repeatable meals don't appear twice in a week", () => {
   }
 });
 
+test("generated meals carry a why explanation; quality score reflects the week", () => {
+  const s = freshState();
+  const days = E.generateWeek(DATA, s, START, "auto", 1);
+  for (const d of Object.values(days))
+    for (const m of d.meals)
+      if (m.slot !== "breakfast") assert.ok(m.why?.length > 8, `${m.templateId} missing why`);
+  const q = E.weekQuality(DATA, s, days);
+  assert.equal(q.totalDays, 7);
+  assert.ok(q.proteinDays >= 6, `only ${q.proteinDays}/7 protein days`);
+  assert.ok(q.uniqueMeals >= 8, `only ${q.uniqueMeals} distinct meals`);
+  assert.ok(q.prepMinutes > 0 && q.prepMinutes < 7 * 90);
+});
+
+test("calibration: flags a stalled trend, stays quiet when on track or data is thin", () => {
+  const mk = (pairs) => freshState({ weighIns: pairs.map(([d, lb]) => ({ date: d, lb })) });
+  assert.equal(E.calibration(mk([["2026-06-01", 185]])), null, "needs 3+ points");
+  const behind = E.calibration(mk([["2026-06-01", 185], ["2026-06-08", 184.9], ["2026-06-15", 184.8]]));
+  assert.equal(behind.status, "behind", "losing 0.05 lb/wk vs 1.0 planned must flag");
+  const good = E.calibration(mk([["2026-06-01", 185], ["2026-06-08", 184], ["2026-06-15", 183]]));
+  assert.equal(good.status, "on-track");
+  const fast = E.calibration(mk([["2026-06-01", 185], ["2026-06-08", 182.8], ["2026-06-15", 180.6]]));
+  assert.equal(fast.status, "fast", "2.2 lb/wk should warn");
+});
+
+test("opened items boost meals that use them within 3 days", () => {
+  const s = freshState({ opened: { "tj-cottage-cheese-lowfat": START } });
+  const days = E.generateWeek(DATA, s, START, "auto", 1);
+  const keys = Object.keys(days).sort();
+  const early = keys.slice(0, 3).flatMap((k) => days[k].meals.map((m) => m.templateId));
+  const usesOpened = early.some((id) => {
+    const tpl = E.templateById(DATA, id);
+    return tpl?.base.some((i) => i.product === "tj-cottage-cheese-lowfat");
+  });
+  assert.ok(usesOpened, "an early meal should use the opened cottage cheese");
+});
+
 // ---------- shopping list ----------
 
 test("shopping list aggregates the week, skips freezer meals, multiplies batch + portions", () => {

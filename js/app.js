@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 
 const STORE_KEY = "fuel.state.v1";
-const APP_VERSION = "fuel-v10";
+const APP_VERSION = "fuel-v11";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -29,6 +29,7 @@ function defaultState() {
     planSeed: 1,
     recipeInbox: [],
     checkinDismissed: "",
+    opened: {},
     overageBank: 0,
     planMode: "auto",
     theme: "auto",
@@ -502,6 +503,18 @@ function renderPlan() {
     <div class="small muted mt8" style="margin-bottom:12px">
       ${{ auto: "Balanced rotation — variety without relearning anything.", prep: "Batch-cook on the weekend, freezer portions through the week.", easy: "Quick meals and freezer stock only — for low-energy weeks." }[state.planMode]}
     </div>
+    ${(() => {
+      const wk = {};
+      for (let i = 0; i < 7; i++) { const k = E.dateKey(E.addDays(start, i)); if (state.plan.days[k]) wk[k] = state.plan.days[k]; }
+      if (!Object.keys(wk).length) return "";
+      const q = E.weekQuality(DATA, state, wk);
+      return `<div class="chips" style="margin-bottom:10px">
+        <span class="chip">💪 Protein ${q.proteinDays}/${q.totalDays} days</span>
+        <span class="chip">🔀 ${q.uniqueMeals} distinct meals</span>
+        <span class="chip">⏱ ${Math.floor(q.prepMinutes / 60)}h${String(q.prepMinutes % 60).padStart(2, "0")} total prep</span>
+        <span class="chip">${q.freshnessOk ? "🥬 Freshness ✓" : "⚠️ Fresh items late in week"}</span>
+      </div>`;
+    })()}
 
     ${hasAny && planWeekOffset <= 1 ? `<div class="trim-note" style="margin-bottom:12px">Week planned ✓ — step 2: <button class="btn small" data-action="go-shop">🛒 Shop the list</button></div>` : ""}
     ${dayCards || '<div class="card empty">No plan for this week yet — hit Auto-plan.</div>'}`;
@@ -599,6 +612,16 @@ function renderProgress() {
       <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "bad" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal to absorb · pushes goal ~${Math.ceil(proj.bankDays)} day${Math.ceil(proj.bankDays) !== 1 ? "s" : ""}` : "kcal — all clear ✓"}</div></div>
     </div>
 
+    ${(() => {
+      const cal = E.calibration(state);
+      if (!cal) return "";
+      const icon = { "on-track": "✅", behind: "🔍", fast: "⚠️" }[cal.status];
+      return `<div class="card" ${cal.status !== "on-track" ? 'style="border-color: var(--accent)"' : ""}>
+        <h3>${icon} Trend check</h3>
+        <div class="small muted mt8">${esc(cal.note)}</div>
+        <div class="small muted mt8">Actual: ${cal.actualPerWeek} lb/wk · planned: ${cal.plannedPerWeek} lb/wk · over ${cal.days} days</div>
+      </div>`;
+    })()}
     <div class="card">
       <h3>Weight trend</h3>
       <div class="chart-box" id="chart-box">${weightChartSVG()}</div>
@@ -892,6 +915,7 @@ function sheetMeal(dateK, idx) {
       ${tpl.freezerFriendly ? '<span class="meta-chip">❄️ freezes well</span>' : ""}
       ${tpl.source === "trending" ? '<span class="meta-chip">🔥 trending</span>' : ""}
     </div>
+    ${m.why ? `<div class="trim-note" style="margin:0 0 12px">🧠 ${esc(m.why)}</div>` : ""}
     <div class="ob-section" style="margin-top:4px">Ingredients${por !== 1 ? ` · ×${por} portions` : ""}</div>
     ${ingredients}
     <div class="ob-section">Steps</div>
@@ -1115,6 +1139,17 @@ function markDone(dateK) {
     }
   }
   state.freezer = (state.freezer || []).filter((f) => f.portions > 0);
+  // remember opened fresh tubs/packs so the planner uses them up in the next days
+  state.opened = state.opened || {};
+  for (const m of day.meals || []) {
+    const tpl = E.templateById(DATA, m.templateId);
+    if (!tpl) continue;
+    for (const ing of E.mealIngredients(tpl, m.variantId)) {
+      const prod = E.productById(DATA, state, ing.product);
+      if (prod && prod.packServings > 1 && (prod.perishDays || prod.section === "Dairy & Eggs") && !prod.staple)
+        state.opened[prod.id] = dateK;
+    }
+  }
   save(); closeSheet(); renderAll();
 }
 
