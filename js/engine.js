@@ -310,6 +310,11 @@ function generateWeek(data, state, startKey, mode, seed = 1) {
       let pool = lunches;
       const dowL = addDays(start, i).getDay();
       const isWorkday = dowL >= 1 && dowL <= 5;
+      // At work: no cooking raw protein — only assemble/reheat lunches (or a freezer portion).
+      if (isWorkday) {
+        const workLunch = pool.filter((t) => t.lunchAtWork);
+        if (workLunch.length) pool = workLunch;
+      }
       const lunchCap = mode === "easy" ? 15 : isWorkday ? (p.maxLunchMinutes || 60) : 60;
       const quick = pool.filter((t) => t.prepMinutes <= lunchCap);
       if (quick.length) pool = quick;

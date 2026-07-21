@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 
 const STORE_KEY = "fuel.state.v1";
-const APP_VERSION = "fuel-v11";
+const APP_VERSION = "fuel-v12";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
