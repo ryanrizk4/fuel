@@ -220,6 +220,16 @@ test("weekday lunches respect the work-time cap; weekends are free", () => {
   }
 });
 
+test("weekday lunches never require cooking raw protein at work", () => {
+  const days = E.generateWeek(DATA, freshState(), START, "auto"); // Mon start
+  const keys = Object.keys(days).sort();
+  for (let i = 0; i < 5; i++) { // Mon-Fri
+    const lunch = days[keys[i]].meals.find((m) => m.slot === "lunch");
+    const tpl = E.templateById(DATA, lunch.templateId);
+    assert.ok(tpl.lunchAtWork || lunch.fromFreezer, `${keys[i]} weekday lunch ${tpl.id} isn't work-friendly (no cooking raw meat at the office)`);
+  }
+});
+
 test("non-repeatable meals don't appear twice in a week", () => {
   const days = E.generateWeek(DATA, freshState(), START, "auto");
   const counts = {};

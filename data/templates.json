@@ -89,7 +89,8 @@
           "remove": [],
           "note": "Spicy herby — drizzle after air-frying"
         }
-      ]
+      ],
+      "lunchAtWork": true
     },
     {
       "id": "turkey-burgers",
@@ -272,7 +273,8 @@
           ],
           "note": "More protein, fewer carbs"
         }
-      ]
+      ],
+      "lunchAtWork": true
     },
     {
       "id": "beef-ragu-batch",
@@ -631,7 +633,8 @@
           "remove": [],
           "note": "For big training days"
         }
-      ]
+      ],
+      "lunchAtWork": false
     },
     {
       "id": "cottage-cheese-flatbread",
@@ -730,7 +733,8 @@
           ],
           "note": "Labneh-style — season the batter with za'atar"
         }
-      ]
+      ],
+      "lunchAtWork": false
     },
     {
       "id": "shawarma-bowl",
@@ -828,7 +832,8 @@
           ],
           "note": "Saves ~160 kcal"
         }
-      ]
+      ],
+      "lunchAtWork": false
     },
     {
       "id": "big-mac-bowl",
@@ -1021,7 +1026,8 @@
           ],
           "note": "Lean beef + sriracha-honey glaze"
         }
-      ]
+      ],
+      "lunchAtWork": false
     },
     {
       "id": "zaatar-salmon-bowl",
@@ -1222,7 +1228,8 @@
           "remove": [],
           "note": "The folded wrap hack, cheese in one quadrant"
         }
-      ]
+      ],
+      "lunchAtWork": true
     },
     {
       "id": "chicken-tzatziki-bowl",
@@ -1314,7 +1321,8 @@
           ],
           "note": "Garlicky instead of cool"
         }
-      ]
+      ],
+      "lunchAtWork": false
     },
     {
       "id": "egg-white-bites",
@@ -1491,6 +1499,99 @@
           ],
           "remove": [],
           "note": ""
+        }
+      ],
+      "lunchAtWork": false
+    },
+    {
+      "id": "turkish-yogurt-pasta",
+      "name": "Turkish Yogurt Pasta with Spiced Beef",
+      "emoji": "🍲",
+      "mealType": [
+        "dinner",
+        "lunch"
+      ],
+      "prepMinutes": 20,
+      "freezerFriendly": true,
+      "repeatOk": false,
+      "servings": 1,
+      "source": "trending",
+      "lunchAtWork": false,
+      "origin": "The viral Turkish-style yogurt pasta — garlicky yogurt under spiced beef with a chili-oil drizzle, all over TikTok",
+      "base": [
+        {
+          "product": "tj-lentil-pasta",
+          "qty": 1
+        },
+        {
+          "product": "tj-ground-beef-96",
+          "qty": 1.5
+        },
+        {
+          "product": "tj-greek-yogurt-nonfat",
+          "qty": 0.5
+        },
+        {
+          "product": "garlic",
+          "qty": 1
+        },
+        {
+          "product": "olive-oil",
+          "qty": 1
+        }
+      ],
+      "steps": [
+        "Boil pasta, reserve a splash of pasta water",
+        "Brown beef with salt, cumin, paprika; break it up ~6 min",
+        "Grate garlic into the yogurt with a pinch of salt (cold sauce)",
+        "Warm olive oil with paprika + chili flakes for the drizzle",
+        "Plate pasta, spoon garlic yogurt, top with beef, drizzle chili oil"
+      ],
+      "variants": [
+        {
+          "id": "classic",
+          "name": "Spiced beef classic",
+          "add": [],
+          "remove": [],
+          "note": "Garlic yogurt + chili oil"
+        },
+        {
+          "id": "turkey",
+          "name": "Ground turkey swap",
+          "add": [
+            {
+              "product": "tj-ground-turkey-93",
+              "qty": 1.5
+            }
+          ],
+          "remove": [
+            "tj-ground-beef-96"
+          ],
+          "note": "Leaner, same motions"
+        },
+        {
+          "id": "zhoug",
+          "name": "Zhoug heat",
+          "add": [
+            {
+              "product": "tj-zhoug",
+              "qty": 1
+            }
+          ],
+          "remove": [],
+          "note": "Spicy herby drizzle instead of chili oil"
+        },
+        {
+          "id": "extra-protein",
+          "name": "Cottage cheese sauce",
+          "add": [
+            {
+              "product": "tj-cottage-cheese-lowfat",
+              "qty": 0.5
+            }
+          ],
+          "remove": [],
+          "note": "Blend cottage cheese into the yogurt — more protein"
         }
       ]
     }

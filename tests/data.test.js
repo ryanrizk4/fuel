@@ -81,6 +81,14 @@ test("no recipe step requires a microwave (owner doesn't have one)", () => {
       assert.ok(!/microwave/i.test(s), `${t.id}: step "${s}" needs a microwave`);
 });
 
+test("lunch templates declare lunchAtWork, and enough are work-friendly for weekday planning", () => {
+  const lunchTpls = templates.filter((t) => t.mealType.includes("lunch"));
+  for (const t of lunchTpls)
+    assert.equal(typeof t.lunchAtWork, "boolean", `${t.id}: lunch template must declare lunchAtWork (no raw-protein cooking at work)`);
+  const workOk = lunchTpls.filter((t) => t.lunchAtWork);
+  assert.ok(workOk.length >= 2, `need ≥2 work-friendly lunches, have ${workOk.length}`);
+});
+
 test("snack products exist for the auto-planner (protein snacks + at least one treat)", () => {
   const snacks = products.filter((p) => p.snack);
   assert.ok(snacks.filter((s) => !s.treat).length >= 3, "need ≥3 protein snacks for variety");
