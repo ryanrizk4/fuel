@@ -1,9 +1,9 @@
 /* app.js — UI layer. All logic lives in engine.js; this renders state and handles taps. */
 
 import * as E from "./engine.js";
+import * as P from "./persistence.js";
 
-const STORE_KEY = "fuel.state.v1";
-const APP_VERSION = "fuel-v12";
+const APP_VERSION = "fuel-v13";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -12,42 +12,28 @@ let lastTab = "today";
 let planWeekOffset = 0;
 let shopWeekOffset = 0;
 let sheetCtx = null;
+let recovery = null; // set while an unreadable record is waiting on the owner — see load()
 
 // ---------- state ----------
-
-function defaultState() {
-  return {
-    profile: null,
-    plan: { days: {} },
-    weighIns: [],
-    freezer: [],
-    history: {},
-    productOverrides: {},
-    shopChecks: {},
-    pantry: {},
-    favorites: {},
-    planSeed: 1,
-    recipeInbox: [],
-    checkinDismissed: "",
-    opened: {},
-    overageBank: 0,
-    planMode: "auto",
-    theme: "auto",
-  };
-}
+// Shape, migrations, recovery copies and the backup format all live in persistence.js.
+// This file only decides what the owner sees when something went wrong.
 
 function load() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    state = raw ? { ...defaultState(), ...JSON.parse(raw) } : defaultState();
-  } catch {
-    state = defaultState();
-  }
-  if (state.profile && state.profile.proteinPerLb === 0.8) state.profile.proteinPerLb = 1.0;
+  const result = P.loadState(localStorage);
+  state = result.state;
+  // "corrupt" is the only status that takes over the screen: there is no state to show
+  // and the stored bytes must survive untouched until the owner picks a way out.
+  recovery = result.status === "corrupt" ? result : null;
+  if (result.status === "degraded")
+    setTimeout(() => toast("⚠️ Couldn't finish updating your saved data — a recovery copy was kept"), 900);
+  return result;
 }
 
 function save() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  // Writing now would overwrite the very bytes the recovery screen is offering to
+  // rescue, so stay read-only until that screen is dismissed.
+  if (recovery) return;
+  P.saveState(localStorage, state);
 }
 
 // ---------- helpers ----------
@@ -101,10 +87,14 @@ async function boot() {
   DATA = { products: p.products, templates: t.templates };
   DATA_UPDATED = p.updated || t.updated || "";
   load();
-  state.lastDataFetch = new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  save();
+  if (!recovery) {
+    state.lastDataFetch = new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    save();
+  }
   applyTheme();
-  if (!state.profile) {
+  if (recovery) {
+    renderRecovery();
+  } else if (!state.profile) {
     $("#onboarding").hidden = false;
     bindOnboardingPreview();
   } else {
@@ -806,6 +796,13 @@ function renderMore() {
         <button class="btn" data-action="export-data">Copy backup</button>
         <button class="btn ghost" data-action="sheet-import">Restore</button>
       </div>
+      ${(() => {
+        const copies = P.describeRecoverySnapshots(localStorage).filter((c) => c.restorable);
+        return `<div class="diag-row" style="margin-top:12px"><span>Recovery copies on this phone</span>
+          <span class="${copies.length ? "ok" : "warn"}">${copies.length ? `${copies.length} ✓` : "none yet"}</span></div>
+          <div class="small muted">Taken automatically before any restore, reset, or data upgrade${copies.length ? `. Newest: ${esc(copyWhen(copies[0].createdAt))}` : ""}.</div>
+          <div class="btn-row"><button class="btn ghost" data-action="sheet-recovery">Recovery copies</button></div>`;
+      })()}
       <div class="btn-row"><button class="btn ghost danger" data-action="reset-all">Reset everything</button></div>
     </div>
 
@@ -817,6 +814,96 @@ function renderMore() {
         calculates macros, files it as a template with variants, and the app updates on the next visit.
       </div>
     </div>`;
+}
+
+// ---------- recovery ----------
+// Fuel keeps a small ring of automatic copies and takes a fresh one before anything
+// that replaces or deletes the record. The rule the whole screen exists to enforce:
+// a record we can't read is never quietly swapped for a blank one.
+
+function copyWhen(iso) {
+  if (!iso) return "unknown date";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "unknown date"
+    : d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+// "12 planned days · 3 weigh-ins · 5 freezer portions" — enough to tell copies apart
+function copyContents(summary) {
+  if (!summary) return "contents unknown";
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const bits = [];
+  if (summary.days) bits.push(plural(summary.days, "planned day"));
+  if (summary.weighIns) bits.push(plural(summary.weighIns, "weigh-in"));
+  if (summary.freezer) bits.push(plural(summary.freezer, "freezer portion"));
+  if (summary.favorites) bits.push(plural(summary.favorites, "favorite"));
+  return bits.join(" · ") || (summary.hasProfile ? "profile only" : "empty");
+}
+
+function copyRows(copies) {
+  return copies.map((c) => `
+    <button class="option-row" data-action="recover-restore" data-index="${c.index}">
+      <div class="o-main"><div class="o-name">${esc(copyWhen(c.createdAt))}</div>
+      <div class="o-sub">${esc(copyContents(c.summary))} · ${esc(c.reason)}</div></div>
+      <div class="o-kcal">Restore</div>
+    </button>`).join("");
+}
+
+function renderRecovery() {
+  const copies = (recovery.snapshots || []).filter((c) => c.restorable);
+  $("#recovery").innerHTML = `
+    <div class="inner">
+      <div class="ob-title">⚠️ Your saved data didn't load</div>
+      <div class="ob-sub">Fuel found the record on this phone but couldn't read it. <b>Nothing has been deleted.</b>
+        The unreadable copy is still here, and so are the automatic copies below — pick one and your logs come back.</div>
+
+      ${copies.length ? `
+        <div class="ob-section">Automatic recovery copies</div>
+        <div class="card">${copyRows(copies)}</div>`
+      : `<div class="trim-note">No automatic copies on this phone — this is the first thing Fuel has failed to read here.
+          If you kept a backup, pasting it below is the fastest way back.</div>`}
+
+      <div class="ob-section">Restore from a backup</div>
+      <div class="card">
+        <textarea class="io" id="recover-box" placeholder='{"format":"fuel-backup.v1", ...}'></textarea>
+        <div class="btn-row"><button class="btn primary" data-action="recover-import">Restore backup</button></div>
+      </div>
+
+      <div class="ob-section">Nothing to restore?</div>
+      <div class="card">
+        <div class="small muted">Starting fresh sets Fuel up from scratch. The unreadable data is kept as a recovery
+          copy first, so this is still not the end of the road.</div>
+        <div class="btn-row"><button class="btn ghost danger" data-action="recover-discard">Start fresh</button></div>
+      </div>
+    </div>`;
+  $("#recovery").hidden = false;
+}
+
+// Leave the recovery screen: saving is allowed again and the app renders normally.
+function finishRecovery(msg) {
+  recovery = null;
+  $("#recovery").hidden = true;
+  closeSheet();
+  applyTheme();
+  if (!state.profile) {
+    $("#onboarding").hidden = false;
+    bindOnboardingPreview();
+  } else {
+    renderAll();
+  }
+  toast(msg);
+}
+
+// The same copies, reachable from More before anything goes wrong.
+function sheetRecoveryCopies() {
+  const copies = P.describeRecoverySnapshots(localStorage).filter((c) => c.restorable);
+  openSheet(`
+    <h3>Recovery copies</h3>
+    <div class="sub">Fuel keeps the last ${P.MAX_RECOVERY_SNAPSHOTS} automatically — one before every restore, reset, or
+      data upgrade. Restoring keeps a copy of what's on the phone right now, so you can always come back.</div>
+    ${copies.length ? `<div class="card">${copyRows(copies)}</div>`
+      : '<div class="empty">No copies yet. Fuel takes one before anything that replaces or deletes your data.</div>'}
+  `);
 }
 
 // ---------- sheets ----------
@@ -1469,24 +1556,46 @@ function handleAction(el) {
 
     case "export-data": {
       state.lastBackup = todayKey(); save();
-      const json = JSON.stringify(state);
+      const json = JSON.stringify(P.exportArchive(state, { appVersion: APP_VERSION }));
       (navigator.clipboard?.writeText(json) || Promise.reject())
         .then(() => alert("Backup copied to clipboard ✓"))
         .catch(() => { const t = document.createElement("textarea"); t.value = json; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); alert("Backup copied ✓"); });
       return;
     }
     case "import-data": {
+      // importArchiveInto copies the state it's about to replace before writing.
       try {
-        const parsed = JSON.parse($("#import-box").value);
-        if (!parsed.profile) throw new Error("no profile");
-        state = { ...defaultState(), ...parsed };
-        save(); applyTheme(); closeSheet(); renderAll();
-      } catch { alert("That doesn't look like a valid backup."); }
+        const next = P.importArchiveInto(localStorage, JSON.parse($("#import-box").value));
+        state = next.state;
+        applyTheme(); closeSheet(); renderAll();
+        toast("Backup restored ✓ — what it replaced is still recoverable");
+      } catch (err) { alert(err?.message || "That doesn't look like a valid backup."); }
+      return;
+    }
+    case "sheet-recovery": return sheetRecoveryCopies();
+    case "recover-restore": {
+      try {
+        state = P.restoreFromSnapshot(localStorage, +el.dataset.index);
+        finishRecovery("Recovered ✓ — your logs are back");
+      } catch { alert("That recovery copy couldn't be read. Try another one."); }
+      return;
+    }
+    case "recover-import": {
+      try {
+        state = P.importArchiveInto(localStorage, JSON.parse($("#recover-box").value)).state;
+        finishRecovery("Backup restored ✓");
+      } catch (err) { alert(err?.message || "That doesn't look like a valid backup."); }
+      return;
+    }
+    case "recover-discard": {
+      if (!confirm("Start over with an empty Fuel? The unreadable data is kept as a recovery copy, but the app will be blank.")) return;
+      state = P.discardCorruptRecord(localStorage);
+      finishRecovery("Started fresh — the unreadable data is still in your recovery copies");
       return;
     }
     case "reset-all": {
-      if (confirm("Delete ALL data — plan, logs, weigh-ins? This can't be undone.")) {
-        localStorage.removeItem(STORE_KEY);
+      if (confirm("Delete ALL data — plan, logs, weigh-ins? Fuel keeps one recovery copy in case this is a mistake.")) {
+        P.clearState(localStorage);
         location.reload();
       }
       return;

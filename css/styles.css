@@ -299,9 +299,12 @@ input, select { font: inherit; color: var(--ink); }
 .nav button svg { width: 23px; height: 23px; }
 .nav button.on { color: var(--accent); }
 
-/* ---------- onboarding ---------- */
-#onboarding { position: fixed; inset: 0; background: var(--page); z-index: 60; overflow-y: auto; padding: 28px 20px 48px; }
-#onboarding .inner { max-width: 480px; margin: 0 auto; }
+/* ---------- onboarding & recovery ---------- */
+/* #recovery takes over the screen when the stored record is unreadable — same full-page
+   treatment as onboarding, one layer above it so it can never end up underneath. */
+#onboarding, #recovery { position: fixed; inset: 0; background: var(--page); z-index: 60; overflow-y: auto; padding: 28px 20px 48px; }
+#recovery { z-index: 61; }
+#onboarding .inner, #recovery .inner { max-width: 480px; margin: 0 auto; }
 .ob-logo { font-size: 2.4rem; }
 .ob-title { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 4px; }
 .ob-sub { color: var(--ink-2); margin-bottom: 22px; }

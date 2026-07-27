@@ -1,7 +1,7 @@
 /* Data integrity tests — every template must reference real products with sane macros. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import * as E from "../js/engine.js";
 
 const products = JSON.parse(readFileSync(new URL("../data/products.json", import.meta.url))).products;
@@ -109,4 +109,10 @@ test("app version constant stays in sync with the service worker", () => {
   const swV = sw.match(/VERSION = "(fuel-v\d+)"/)[1];
   const appV = app.match(/APP_VERSION = "(fuel-v\d+)"/)[1];
   assert.equal(swV, appV, "bump both together");
+});
+
+test("every app module is in the service worker's cached shell", () => {
+  const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+  for (const file of readdirSync(new URL("../js/", import.meta.url)))
+    assert.ok(sw.includes(`"js/${file}"`), `js/${file} is missing from SHELL — it would 404 offline`);
 });
