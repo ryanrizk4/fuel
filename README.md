@@ -20,14 +20,15 @@ Fuel intentionally has no framework and no build step:
 
 - `index.html` — app shell.
 - `css/styles.css` — mobile-first visual system.
-- `js/app.js` — rendering, interactions, and persistence.
+- `js/app.js` — rendering and interactions.
 - `js/engine.js` — pure deterministic planning logic.
+- `js/persistence.js` — versioned state records, migrations, and recovery copies.
 - `data/products.json` — products and macro data.
 - `data/templates.json` — meal templates and variants.
 - `sw.js` — installable/offline PWA caching.
 - `tests/` — engine and data-integrity tests.
 
-The owner's personal state remains on the phone in browser localStorage and is never committed.
+The owner's personal state remains on the phone in browser localStorage and is never committed. It carries an explicit schema version, migrates forward on load, and is copied to a small rolling set of recovery snapshots before anything that replaces or deletes it.
 
 ## Run locally
 
@@ -65,12 +66,11 @@ Read:
 
 ## Near-term direction
 
-The priority is durability without overengineering:
+The priority is durability without overengineering. Versioned localStorage migrations,
+recoverable state snapshots, and tested export/restore have shipped. Still open:
 
-- Versioned localStorage migrations.
-- Recoverable state snapshots.
-- Tested export and restore.
 - Single-sourced app/service-worker versioning.
 - Provider-neutral operating and user-facing language.
+- Reducing risk in `app.js` as it grows, without adding a framework.
 
 A framework rewrite, backend, and multi-user architecture are not current priorities.
