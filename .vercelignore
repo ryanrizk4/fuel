@@ -1,0 +1,10 @@
+# Fuel deploys the repository root as a static site, so anything that is not part of
+# the running app is excluded here rather than restructured into a build directory.
+#
+# `tests/` is deliberately NOT excluded. Vercel runs the build command against what it
+# uploads, so ignoring tests/ would leave `node --test` with no files to discover, and
+# the deploy gate would pass trivially instead of actually gating.
+docs
+*.md
+VividScribe.html
+.github

@@ -27,11 +27,32 @@ Current visible version: `fuel-v12`.
 
 ## Deployment and quality
 
-- Hosted through GitHub Pages.
-- GitHub Actions runs `node --test` on pushes and pull requests.
+- Hosted on Vercel, deployed from `main`, with a preview deployment per pull request.
+- The Vercel build command is `npm test`, so a failing suite blocks the deployment.
+- GitHub Actions also runs `node --test` on pushes and pull requests.
 - The latest release has 43 automated tests.
 - UI changes require phone-sized testing of the real application.
 - PWA shell caching currently depends on manually keeping the application and service-worker versions aligned.
+
+Fuel is a static site with no build step. `vercel.json` serves the repository root,
+sets security headers and a strict Content-Security-Policy, and marks `sw.js`,
+`index.html`, and the `js/`, `css/`, and `data/` directories no-cache so an update
+actually reaches an installed phone app. `style-src` still allows `'unsafe-inline'`
+for six static inline `style` attributes in `index.html`; removing those is the
+prerequisite for tightening it.
+
+## Identity
+
+Fuel has no accounts and no sign-in, deliberately. It is used in the kitchen and in
+the store, so opening instantly and working offline outranks cross-device sync.
+Personal state stays in browser localStorage on the owner's device.
+
+Adding the shared Supabase/Google sign-in used by Sentinel was considered and
+declined in Phase 6: the data-loss risk that would justify a server was addressed by
+versioned state, recovery copies, and export/import instead, and meal logs do not
+carry the sensitivity that makes authentication worthwhile for financial records. It
+remains available later, additively, if cross-device meal sync is ever actually
+wanted.
 
 ## Product constraints
 
