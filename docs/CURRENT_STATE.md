@@ -1,12 +1,12 @@
 # Fuel current state
 
-Updated: 2026-07-25
+Updated: 2026-07-27
 
 ## Product status
 
 Fuel is a personal meal-planning PWA used primarily from the owner's Samsung Galaxy. It is deliberately small, framework-free, and offline-capable.
 
-Current visible version: `fuel-v12`.
+Current visible version: `fuel-v13`.
 
 ## Core behavior
 
@@ -22,14 +22,18 @@ Current visible version: `fuel-v12`.
 - Shared product and recipe data live in `data/products.json` and `data/templates.json`.
 - Personal state lives only in browser localStorage under `fuel.state.v1`.
 - The repository does not contain the owner's personal logs.
-- localStorage is currently a single JSON record. A malformed record can fall back to a blank state, so versioned migrations and recoverable snapshots are the highest-priority durability work.
-- Export/restore must remain available as the safety floor.
+- The record carries an explicit `schemaVersion` (currently 2) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
+- A migration that fails leaves the stored record untouched, keeps a recovery copy, and lets the app run on the last good state.
+- Fuel keeps a rolling ring of up to five recovery copies, taken before any write that replaces or deletes the record: upgrades, restores, imports, and resets. The ring shrinks rather than failing when phone storage is full.
+- An unreadable record no longer falls back to blank state. It is quarantined intact and a full-screen recovery path offers the copies, a pasted backup, or an explicit start-fresh.
+- Export produces a versioned `fuel-backup.v1` archive; import still accepts the older bare-state exports. Round trips are covered by tests.
+- `js/persistence.js` holds all of this and has no DOM access, so it is testable under `node --test`.
 
 ## Deployment and quality
 
 - Hosted through GitHub Pages.
 - GitHub Actions runs `node --test` on pushes and pull requests.
-- The latest release has 43 automated tests.
+- The latest release has 59 automated tests.
 - UI changes require phone-sized testing of the real application.
 - PWA shell caching currently depends on manually keeping the application and service-worker versions aligned.
 
@@ -44,12 +48,10 @@ Current visible version: `fuel-v12`.
 
 ## Near-term priorities
 
-1. Add versioned persisted-state migrations.
-2. Add rolling recovery snapshots and a visible corruption-recovery path.
-3. Prove export/import round trips with tests.
-4. Single-source application and service-worker versioning.
-5. Remove model-specific operating text and user-facing copy.
-6. Preserve the framework-free architecture while reducing risk in `app.js` as it grows.
+1. Single-source application and service-worker versioning.
+2. Remove model-specific operating text and user-facing copy.
+3. Preserve the framework-free architecture while reducing risk in `app.js` as it grows.
+4. Surface the recovery copies in a periodic backup nudge, so the owner notices drift before a failure does.
 
 ## Deliberate non-priorities
 

@@ -1,11 +1,12 @@
 /* Service worker: cache-first for the app shell, network-first for data files. */
-const VERSION = "fuel-v12";
+const VERSION = "fuel-v13";
 const SHELL = [
   "./",
   "index.html",
   "css/styles.css",
   "js/app.js",
   "js/engine.js",
+  "js/persistence.js",
   "manifest.webmanifest",
   "icons/icon-192.png",
   "icons/icon-512.png",

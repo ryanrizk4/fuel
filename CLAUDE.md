@@ -6,6 +6,7 @@ around Trader Joe's shopping. Deployed via GitHub Pages; used entirely from the 
 ## Architecture
 
 - `index.html` + `css/styles.css` + `js/app.js` (UI) + `js/engine.js` (pure logic, no DOM)
+  + `js/persistence.js` (versioned state records, migrations, recovery copies; no DOM)
 - `data/products.json` — TJ's product database (calories/protein per serving, `confidence: verified|estimated`, pack sizes)
 - `data/templates.json` — meal templates: base ingredients + variants that keep the same cooking motions
 - `sw.js` — cache-first shell, network-first for `data/*.json` (content updates land on next visit)

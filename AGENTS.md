@@ -21,6 +21,7 @@ Preserve the product's defining advantages:
 - `css/styles.css`: mobile-first design system.
 - `js/app.js`: UI rendering, interactions, and persistence wiring.
 - `js/engine.js`: pure planning and nutrition logic with no DOM access.
+- `js/persistence.js`: versioned state records, forward migrations, recovery copies, and the backup format. No DOM access.
 - `data/products.json`: product/macronutrient database.
 - `data/templates.json`: meal templates and variants.
 - `sw.js`: PWA cache behavior.
@@ -58,13 +59,20 @@ For product or template changes:
 
 ## Persistence safety
 
-Current localStorage persistence is the largest durability risk. Until versioned migrations and recovery snapshots ship:
+Persisted records are versioned (`schemaVersion`, currently 2) and migrate forward on load.
+Fuel keeps a bounded rolling ring of recovery copies and takes one before any write that
+replaces or deletes the record. All of this lives in `js/persistence.js`, which has no DOM
+access and is covered by `tests/persistence.test.js`.
 
 - Do not casually rename or remove state fields.
 - Preserve backward compatibility when adding fields.
+- A shape change gets a new entry in `MIGRATIONS` and a test, not a silent reinterpretation.
 - Never silently discard an existing readable state.
-- Keep export/import behavior working.
-- Treat a corrupted primary state as recoverable data, not a reason to reset without warning.
+- A migration that throws must leave the stored record alone and keep the last good state.
+- Take a recovery copy before any destructive or replacing write.
+- Keep export/import behavior working, and keep older bare-state backups importable.
+- A corrupted primary record is recoverable data: show the owner what happened and offer a
+  restore. Blank state is only ever something they choose.
 
 ## Recipe ingestion
 
