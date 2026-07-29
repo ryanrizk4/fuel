@@ -1,6 +1,6 @@
 {
   "$schema": "Product database. Units are the serving the app counts in. confidence: 'verified' = checked against label/official source; 'estimated' = best guess, app will ask user to confirm from the package. packServings = servings per purchasable pack (null = sold loose / per unit).",
-  "updated": "2026-07-09",
+  "updated": "2026-07-29",
   "products": [
     {
       "id": "mission-carb-balance-tortilla",
@@ -1119,6 +1119,19 @@
       "packServings": 1,
       "packLabel": "11.3 oz bowl",
       "note": "Empty into covered pan, low heat 10-12 min"
+    },
+    {
+      "id": "tj-daily-baked-bread",
+      "name": "Daily Baked Bread (sliced)",
+      "brand": "Trader Joe's",
+      "section": "Bread & Bakery",
+      "unit": "1 slice",
+      "calories": 90,
+      "protein": 3,
+      "confidence": "estimated",
+      "packServings": 16,
+      "packLabel": "1 loaf (~16 slices)",
+      "note": "Buy the loaf, slice it, freeze what you won't use in a few days. Loaves rotate at TJ's — tap Check label for the one you actually bought."
     }
   ]
 }
