@@ -1,6 +1,6 @@
 {
   "$schema": "Meal templates. A template = one dish you know how to cook, with variants that keep the same cooking motions. base = ingredients (product id + qty in product units) for ONE serving unless servings > 1 (batch). Variants add/remove ingredients from base. repeatOk = fine to eat several times a week. source: 'seed' = user's own rotation, 'trending' = ingested from TikTok/IG research.",
-  "updated": "2026-07-09",
+  "updated": "2026-07-29",
   "templates": [
     {
       "id": "tortilla-melt",
@@ -1594,6 +1594,90 @@
           "note": "Blend cottage cheese into the yogurt — more protein"
         }
       ]
+    },
+    {
+      "id": "garlic-egg-bacon-toast",
+      "name": "Air-Fryer Garlic Egg & Turkey Bacon Toast",
+      "emoji": "🍞",
+      "mealType": [
+        "breakfast",
+        "lunch"
+      ],
+      "prepMinutes": 15,
+      "freezerFriendly": false,
+      "repeatOk": true,
+      "servings": 1,
+      "source": "seed",
+      "base": [
+        {
+          "product": "tj-daily-baked-bread",
+          "qty": 2
+        },
+        {
+          "product": "tj-large-egg",
+          "qty": 2
+        },
+        {
+          "product": "tj-turkey-bacon",
+          "qty": 3
+        },
+        {
+          "product": "tj-lite-mozzarella",
+          "qty": 1
+        },
+        {
+          "product": "garlic",
+          "qty": 1
+        }
+      ],
+      "steps": [
+        "Take 2 slices of the frozen loaf out; chop the turkey bacon and mince the garlic",
+        "Beat the eggs, then stir in the bacon, garlic and half the cheese",
+        "Sit the bread in a foil tray or liner, pour the egg mix over and let it soak in",
+        "Air-fry ~10 min at 350°F, until the egg is set and not wet in the middle",
+        "Scatter the rest of the cheese on top, air-fry 2 more min until melted"
+      ],
+      "variants": [
+        {
+          "id": "classic",
+          "name": "As you make it",
+          "add": [],
+          "remove": [],
+          "note": "Two slices, three bacon, garlic and cheese"
+        },
+        {
+          "id": "yogurt-side",
+          "name": "+ Yogurt on the side",
+          "add": [
+            {
+              "product": "tj-greek-yogurt-nonfat",
+              "qty": 1
+            }
+          ],
+          "remove": [],
+          "note": "Pushes it past 60g protein — good with the leftover bread"
+        },
+        {
+          "id": "zaatar",
+          "name": "Za'atar finish",
+          "add": [
+            {
+              "product": "zaatar",
+              "qty": 1
+            }
+          ],
+          "remove": [],
+          "note": "Dust it on after the cheese melts"
+        },
+        {
+          "id": "lighter",
+          "name": "One slice",
+          "add": [],
+          "remove": [],
+          "note": "Halve the bread when the day's budget is tight"
+        }
+      ],
+      "lunchAtWork": false
     }
   ]
 }
