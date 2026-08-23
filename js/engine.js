@@ -13,15 +13,22 @@ const BUDGET_FLOOR = { male: 1500, female: 1200 };
 
 // A heavy meal out is worth absorbing. An episode is not.
 //
-// Absorbing calories means eating below an already-deficit budget for as many days
-// as it takes, and deliberate restriction after a large binge is the single most
-// reliable trigger for the next one. So the bank is bounded twice: a single log
-// above EPISODE_KCAL is not a heavy day at all and is recorded as an episode, which
-// never reaches the bank; and whatever does reach the bank is capped so the trim can
-// never run longer than MAX_OVERAGE_BANK / MAX_DAILY_TRIM days. Calories past those
-// bounds are not forgiven or hidden — they are simply not paid back through hunger.
-const EPISODE_KCAL = 1200;
-const MAX_OVERAGE_BANK = 900; // ceiling on absorbable debt: at most 6 days of trim
+// What separates them is loss of control, not calorie count. A planned 1,300 kcal
+// restaurant dinner is a heavy day; 900 kcal of sweets eaten compulsively after
+// dinner is an episode. Classifying by size gets the second case wrong in the
+// direction that does harm — it routes a real episode into the compensation bank —
+// so the size is only ever a prompt, and the owner's answer is the classifier.
+const EPISODE_PROMPT_KCAL = 1200; // when to lead with the episode question; never decides it
+const MAX_OVERAGE_BANK = 900;     // ceiling on absorbable debt: at most 6 days of trim
+
+// Answers to "did this feel out of control?". Anything other than a clear no is
+// treated as an episode: wrongly banking a real episode is the costly error, and
+// wrongly declining to bank a heavy day costs almost nothing.
+const CONTROL_ANSWERS = ["yes", "no", "unsure"];
+
+function classifyOverage(control) {
+  return control === "no" ? "heavy" : "episode";
+}
 
 // Extra-activity credits. The TDEE activity multiplier already covers routine
 // training and daily steps; trackers overestimate burn by 27-93% (Stanford 2017,
@@ -96,9 +103,10 @@ function effectiveBudget(state, day) {
   return { budget: dailyBudget(p) - trim + credit, trim, credit };
 }
 
-// Is a logged overage large enough that absorbing it would do more harm than good?
-function isEpisodeSized(kcal) {
-  return Math.max(0, Math.round(kcal) || 0) >= EPISODE_KCAL;
+// Should the log sheet lead with the episode question? A hint for the UI only —
+// it never classifies anything on its own.
+function promptsForEpisode(kcal) {
+  return Math.max(0, Math.round(kcal) || 0) >= EPISODE_PROMPT_KCAL;
 }
 
 /**
@@ -521,6 +529,7 @@ function normalizeEpisode(entry) {
     date: typeof e.date === "string" ? e.date : "",
     kcal,
     at: typeof e.at === "string" ? e.at : new Date().toISOString(),
+    lossOfControl: CONTROL_ANSWERS.includes(e.lossOfControl) ? e.lossOfControl : null,
     partOfDay: PARTS_OF_DAY.includes(e.partOfDay) ? e.partOfDay : null,
     smoked: typeof e.smoked === "boolean" ? e.smoked : null,
     hoursSinceEating: Number.isFinite(hours) && hours >= 0 ? Math.round(hours) : null,
@@ -543,6 +552,44 @@ function removeEpisodesOn(state, dateK) {
   return before.length - state.episodes.length;
 }
 
+/**
+ * The only cannabis statistic worth showing.
+ *
+ * "8 of 10 episodes involved weed" is P(smoked | episode). If the owner smokes most
+ * nights that number is near-certain and carries no information at all. What actually
+ * discriminates is P(episode | smoked) against P(episode | not smoked), which needs a
+ * denominator of nights — including the many nights nothing happened. Those come from
+ * `day.cannabis` on the ordinary day log, not from the episode records.
+ *
+ * Returns nulls until both arms have enough nights to mean anything, rather than
+ * showing a ratio built on two data points.
+ */
+const MIN_NIGHTS_PER_ARM = 5;
+
+function cannabisRates(state, { days = 90, today = new Date() } = {}) {
+  const cutoff = dateKey(addDays(today, -days));
+  const end = dateKey(today);
+  const episodeDates = new Set((Array.isArray(state.episodes) ? state.episodes : []).map((e) => e.date));
+
+  let onNights = 0, onEpisodes = 0, offNights = 0, offEpisodes = 0;
+  for (const [key, day] of Object.entries(state.plan?.days || {})) {
+    if (key < cutoff || key > end) continue;
+    if (day?.cannabis === true) { onNights++; if (episodeDates.has(key)) onEpisodes++; }
+    else if (day?.cannabis === false) { offNights++; if (episodeDates.has(key)) offEpisodes++; }
+  }
+
+  const enough = onNights >= MIN_NIGHTS_PER_ARM && offNights >= MIN_NIGHTS_PER_ARM;
+  const rate = (n, d) => (d > 0 ? n / d : null);
+  return {
+    days, onNights, onEpisodes, offNights, offEpisodes,
+    nightsLogged: onNights + offNights,
+    minPerArm: MIN_NIGHTS_PER_ARM,
+    enough,
+    onRate: enough ? rate(onEpisodes, onNights) : null,
+    offRate: enough ? rate(offEpisodes, offNights) : null,
+  };
+}
+
 function median(nums) {
   if (!nums.length) return null;
   const sorted = [...nums].sort((a, b) => a - b);
@@ -563,6 +610,8 @@ function episodeStats(state, { days = 90, today = new Date() } = {}) {
   const last = within.length ? within[within.length - 1] : null;
 
   const withSmoked = within.filter((e) => e.smoked !== null);
+  // Kept for the record, deliberately NOT surfaced as a rate: this is
+  // P(smoked | episode), which says nothing causal. See cannabisRates().
   const afterSmoking = withSmoked.filter((e) => e.smoked === true).length;
   const gaps = within.map((e) => e.hoursSinceEating).filter((h) => h !== null);
   const priorDays = within.map((e) => e.dayBefore).filter((d) => d !== null);
@@ -572,9 +621,21 @@ function episodeStats(state, { days = 90, today = new Date() } = {}) {
   for (const part of PARTS_OF_DAY) byPartOfDay[part] = within.filter((e) => e.partOfDay === part).length;
   const ranked = PARTS_OF_DAY.filter((part) => byPartOfDay[part] > 0).sort((a, b) => byPartOfDay[b] - byPartOfDay[a]);
 
+  // Clusters and recovery latency: the owner's own account is that one night costs
+  // little and a three-day run costs most of the damage, so these rank above volume.
+  let clustered = 0;
+  const gapsBetween = [];
+  for (let i = 1; i < within.length; i++) {
+    const gap = Math.round((parseKey(within[i].date) - parseKey(within[i - 1].date)) / 86400000);
+    gapsBetween.push(gap);
+    if (gap <= 2) clustered++;
+  }
+
   return {
     days,
     count: within.length,
+    clustered,
+    medianGapDays: median(gapsBetween),
     lastDate: last ? last.date : null,
     daysSince: last ? Math.round((parseKey(dateKey(today)) - parseKey(last.date)) / 86400000) : null,
     afterSmoking,
@@ -640,7 +701,7 @@ export {
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
   generateWeek, recordHistory, shoppingList, collectCarryover, perishUrgency, weekQuality, calibration,
-  EPISODE_KCAL, MAX_OVERAGE_BANK, PARTS_OF_DAY, DAY_BEFORE_KINDS,
-  isEpisodeSized, bankOverage, unbankOverage,
+  EPISODE_PROMPT_KCAL, MAX_OVERAGE_BANK, PARTS_OF_DAY, DAY_BEFORE_KINDS, CONTROL_ANSWERS,
+  promptsForEpisode, classifyOverage, bankOverage, unbankOverage, cannabisRates,
   normalizeEpisode, recordEpisode, removeEpisodesOn, episodeStats,
 };

@@ -392,11 +392,24 @@ test("the capped bank can never trim for more than a bounded number of days", ()
   assert.equal(trim, E.MAX_DAILY_TRIM);
 });
 
-test("an episode-sized log is recognised as an episode, a heavy meal is not", () => {
-  assert.equal(E.isEpisodeSized(800), false);
-  assert.equal(E.isEpisodeSized(E.EPISODE_KCAL - 1), false);
-  assert.equal(E.isEpisodeSized(E.EPISODE_KCAL), true);
-  assert.equal(E.isEpisodeSized(4000), true);
+test("loss of control classifies an overage, and calorie size never does", () => {
+  // The costly error is banking a real episode, so anything short of a clear "no"
+  // is an episode regardless of how small it was.
+  assert.equal(E.classifyOverage("no"), "heavy");
+  assert.equal(E.classifyOverage("yes"), "episode");
+  assert.equal(E.classifyOverage("unsure"), "episode");
+  assert.equal(E.classifyOverage(undefined), "episode");
+
+  // 900 kcal eaten compulsively is an episode; a chosen 2,500 kcal night is not.
+  assert.equal(E.classifyOverage("yes"), "episode", "a small compulsive binge is still an episode");
+  assert.equal(E.classifyOverage("no"), "heavy", "a large chosen meal is still a heavy day");
+});
+
+test("the calorie threshold only prompts, and decides nothing", () => {
+  assert.equal(E.promptsForEpisode(800), false);
+  assert.equal(E.promptsForEpisode(E.EPISODE_PROMPT_KCAL), true);
+  // the prompt and the classification are independent
+  assert.equal(E.classifyOverage("no"), "heavy", "a prompting size still yields a heavy day on a clear no");
 });
 
 test("recording an episode leaves the bank, the budget, and the goal date untouched", () => {
@@ -469,4 +482,132 @@ test("episode stats are empty, not broken, before anything is logged", () => {
   assert.equal(st.daysSince, null);
   assert.equal(st.medianHoursSinceEating, null);
   assert.equal(st.topPartOfDay, null);
+});
+
+/* ---------- product invariants ----------
+   These are the rules the whole redesign exists to enforce. They are written as
+   tests rather than as documentation so the old compensation logic cannot creep
+   back in later through some unrelated feature. */
+
+test("INVARIANT: an episode never reduces a future calorie target", () => {
+  const s = freshState({ weighIns: [{ date: "2026-08-01", lb: 185 }] });
+  const baseline = E.effectiveBudget(s, null).budget;
+  for (const kcal of [200, 1200, 4000, 12000]) {
+    E.recordEpisode(s, { date: "2026-08-2" + (kcal % 9), kcal, lossOfControl: "yes" });
+  }
+  assert.equal(s.overageBank, 0, "episodes must not accumulate anywhere");
+  assert.equal(E.effectiveBudget(s, null).budget, baseline, "the budget must not move");
+  assert.equal(E.effectiveBudget(s, null).trim, 0, "no trim may be created");
+});
+
+test("INVARIANT: an episode never moves the goal date", () => {
+  const s = freshState({ weighIns: [{ date: "2026-08-01", lb: 185 }] });
+  const before = E.goalProjection(s);
+  E.recordEpisode(s, { date: "2026-08-20", kcal: 6000, lossOfControl: "yes" });
+  const after = E.goalProjection(s);
+  assert.equal(after.daysLeft, before.daysLeft);
+  assert.equal(after.bankDays, before.bankDays);
+});
+
+test("INVARIANT: recovery planning starts from baseline, not yesterday's surplus", () => {
+  const withEpisode = freshState({ weighIns: [{ date: "2026-08-01", lb: 185 }] });
+  const without = freshState({ weighIns: [{ date: "2026-08-01", lb: 185 }] });
+  E.recordEpisode(withEpisode, { date: "2026-08-22", kcal: 5000, lossOfControl: "yes" });
+  assert.equal(
+    E.effectiveBudget(withEpisode, null).budget,
+    E.effectiveBudget(without, null).budget,
+    "the day after an episode must be identical to a day that follows nothing",
+  );
+});
+
+test("INVARIANT: episode analytics describe, and never compute repayment", () => {
+  const s = freshState();
+  E.recordEpisode(s, { date: E.dateKey(new Date()), kcal: 3000, lossOfControl: "yes" });
+  const snapshot = JSON.stringify(s);
+  const st = E.episodeStats(s, { days: 90 });
+  assert.equal(JSON.stringify(s), snapshot, "reading the stats must not mutate state");
+  for (const key of Object.keys(st)) {
+    assert.ok(!/owed|debt|repay|deficitOwed|toAbsorb|penalt/i.test(key), `stats leaked a repayment concept: ${key}`);
+  }
+  assert.equal(s.overageBank, 0);
+});
+
+/* ---------- the cannabis rate needs a denominator ---------- */
+
+function nights(s, spec) {
+  // spec: [[daysAgo, smoked, hadEpisode], ...]
+  const today = new Date(2026, 7, 23);
+  for (const [back, smoked, ep] of spec) {
+    const key = E.dateKey(E.addDays(today, -back));
+    s.plan.days[key] = { status: "done", meals: [], snacks: [], cannabis: smoked };
+    if (ep) E.recordEpisode(s, { date: key, kcal: 2500, lossOfControl: "yes", smoked });
+  }
+  return today;
+}
+
+test("the cannabis comparison stays silent until both arms have enough nights", () => {
+  const s = freshState({ plan: { days: {} }, episodes: [] });
+  const today = nights(s, [[1, true, true], [2, true, false], [3, false, false]]);
+  const r = E.cannabisRates(s, { days: 90, today });
+  assert.equal(r.enough, false, "3 nights is not a comparison");
+  assert.equal(r.onRate, null);
+  assert.equal(r.offRate, null);
+  assert.equal(r.onNights, 2);
+  assert.equal(r.offNights, 1);
+});
+
+test("the cannabis comparison reports episodes per night, not per episode", () => {
+  const s = freshState({ plan: { days: {} }, episodes: [] });
+  // 10 smoked nights with 4 episodes; 20 clear nights with 1. Note that
+  // 4 of 5 episodes involved cannabis — the misleading framing — while the
+  // rate that matters is 40% against 5%.
+  const spec = [];
+  for (let i = 1; i <= 10; i++) spec.push([i, true, i <= 4]);
+  for (let i = 11; i <= 30; i++) spec.push([i, false, i === 11]);
+  const today = nights(s, spec);
+
+  const r = E.cannabisRates(s, { days: 90, today });
+  assert.equal(r.enough, true);
+  assert.equal(r.onNights, 10);
+  assert.equal(r.onEpisodes, 4);
+  assert.equal(r.offNights, 20);
+  assert.equal(r.offEpisodes, 1);
+  assert.equal(Math.round(r.onRate * 100), 40);
+  assert.equal(Math.round(r.offRate * 100), 5);
+
+  // the old framing, shown for contrast: it says "4 of 5" no matter how many
+  // ordinary nights went by, which is why it is no longer surfaced as a rate
+  const st = E.episodeStats(s, { days: 90, today });
+  assert.equal(st.afterSmoking, 4);
+  assert.equal(st.smokedKnown, 5);
+});
+
+test("a night that smoked but produced nothing still counts in the denominator", () => {
+  const s = freshState({ plan: { days: {} }, episodes: [] });
+  const today = nights(s, [[1, true, true], [2, true, false], [3, true, false], [4, true, false], [5, true, false],
+                          [6, false, false], [7, false, false], [8, false, false], [9, false, false], [10, false, false]]);
+  const r = E.cannabisRates(s, { days: 90, today });
+  assert.equal(r.onNights, 5, "quiet smoked nights are the whole point of the denominator");
+  assert.equal(Math.round(r.onRate * 100), 20);
+  assert.equal(r.offRate, 0);
+});
+
+test("episode clustering counts the runs that do the real damage", () => {
+  const s = freshState({ plan: { days: {} }, episodes: [] });
+  const today = new Date(2026, 7, 23);
+  const k = (b) => E.dateKey(E.addDays(today, -b));
+  for (const b of [1, 2, 3, 40]) E.recordEpisode(s, { date: k(b), kcal: 2500, lossOfControl: "yes" });
+  const st = E.episodeStats(s, { days: 90, today });
+  assert.equal(st.count, 4);
+  assert.equal(st.clustered, 2, "three consecutive days is two clustered follow-ons");
+  assert.equal(st.medianGapDays, 1);
+});
+
+test("an unanswered control question is recorded as unknown, not as a no", () => {
+  const e = E.normalizeEpisode({ date: "2026-08-20", kcal: 2000 });
+  assert.equal(e.lossOfControl, null);
+  const yes = E.normalizeEpisode({ date: "2026-08-20", kcal: 900, lossOfControl: "yes" });
+  assert.equal(yes.lossOfControl, "yes");
+  const junk = E.normalizeEpisode({ date: "2026-08-20", kcal: 900, lossOfControl: "kinda" });
+  assert.equal(junk.lossOfControl, null);
 });

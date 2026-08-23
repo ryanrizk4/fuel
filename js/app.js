@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
 
-const APP_VERSION = "fuel-v14";
+const APP_VERSION = "fuel-v15";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -14,6 +14,7 @@ let shopWeekOffset = 0;
 let sheetCtx = null;
 let recovery = null; // set while an unreadable record is waiting on the owner — see load()
 let episodeDraft = null; // in-progress episode log; the sheet re-renders as chips are picked
+let overFrom = "over";   // whether the current over-log started from "went over" or "ate out"
 
 // ---------- state ----------
 // Shape, migrations, recovery copies and the backup format all live in persistence.js.
@@ -356,6 +357,18 @@ function renderToday() {
       <div class="btn-row"><button class="btn ghost" data-action="undo-status" data-date="${key}">Undo</button></div>
     </div>`;
 
+  // One tap on the day log. This is the denominator the cannabis question needs:
+  // nights it happened and nothing followed count just as much as the nights it did.
+  const cannabisCard = `
+    <div class="card">
+      <div class="list-title-row"><h3>Smoked today?</h3><span class="small muted">optional</span></div>
+      <div class="chips wrap">
+        <button class="chip ${day.cannabis === true ? "on" : ""}" data-action="set-cannabis" data-date="${key}" data-value="true">yes</button>
+        <button class="chip ${day.cannabis === false ? "on" : ""}" data-action="set-cannabis" data-date="${key}" data-value="false">no</button>
+      </div>
+      <div class="small muted">Answering on ordinary nights is what makes this worth anything — a rate needs the nights nothing happened.</div>
+    </div>`;
+
   // weekly check-in: weekends, or when the last weigh-in is stale
   const lastW = [...state.weighIns].sort((x, y) => y.date.localeCompare(x.date))[0];
   const weighAge = lastW ? Math.round((E.parseKey(key) - E.parseKey(lastW.date)) / 86400000) : 99;
@@ -424,7 +437,8 @@ function renderToday() {
 
     ${defrostNote}
     ${checkinCard}
-    ${statusCard}`;
+    ${statusCard}
+    ${cannabisCard}`;
 }
 
 // ----- Plan -----
@@ -632,21 +646,32 @@ function renderProgress() {
 
     ${(() => {
       const st = E.episodeStats(state, { days: 90 });
+      const cb = E.cannabisRates(state, { days: 90 });
+      const pct = (r) => `${Math.round(r * 100)}%`;
       const rows = [];
-      if (st.smokedKnown) rows.push(["After smoking", `${st.afterSmoking} of ${st.smokedKnown}`]);
-      if (st.gapsKnown) rows.push(["Typical gap since eating", `${st.medianHoursSinceEating} hrs`]);
-      if (st.dayBeforeKnown) rows.push(["Followed a day of under-eating", `${st.restrictedBefore} of ${st.dayBeforeKnown}`]);
-      if (st.topPartOfDay) rows.push(["Most common time", `${st.topPartOfDay} (${st.topPartOfDayCount} of ${st.count})`]);
+      // Frequency, clustering and recovery — not volume. One night costs little;
+      // a three-day run is what actually does the damage.
+      if (st.count) rows.push(["Turned into a cluster", `${st.clustered} of ${st.count}`, "another within 2 days"]);
+      if (st.medianGapDays !== null) rows.push(["Typical gap between", `${st.medianGapDays} days`, ""]);
+      if (st.gapsKnown) rows.push(["Typical gap since eating", `${st.medianHoursSinceEating} hrs`, `${st.gapsKnown} answered`]);
+      if (st.dayBeforeKnown) rows.push(["Followed under-eating", `${st.restrictedBefore} of ${st.dayBeforeKnown}`, ""]);
+      if (st.topPartOfDay) rows.push(["Most common time", st.topPartOfDay, `${st.topPartOfDayCount} of ${st.count}`]);
+
+      const cannabis = cb.enough
+        ? `<div class="diag-row"><span>Nights you smoked</span><span>${pct(cb.onRate)} (${cb.onEpisodes} of ${cb.onNights})</span></div>
+           <div class="diag-row"><span>Nights you didn't</span><span>${pct(cb.offRate)} (${cb.offEpisodes} of ${cb.offNights})</span></div>`
+        : `<div class="small muted mt8">Not enough nights logged to compare yet — ${cb.onNights} smoked, ${cb.offNights} not, and this needs ${cb.minPerArm} of each. The comparison only means something once the ordinary nights are in it too.</div>`;
+
       return `<div class="card">
         <h3>Episodes</h3>
         ${st.count === 0
-          ? `<div class="small muted mt8">Nothing logged in the last 90 days. When you log one, Fuel records what was around it — the time, whether you'd smoked, how long since you'd eaten — and shows the pattern here. It never charges an episode against a future day.</div>`
+          ? `<div class="small muted mt8">Nothing logged in the last 90 days. When you log one, Fuel records what was around it and shows the pattern here. It never charges an episode against a future day.</div>`
           : `<div class="diag-row"><span>Last 90 days</span><span>${st.count}</span></div>
              <div class="diag-row"><span>Most recent</span><span>${st.daysSince === 0 ? "today" : `${st.daysSince} day${st.daysSince !== 1 ? "s" : ""} ago`}</span></div>
-             ${rows.map(([k, v]) => `<div class="diag-row"><span>${k}</span><span>${v}</span></div>`).join("")}
-             <div class="small muted mt16">${st.count < 4
-               ? "Too few to call a pattern yet. A handful more and the shape becomes real."
-               : "Counts are shown against how many you answered, so you can tell a pattern from a small sample."}</div>`}
+             ${rows.map(([k, v, note]) => `<div class="diag-row"><span>${k}${note ? ` <span class="small muted">· ${note}</span>` : ""}</span><span>${v}</span></div>`).join("")}`}
+        <div class="ob-section">Episodes per night, with and without</div>
+        ${cannabis}
+        ${st.count && st.count < 4 ? `<div class="small muted mt16">Too few to call a pattern yet. A handful more and the shape becomes real.</div>` : ""}
       </div>`;
     })()}
 
@@ -1070,32 +1095,26 @@ function sheetAteOut(dateK) {
     <div class="sub">No guilt — just calibrate. How was it, roughly?</div>
     <button class="option-row" data-action="skip-day" data-date="${dateK}" data-adj="same"><div class="o-main"><div class="o-name">About on plan</div><div class="o-sub">Reasonable meal, similar calories</div></div></button>
     <button class="option-row" data-action="skip-day" data-date="${dateK}" data-adj="light"><div class="o-main"><div class="o-name">Lighter than plan</div><div class="o-sub">Credits ~250 kcal back</div></div></button>
-    <div class="ob-section">Or heavier — estimate the damage</div>
-    <div class="chips">
-      ${[500, 1000, 1500, 2500].map((v) => `<button class="chip" data-action="skip-day" data-date="${dateK}" data-adj="over" data-kcal="${v}">+${v}</button>`).join("")}
-    </div>
-    <div class="field-row">
-      <div class="field" style="margin:0"><input id="over-input" type="number" inputmode="numeric" placeholder="Custom kcal over" /></div>
-      <button class="btn primary" data-action="skip-day" data-date="${dateK}" data-adj="over" data-kcal="input">Log</button>
-    </div>
+    <button class="option-row" data-action="sheet-over" data-date="${dateK}" data-from="skipped"><div class="o-main"><div class="o-name">Heavier than plan</div><div class="o-sub">Log how much, and whether it felt out of control</div></div></button>
   `);
 }
 
-function sheetOver(dateK) {
+function sheetOver(dateK, from) {
+  overFrom = from === "skipped" ? "skipped" : "over";
+  const chip = (v) => `<button class="chip" data-action="over-kcal" data-kcal="${v}">+${v}</button>`;
   openSheet(`
-    <h3>Went over</h3>
-    <div class="sub">Ate the plan plus extra. Roughly how much extra?</div>
-    <div class="chips">
-      ${[300, 500, 800].map((v) => `<button class="chip" data-action="log-over" data-date="${dateK}" data-kcal="${v}">+${v}</button>`).join("")}
-    </div>
-    <div class="field-row">
-      <div class="field" style="margin:0"><input id="over-input" type="number" inputmode="numeric" placeholder="Custom kcal over" /></div>
-      <button class="btn primary" data-action="log-over" data-date="${dateK}" data-kcal="input">Log</button>
-    </div>
-    <div class="small muted mt16">Up to ${E.EPISODE_KCAL} kcal gets absorbed at ≤${E.MAX_DAILY_TRIM} kcal/day, for at most ${Math.ceil(E.MAX_OVERAGE_BANK / E.MAX_DAILY_TRIM)} days.</div>
-    <div class="ob-section">Bigger than that?</div>
-    <button class="option-row" data-action="sheet-episode" data-date="${dateK}"><div class="o-main"><div class="o-name">It was an episode</div><div class="o-sub">Logged as an event, not a debt — no trim, no goal-date change</div></div></button>
-  `);
+    <h3>${overFrom === "skipped" ? "Heavier than plan" : "Went over"}</h3>
+    <div class="sub">Roughly how much, on top of the plan?</div>
+    <div class="chips wrap">${[300, 500, 800, 1500, 2500].map(chip).join("")}</div>
+    <div class="field"><input id="over-input" type="number" inputmode="numeric" placeholder="kcal over — an estimate is fine" /></div>
+
+    <div class="ob-section">Did this feel out of control?</div>
+    <button class="option-row" data-action="over-log" data-date="${dateK}" data-control="no"><div class="o-main"><div class="o-name">No — I chose it</div><div class="o-sub">A dinner out, a heavy weekend</div></div></button>
+    <button class="option-row" data-action="over-log" data-date="${dateK}" data-control="yes"><div class="o-main"><div class="o-name">Yes — I couldn't stop</div><div class="o-sub">Recorded as an episode, not charged to a future day</div></div></button>
+    <button class="option-row" data-action="over-log" data-date="${dateK}" data-control="unsure"><div class="o-main"><div class="o-name">Not sure</div><div class="o-sub">Treated as an episode — the safer way to be wrong</div></div></button>
+
+    <div class="small muted mt16">Only a clear "no" is absorbed, at ≤${E.MAX_DAILY_TRIM} kcal/day for at most ${Math.ceil(E.MAX_OVERAGE_BANK / E.MAX_DAILY_TRIM)} days. Size doesn't decide this — you do.</div>
+  `, { type: "over", dateK });
 }
 
 /**
@@ -1105,7 +1124,7 @@ function sheetOver(dateK) {
  */
 function sheetEpisode(dateK, seed) {
   if (seed || !episodeDraft || episodeDraft.date !== dateK) {
-    episodeDraft = { date: dateK, kcal: seed?.kcal || "", partOfDay: null, smoked: null, hoursSinceEating: null, dayBefore: null };
+    episodeDraft = { date: dateK, kcal: seed?.kcal || "", lossOfControl: seed?.control || null, partOfDay: null, smoked: null, hoursSinceEating: null, dayBefore: null };
   }
   const d = episodeDraft;
   const on = (field, value) => (d[field] === value ? " on" : "");
@@ -1320,7 +1339,6 @@ function markDone(dateK) {
 function skipDay(dateK, adj, kcal) {
   const day = state.plan.days[dateK];
   if (!day) return;
-  if (adj === "over" && E.isEpisodeSized(kcal)) return sheetEpisode(dateK, { kcal, from: "skipped" });
   day.status = "skipped";
   day.overage = 0;
   if (adj === "light") E.unbankOverage(state, 250);
@@ -1328,12 +1346,11 @@ function skipDay(dateK, adj, kcal) {
   save(); closeSheet(); renderAll();
 }
 
+/** Log a heavy day — only ever reached when the owner answered a clear "no". */
 function logOver(dateK, kcal) {
   const day = state.plan.days[dateK];
   if (!day) return;
-  // A log this size is not a heavy day. Absorbing it would mean weeks of deliberate
-  // hunger, so it goes to the episode path instead of the bank.
-  if (E.isEpisodeSized(kcal)) return sheetEpisode(dateK, { kcal, from: "over" });
+  if (overFrom === "skipped") return skipDay(dateK, "over", kcal);
   day.status = "over";
   day.overage = kcal;
   day.eaten = (day.meals || []).map((_, i) => i);
@@ -1360,6 +1377,7 @@ function logEpisode(dateK) {
   E.recordEpisode(state, {
     date: dateK,
     kcal: day.offPlanKcal,
+    lossOfControl: draft.lossOfControl,
     partOfDay: draft.partOfDay,
     smoked: draft.smoked,
     hoursSinceEating: draft.hoursSinceEating,
@@ -1401,7 +1419,7 @@ function handleAction(el) {
     case "open-meal": return sheetMeal(el.dataset.date, +el.dataset.idx);
     case "sheet-day": return sheetDay(el.dataset.date);
     case "sheet-ate-out": closeSheet(); return sheetAteOut(el.dataset.date);
-    case "sheet-over": closeSheet(); return sheetOver(el.dataset.date);
+    case "sheet-over": closeSheet(); return sheetOver(el.dataset.date, el.dataset.from);
     case "sheet-add-snack": return sheetAddSnack(el.dataset.date);
     case "sheet-activity": return sheetActivity(el.dataset.date);
     case "sheet-checkin": return sheetCheckin();
@@ -1475,10 +1493,26 @@ function handleAction(el) {
       if (el.dataset.adj === "over" && !kcal) return;
       return skipDay(el.dataset.date, el.dataset.adj, kcal);
     }
-    case "log-over": {
-      const kcal = readKcal(el);
-      if (!kcal) return;
+    case "over-kcal": {
+      const input = $("#over-input");
+      if (input) input.value = el.dataset.kcal;
+      el.parentElement?.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c === el));
+      return;
+    }
+    case "over-log": {
+      const kcal = +($("#over-input")?.value || 0);
+      if (!kcal) return toast("Add a rough number first");
+      const control = el.dataset.control;
+      if (E.classifyOverage(control) === "episode")
+        return sheetEpisode(el.dataset.date, { kcal, control, from: overFrom });
       return logOver(el.dataset.date, kcal);
+    }
+    case "set-cannabis": {
+      const day = state.plan.days[el.dataset.date];
+      if (!day) return;
+      const v = el.dataset.value === "true";
+      day.cannabis = day.cannabis === v ? null : v; // tapping the same answer clears it
+      save(); renderAll(); return;
     }
     case "sheet-episode": return sheetEpisode(el.dataset.date);
     case "ep-set": {

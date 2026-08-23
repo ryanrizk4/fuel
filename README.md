@@ -59,7 +59,8 @@ Read:
 - No microwave recipes.
 - High protein and calorie-conscious.
 - A binge is recorded, never charged back. Off-plan episodes do not trim a future day's
-  budget; only a bounded, short-lived overage bank does. See `docs/CURRENT_STATE.md`.
+  budget; only a bounded, short-lived overage bank does.
+- Loss of control, not calorie size, decides which one a log is. See `docs/CURRENT_STATE.md`.
 - Weeknight cooking should generally stay within 25 minutes.
 - Weekday work lunches cannot require cooking raw protein.
 - Trader Joe's and freezer workflows are first-class.

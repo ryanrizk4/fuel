@@ -6,7 +6,7 @@ Updated: 2026-08-23
 
 Fuel is a personal meal-planning PWA used primarily from the owner's Samsung Galaxy. It is deliberately small, framework-free, and offline-capable.
 
-Current visible version: `fuel-v14`.
+Current visible version: `fuel-v15`.
 
 ## Core behavior
 
@@ -36,7 +36,7 @@ Current visible version: `fuel-v14`.
 - Hosted on Vercel, deployed from `main`, with a preview deployment per pull request.
 - The Vercel build command is `npm test`, so a failing suite blocks the deployment.
 - GitHub Actions also runs `node --test` on pushes and pull requests.
-- The latest release has 75 automated tests.
+- The latest release has 85 automated tests.
 - UI changes require phone-sized testing of the real application.
 - PWA shell caching currently depends on manually keeping the application and service-worker versions aligned.
 
@@ -66,18 +66,43 @@ The overage bank absorbs a heavy day by trimming the daily budget, capped at
 `MAX_DAILY_TRIM` (150 kcal) per day and `MAX_OVERAGE_BANK` (900 kcal) in total, so a trim
 can never run longer than six days.
 
-A log at or above `EPISODE_KCAL` (1200 kcal) is not treated as a heavy day. It is recorded
-as an episode: a dated event carrying the time of day, whether the owner had smoked, hours
-since the last real meal, and how the day had been going. Episodes never enter the bank,
-never trim a budget, and never move the goal date, because eating below budget to compensate
-for a binge is the most reliable trigger for the next one. The calorie cost is real and shows
-up honestly in the weight trend rather than being repaid through deliberate hunger.
+**What separates a heavy day from an episode is loss of control, not calorie count.** Every
+over-log asks "did this feel out of control?", and only a clear "no" is absorbed. "Yes" and
+"not sure" are both recorded as episodes: wrongly banking a real episode is the costly error,
+while wrongly declining to bank a heavy day costs almost nothing. `EPISODE_PROMPT_KCAL` (1200)
+only decides which sheet leads; it classifies nothing. Classifying by size got the important
+case backwards - 900 kcal of sweets eaten compulsively is an episode, and a chosen 2,500 kcal
+night out is not.
+
+Episodes never enter the bank, never trim a budget, and never move the goal date. The calorie
+cost is real and shows up in the weight trend rather than being repaid through deliberate
+hunger.
 
 The v3 migration clamps a bank built under the old unbounded rule, so a phone upgrading from
 v2 stops trimming as soon as the upgrade lands.
 
-`episodeStats()` reports each rate against the number of episodes that actually answered that
-question, so a small sample reads as a small sample rather than as a pattern.
+### Episode analytics
+
+Headline metrics are frequency, clustering, and recovery - not volume. One night costs little;
+a multi-day run does most of the damage, so `episodeStats()` reports how many episodes drew
+another within two days and the typical gap between them.
+
+`cannabisRates()` is deliberately separate from the episode records. "4 of 5 episodes involved
+cannabis" is P(smoked | episode) and is near-certain for anyone who smokes most nights, so it
+carries no information. The rate that discriminates is P(episode | smoked) against
+P(episode | not smoked), which needs a denominator of nights - including the many nights
+nothing happened. Those come from `day.cannabis`, one optional tap on the ordinary day log,
+and the comparison stays hidden until both arms hold at least five nights.
+
+### Invariants
+
+Three product rules are enforced by tests in `tests/engine.test.js` rather than by convention,
+so the old compensation logic cannot return through an unrelated feature:
+
+- An episode may never reduce a future calorie target.
+- An episode may never move the goal date.
+- Recovery planning starts from the ordinary baseline, not the preceding day's surplus, and
+  episode analytics may describe patterns but never compute repayment.
 
 ## Product constraints
 
@@ -94,8 +119,13 @@ question, so a small sample reads as a small sample rather than as a pattern.
 2. Remove model-specific operating text and user-facing copy.
 3. Preserve the framework-free architecture while reducing risk in `app.js` as it grows.
 4. Surface the recovery copies in a periodic backup nudge, so the owner notices drift before a failure does.
-5. Revisit the episode thresholds once there is enough logged history to say whether 1200 kcal
-   and a six-day trim ceiling are the right numbers for this owner.
+5. Recovery mode: after an episode, suspend balancing for 48-72 hours, hide bank and goal-date
+   information, and plan ordinary meals at ordinary times.
+6. Episode-cluster detection, so a second episode within two days keeps recovery mode active
+   rather than tightening anything.
+7. A "fastest acceptable meal from what is in the kitchen" generator, for the times of day when
+   weekly optimization is irrelevant.
+8. Reframe the remaining overage bank from debt to prospective weekly flexibility.
 
 ## Deliberate non-priorities
 
