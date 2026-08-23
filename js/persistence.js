@@ -11,7 +11,7 @@ export const BACKUP_FORMAT = "fuel-backup.v1";
 
 // Bump when the persisted shape changes, and add a migration below. Records
 // written before versioning existed have no schemaVersion and are treated as 1.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const LEGACY_VERSION = 1;
 export const MAX_RECOVERY_SNAPSHOTS = 5;
 
@@ -34,6 +34,7 @@ function defaultState() {
     checkinDismissed: "",
     opened: {},
     overageBank: 0,
+    episodes: [],
     planMode: "auto",
     theme: "auto",
   };
@@ -45,7 +46,7 @@ const nowIso = () => new Date().toISOString();
 
 // Object-shaped fields (maps keyed by product/template id) and list-shaped fields.
 const MAP_FIELDS = ["history", "productOverrides", "shopChecks", "pantry", "favorites", "opened"];
-const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox"];
+const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox", "episodes"];
 
 /**
  * Repair a record's shape without discarding anything readable. Unknown fields are
@@ -83,6 +84,12 @@ function summarizeState(state) {
 
 // ---------- migrations ----------
 
+// The v3 bank ceiling, frozen at the value v3 meant. It deliberately duplicates
+// MAX_OVERAGE_BANK in engine.js rather than importing it: persistence has no engine
+// dependency, and a migration must keep clamping to what it meant when it was written
+// even if the engine's ceiling moves later.
+const V3_BANK_CAP = 900;
+
 /**
  * Ordered forward migrations. Each step upgrades a record from `to - 1` to `to`.
  * Steps must be pure and tolerant: they receive whatever was on disk, however old.
@@ -96,6 +103,18 @@ const MIGRATIONS = [
       // The protein target moved from 0.8g to 1.0g per lb of ideal bodyweight; the
       // old load() patched this on every boot, which is exactly what a migration is for.
       if (out.profile && out.profile.proteinPerLb === 0.8) out.profile = { ...out.profile, proteinPerLb: 1.0 };
+      return out;
+    },
+  },
+  {
+    to: 3,
+    describe: "add the episode log and cap an unbounded overage bank",
+    migrate(state) {
+      const out = normalizeState(state);
+      // Before v3 the bank grew without limit, so a single logged binge could mandate
+      // weeks of trimmed budget — the restriction that reliably sets up the next binge.
+      // Clamp what is already stored so the upgrade actually reaches phones carrying one.
+      if (out.overageBank > V3_BANK_CAP) out.overageBank = V3_BANK_CAP;
       return out;
     },
   },

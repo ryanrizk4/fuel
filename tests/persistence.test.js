@@ -47,7 +47,7 @@ test("an unversioned v1 record migrates forward instead of being discarded", () 
   const result = P.loadState(storage);
 
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [2]);
+  assert.deepEqual(result.migrated, [2, 3], "a v1 record runs every step up to the current schema");
   assert.equal(result.state.schemaVersion, P.SCHEMA_VERSION);
   // every field the owner cared about survived the upgrade
   assert.equal(Object.keys(result.state.plan.days).length, 1);
@@ -208,7 +208,7 @@ test("an export taken before the archive format still restores", () => {
   const { state, source, migrated } = P.importArchive(JSON.parse(JSON.stringify(legacy)));
 
   assert.equal(source, "legacy");
-  assert.deepEqual(migrated, [2]);
+  assert.deepEqual(migrated, [2, 3]);
   assert.equal(state.schemaVersion, P.SCHEMA_VERSION);
   assert.equal(state.weighIns[0].lb, 184.2);
   assert.equal(state.profile.proteinPerLb, 1.0);
@@ -236,4 +236,53 @@ test("junk files are rejected without touching the stored record", () => {
     assert.throws(() => P.importArchiveInto(storage, junk), /Fuel|backup|state/i);
   }
   assert.deepEqual(parseStored(storage, P.STORE_KEY), good);
+});
+
+// ---------- v3: the episode log and the bounded bank ----------
+
+test("v3 clamps an overage bank that predates the ceiling", () => {
+  // A phone upgrading from v2 can be carrying a bank built by the old unbounded rule.
+  // Left alone it would keep trimming the budget for weeks after the upgrade.
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify({ ...legacyRecord({ overageBank: 7500 }), schemaVersion: 2 }) });
+  const result = P.loadState(storage);
+
+  assert.equal(result.status, "migrated");
+  assert.deepEqual(result.migrated, [3]);
+  assert.equal(result.state.overageBank, 900);
+  assert.equal(parseStored(storage, P.STORE_KEY).overageBank, 900, "the clamp is written back, not just returned");
+});
+
+test("v3 leaves a bank that is already under the ceiling exactly as it was", () => {
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify({ ...legacyRecord({ overageBank: 420 }), schemaVersion: 2 }) });
+  const result = P.loadState(storage);
+  assert.equal(result.state.overageBank, 420);
+});
+
+test("v3 adds an empty episode log without disturbing anything else", () => {
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify({ ...legacyRecord(), schemaVersion: 2 }) });
+  const result = P.loadState(storage);
+  assert.deepEqual(result.state.episodes, []);
+  assert.equal(Object.keys(result.state.plan.days).length, 1, "the plan survived the upgrade");
+  assert.equal(result.state.weighIns[0].lb, 184.2);
+});
+
+test("episodes survive an export → import round trip", () => {
+  const episodes = [
+    { date: "2026-08-20", kcal: 2500, at: "2026-08-21T02:00:00.000Z", partOfDay: "night", smoked: true, hoursSinceEating: 7, dayBefore: "restricted" },
+  ];
+  const state = P.normalizeState({ ...legacyRecord(), episodes });
+  const restored = P.importArchive(JSON.parse(JSON.stringify(P.exportArchive(state)))).state;
+  assert.deepEqual(restored.episodes, episodes);
+});
+
+test("an episode log of the wrong kind is replaced by an empty one, not left to break the app", () => {
+  const state = P.normalizeState({ ...legacyRecord(), episodes: "nope" });
+  assert.deepEqual(state.episodes, []);
+});
+
+test("a record written by a newer build keeps its episodes through an older shape repair", () => {
+  // normalizeState must not drop unknown fields, and must not eat a known list either.
+  const state = P.normalizeState({ ...legacyRecord(), episodes: [{ date: "2026-08-20", kcal: 900 }], somethingNewer: { keep: true } });
+  assert.equal(state.episodes.length, 1);
+  assert.deepEqual(state.somethingNewer, { keep: true });
 });

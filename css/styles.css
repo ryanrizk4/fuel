@@ -160,6 +160,7 @@ input, select { font: inherit; color: var(--ink); }
 
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
+.chips.wrap { flex-wrap: wrap; overflow-x: visible; }
 .chip {
   white-space: nowrap; padding: 8px 14px; border-radius: 20px; font-size: 0.86rem; font-weight: 600;
   background: var(--surface); border: 1px solid var(--hairline); color: var(--ink-2);
@@ -180,6 +181,7 @@ input, select { font: inherit; color: var(--ink); }
 .status-chip.done { background: rgba(12, 163, 12, 0.14); color: var(--good-text); }
 .status-chip.skipped { background: var(--surface-2); color: var(--muted); }
 .status-chip.over { background: rgba(208, 59, 59, 0.13); color: var(--critical); }
+.status-chip.episode { background: var(--surface-2); color: var(--ink-2); }
 .status-chip.today-dot { background: var(--accent); color: #fff; }
 
 /* ---------- shopping ---------- */

@@ -361,3 +361,112 @@ test("skipped days prioritize their templates next week (groceries already bough
   const carry = E.collectCarryover(DATA, s, E.parseKey("2026-07-06"));
   assert.ok(carry.has("big-mac-bowl"));
 });
+
+/* ---------- episodes and the bounded overage bank ----------
+   The bank exists to absorb a heavy day. It must never be able to mandate a long
+   stretch of deliberate under-eating, because that is the documented setup for the
+   next binge. These tests pin both bounds and the fact that an episode moves nothing. */
+
+test("a heavy-day overage is banked in full when it fits under the ceiling", () => {
+  const s = freshState();
+  const { banked, unbanked } = E.bankOverage(s, 600);
+  assert.equal(banked, 600);
+  assert.equal(unbanked, 0);
+  assert.equal(s.overageBank, 600);
+});
+
+test("the overage bank is capped, and the excess is reported rather than hidden", () => {
+  const s = freshState({ overageBank: 800 });
+  const { banked, unbanked } = E.bankOverage(s, 1000);
+  assert.equal(s.overageBank, E.MAX_OVERAGE_BANK);
+  assert.equal(banked, 100);
+  assert.equal(unbanked, 900);
+});
+
+test("the capped bank can never trim for more than a bounded number of days", () => {
+  const s = freshState();
+  E.bankOverage(s, 99999);
+  const maxDays = Math.ceil(s.overageBank / E.MAX_DAILY_TRIM);
+  assert.ok(maxDays <= 6, `bank could trim for ${maxDays} days`);
+  const { trim } = E.effectiveBudget(s, null);
+  assert.equal(trim, E.MAX_DAILY_TRIM);
+});
+
+test("an episode-sized log is recognised as an episode, a heavy meal is not", () => {
+  assert.equal(E.isEpisodeSized(800), false);
+  assert.equal(E.isEpisodeSized(E.EPISODE_KCAL - 1), false);
+  assert.equal(E.isEpisodeSized(E.EPISODE_KCAL), true);
+  assert.equal(E.isEpisodeSized(4000), true);
+});
+
+test("recording an episode leaves the bank, the budget, and the goal date untouched", () => {
+  const s = freshState({ weighIns: [{ date: "2026-08-01", lb: 185 }] });
+  const before = E.effectiveBudget(s, null).budget;
+  const beforeGoal = E.goalProjection(s).daysLeft;
+  E.recordEpisode(s, { date: "2026-08-20", kcal: 4000, smoked: true, partOfDay: "night" });
+  assert.equal(s.overageBank, 0);
+  assert.equal(E.effectiveBudget(s, null).budget, before);
+  assert.equal(E.goalProjection(s).daysLeft, beforeGoal);
+  assert.equal(s.episodes.length, 1);
+});
+
+test("unbanking an overage never drives the bank below zero", () => {
+  const s = freshState({ overageBank: 200 });
+  E.unbankOverage(s, 500);
+  assert.equal(s.overageBank, 0);
+});
+
+test("an episode record keeps its context and rejects junk values", () => {
+  const e = E.normalizeEpisode({ date: "2026-08-20", kcal: "2500", partOfDay: "night", smoked: true, hoursSinceEating: "7", dayBefore: "restricted" });
+  assert.equal(e.kcal, 2500);
+  assert.equal(e.partOfDay, "night");
+  assert.equal(e.smoked, true);
+  assert.equal(e.hoursSinceEating, 7);
+  assert.equal(e.dayBefore, "restricted");
+
+  const junk = E.normalizeEpisode({ date: "2026-08-20", kcal: -5, partOfDay: "brunch", smoked: "yes", hoursSinceEating: "soon", dayBefore: "vibes" });
+  assert.equal(junk.kcal, 0);
+  assert.equal(junk.partOfDay, null);
+  assert.equal(junk.smoked, null);
+  assert.equal(junk.hoursSinceEating, null);
+  assert.equal(junk.dayBefore, null);
+});
+
+test("removing a day's episodes clears exactly that day", () => {
+  const s = freshState();
+  E.recordEpisode(s, { date: "2026-08-19", kcal: 2000 });
+  E.recordEpisode(s, { date: "2026-08-20", kcal: 2000 });
+  assert.equal(E.removeEpisodesOn(s, "2026-08-20"), 1);
+  assert.deepEqual(s.episodes.map((e) => e.date), ["2026-08-19"]);
+});
+
+test("episode stats report each rate against the number actually answered", () => {
+  const today = new Date(2026, 7, 23);
+  const k = (back) => E.dateKey(E.addDays(today, -back));
+  const s = freshState();
+  E.recordEpisode(s, { date: k(1), kcal: 3000, smoked: true, partOfDay: "night", hoursSinceEating: 6, dayBefore: "restricted" });
+  E.recordEpisode(s, { date: k(9), kcal: 2000, smoked: true, partOfDay: "night", hoursSinceEating: 8, dayBefore: "restricted" });
+  E.recordEpisode(s, { date: k(20), kcal: 1500, smoked: false, partOfDay: "evening", hoursSinceEating: 4, dayBefore: "normal" });
+  E.recordEpisode(s, { date: k(200), kcal: 5000, smoked: true, partOfDay: "night" }); // outside the window
+
+  const st = E.episodeStats(s, { days: 90, today });
+  assert.equal(st.count, 3);
+  assert.equal(st.afterSmoking, 2);
+  assert.equal(st.smokedKnown, 3);
+  assert.equal(st.restrictedBefore, 2);
+  assert.equal(st.dayBeforeKnown, 3);
+  assert.equal(st.medianHoursSinceEating, 6);
+  assert.equal(st.topPartOfDay, "night");
+  assert.equal(st.topPartOfDayCount, 2);
+  assert.equal(st.daysSince, 1);
+  assert.equal(st.lastDate, k(1));
+});
+
+test("episode stats are empty, not broken, before anything is logged", () => {
+  const st = E.episodeStats(freshState(), { days: 90 });
+  assert.equal(st.count, 0);
+  assert.equal(st.lastDate, null);
+  assert.equal(st.daysSince, null);
+  assert.equal(st.medianHoursSinceEating, null);
+  assert.equal(st.topPartOfDay, null);
+});

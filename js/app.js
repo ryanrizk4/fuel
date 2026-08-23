@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
 
-const APP_VERSION = "fuel-v13";
+const APP_VERSION = "fuel-v14";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -13,6 +13,7 @@ let planWeekOffset = 0;
 let shopWeekOffset = 0;
 let sheetCtx = null;
 let recovery = null; // set while an unreadable record is waiting on the owner — see load()
+let episodeDraft = null; // in-progress episode log; the sheet re-renders as chips are picked
 
 // ---------- state ----------
 // Shape, migrations, recovery copies and the backup format all live in persistence.js.
@@ -348,8 +349,10 @@ function renderToday() {
       <div class="btn-row"><button class="btn ghost" data-action="sheet-activity" data-date="${key}">🥾 Unusually active today?</button></div>
     </div>` : `
     <div class="card">
-      <h3>Day logged: ${{ done: "on plan ✓", skipped: "ate out", over: "went over" }[day.status] || day.status}</h3>
-      ${day.overage ? `<div class="small muted mt8">Logged overage: ${day.overage} kcal — being absorbed into next days.</div>` : ""}
+      <h3>Day logged: ${{ done: "on plan ✓", skipped: "ate out", over: "went over", episode: "off plan" }[day.status] || day.status}</h3>
+      ${day.status === "episode"
+        ? `<div class="small muted mt8">Recorded${day.offPlanKcal ? ` (~${day.offPlanKcal} kcal over)` : ""}. Nothing was trimmed and your goal date didn't move. Tomorrow is a normal day — eat it normally.</div>`
+        : day.overage ? `<div class="small muted mt8">Logged overage: ${day.overage} kcal — being absorbed into next days.</div>` : ""}
       <div class="btn-row"><button class="btn ghost" data-action="undo-status" data-date="${key}">Undo</button></div>
     </div>`;
 
@@ -403,7 +406,7 @@ function renderToday() {
           <div class="small muted">Planned total: ${planned.calories} kcal · ${planned.protein}g</div>
         </div>
       </div>
-      ${trim > 0 ? `<div class="trim-note">💪 Absorbing a past overage: budget trimmed by ${trim} kcal/day until ${state.overageBank} kcal is paid off.</div>` : ""}
+      ${trim > 0 ? `<div class="trim-note">Absorbing a heavy day: −${trim} kcal today, ${Math.ceil(state.overageBank / E.MAX_DAILY_TRIM)} day${Math.ceil(state.overageBank / E.MAX_DAILY_TRIM) !== 1 ? "s" : ""} to go.</div>` : ""}
       ${credit > 0 ? `<div class="trim-note">🥾 ${esc(day.activityCredit.label)}: +${credit} kcal credited today. <button class="btn small ghost" data-action="remove-activity" data-date="${key}" style="margin-left:6px">Remove</button></div>` : ""}
     </div>
 
@@ -444,7 +447,7 @@ function renderPlan() {
     const totals = E.dayTotals(DATA, state, day);
     const statusChip = isToday && day.status === "planned"
       ? '<span class="status-chip today-dot">today</span>'
-      : `<span class="status-chip ${day.status}">${{ planned: "planned", done: "done ✓", skipped: "ate out", over: "over" }[day.status]}</span>`;
+      : `<span class="status-chip ${day.status}">${{ planned: "planned", done: "done ✓", skipped: "ate out", over: "over", episode: "off plan" }[day.status]}</span>`;
     const rows = (day.meals || []).map((m, mi) => {
       const t = mealTitle(m);
       const mm = E.mealMacros(DATA, state, m.templateId, m.variantId, m.portions || 1);
@@ -599,7 +602,7 @@ function renderProgress() {
       <div class="tile"><div class="t-label">Current</div><div class="t-value">${current} lb</div><div class="t-sub">last weigh-in</div></div>
       <div class="tile"><div class="t-label">Lost so far</div><div class="t-value ${lost > 0 ? "good" : ""}">${lost > 0 ? "−" : ""}${Math.abs(lost)} lb</div><div class="t-sub">${proj.remainingLb.toFixed(1)} lb to go</div></div>
       <div class="tile"><div class="t-label">Goal date</div><div class="t-value">${etaStr}</div><div class="t-sub">≈ ${proj.daysLeft} days at −${p.deficit}/day</div></div>
-      <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "bad" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal to absorb · pushes goal ~${Math.ceil(proj.bankDays)} day${Math.ceil(proj.bankDays) !== 1 ? "s" : ""}` : "kcal — all clear ✓"}</div></div>
+      <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal absorbing · ${Math.ceil(bank / E.MAX_DAILY_TRIM)} day${Math.ceil(bank / E.MAX_DAILY_TRIM) !== 1 ? "s" : ""} left` : "kcal — all clear ✓"}</div></div>
     </div>
 
     ${(() => {
@@ -627,13 +630,36 @@ function renderProgress() {
       ${entries || '<div class="small muted mt8">No entries yet.</div>'}
     </div>
 
+    ${(() => {
+      const st = E.episodeStats(state, { days: 90 });
+      const rows = [];
+      if (st.smokedKnown) rows.push(["After smoking", `${st.afterSmoking} of ${st.smokedKnown}`]);
+      if (st.gapsKnown) rows.push(["Typical gap since eating", `${st.medianHoursSinceEating} hrs`]);
+      if (st.dayBeforeKnown) rows.push(["Followed a day of under-eating", `${st.restrictedBefore} of ${st.dayBeforeKnown}`]);
+      if (st.topPartOfDay) rows.push(["Most common time", `${st.topPartOfDay} (${st.topPartOfDayCount} of ${st.count})`]);
+      return `<div class="card">
+        <h3>Episodes</h3>
+        ${st.count === 0
+          ? `<div class="small muted mt8">Nothing logged in the last 90 days. When you log one, Fuel records what was around it — the time, whether you'd smoked, how long since you'd eaten — and shows the pattern here. It never charges an episode against a future day.</div>`
+          : `<div class="diag-row"><span>Last 90 days</span><span>${st.count}</span></div>
+             <div class="diag-row"><span>Most recent</span><span>${st.daysSince === 0 ? "today" : `${st.daysSince} day${st.daysSince !== 1 ? "s" : ""} ago`}</span></div>
+             ${rows.map(([k, v]) => `<div class="diag-row"><span>${k}</span><span>${v}</span></div>`).join("")}
+             <div class="small muted mt16">${st.count < 4
+               ? "Too few to call a pattern yet. A handful more and the shape becomes real."
+               : "Counts are shown against how many you answered, so you can tell a pattern from a small sample."}</div>`}
+      </div>`;
+    })()}
+
     <div class="card">
-      <h3>How the binge math works</h3>
+      <h3>How the two logs differ</h3>
       <div class="small muted mt8">
-        Log a heavy day on the Today tab (“Went over”). The extra calories go into your overage bank.
-        Fuel trims up to ${E.MAX_DAILY_TRIM} kcal/day off your budget until it's paid back — never more,
-        so you don't starve and rebound. Whatever trimming can't cover just moves your goal date. The math
-        is stark but honest: one big weekend ≈ a few extra days, not a failed plan.
+        A heavy day — a dinner out, a big weekend — goes into the overage bank and is absorbed at up to
+        ${E.MAX_DAILY_TRIM} kcal/day, for at most ${Math.ceil(E.MAX_OVERAGE_BANK / E.MAX_DAILY_TRIM)} days. That is the whole ceiling.
+      </div>
+      <div class="small muted mt8">
+        An episode is not absorbed at all. It is recorded and it moves nothing, because eating below your
+        budget to make up for a binge is what sets up the next one. The calories are real, and the honest
+        cost is a slightly later goal date — not a week of being hungry on purpose.
       </div>
     </div>
 
@@ -1033,6 +1059,7 @@ function sheetDay(dateK) {
     <button class="option-row" data-action="mark-done" data-date="${dateK}"><div class="o-main"><div class="o-name">✓ On plan</div><div class="o-sub">Ate what was planned</div></div></button>
     <button class="option-row" data-action="sheet-ate-out" data-date="${dateK}"><div class="o-main"><div class="o-name">🍽 Ate out / skipped the plan</div><div class="o-sub">Out with friends, didn't cook</div></div></button>
     <button class="option-row" data-action="sheet-over" data-date="${dateK}"><div class="o-main"><div class="o-name">⚠️ Went over</div><div class="o-sub">Log roughly how much extra</div></div></button>
+    <button class="option-row" data-action="sheet-episode" data-date="${dateK}"><div class="o-main"><div class="o-name">Off-plan episode</div><div class="o-sub">Recorded, not charged against future days</div></div></button>
     ${day.status !== "planned" ? `<button class="option-row" data-action="undo-status" data-date="${dateK}"><div class="o-main"><div class="o-name">↩ Reset to planned</div></div></button>` : ""}
   `, { type: "day", dateK });
 }
@@ -1056,17 +1083,60 @@ function sheetAteOut(dateK) {
 
 function sheetOver(dateK) {
   openSheet(`
-    <h3>Went over ⚠️</h3>
+    <h3>Went over</h3>
     <div class="sub">Ate the plan plus extra. Roughly how much extra?</div>
     <div class="chips">
-      ${[300, 500, 1000, 2000].map((v) => `<button class="chip" data-action="log-over" data-date="${dateK}" data-kcal="${v}">+${v}</button>`).join("")}
+      ${[300, 500, 800].map((v) => `<button class="chip" data-action="log-over" data-date="${dateK}" data-kcal="${v}">+${v}</button>`).join("")}
     </div>
     <div class="field-row">
       <div class="field" style="margin:0"><input id="over-input" type="number" inputmode="numeric" placeholder="Custom kcal over" /></div>
       <button class="btn primary" data-action="log-over" data-date="${dateK}" data-kcal="input">Log</button>
     </div>
-    <div class="small muted mt16">It goes into the overage bank and gets absorbed at ≤${E.MAX_DAILY_TRIM} kcal/day. Stark but fair.</div>
+    <div class="small muted mt16">Up to ${E.EPISODE_KCAL} kcal gets absorbed at ≤${E.MAX_DAILY_TRIM} kcal/day, for at most ${Math.ceil(E.MAX_OVERAGE_BANK / E.MAX_DAILY_TRIM)} days.</div>
+    <div class="ob-section">Bigger than that?</div>
+    <button class="option-row" data-action="sheet-episode" data-date="${dateK}"><div class="o-main"><div class="o-name">It was an episode</div><div class="o-sub">Logged as an event, not a debt — no trim, no goal-date change</div></div></button>
   `);
+}
+
+/**
+ * The episode sheet. Two jobs: record the day without turning it into a debt, and
+ * capture the four things that actually predict the next one. Everything except the
+ * calorie estimate is optional — a log with no context still beats no log.
+ */
+function sheetEpisode(dateK, seed) {
+  if (seed || !episodeDraft || episodeDraft.date !== dateK) {
+    episodeDraft = { date: dateK, kcal: seed?.kcal || "", partOfDay: null, smoked: null, hoursSinceEating: null, dayBefore: null };
+  }
+  const d = episodeDraft;
+  const on = (field, value) => (d[field] === value ? " on" : "");
+  const chip = (field, value, label) =>
+    `<button class="chip${on(field, value)}" data-action="ep-set" data-field="${field}" data-value="${value}">${label}</button>`;
+
+  openSheet(`
+    <h3>Off-plan episode</h3>
+    <div class="sub">This gets recorded, not charged. Tomorrow starts at your normal budget.</div>
+
+    <div class="ob-section" style="margin-top:2px">Roughly how much, on top of the plan?</div>
+    <div class="field-row">
+      <div class="field" style="margin:0"><input id="ep-kcal" type="number" inputmode="numeric" placeholder="Estimate is fine" value="${d.kcal || ""}" /></div>
+    </div>
+    <div class="small muted">A rough number is enough. It is recorded for the pattern, and never trims a future day.</div>
+
+    <div class="ob-section">When?</div>
+    <div class="chips wrap">${E.PARTS_OF_DAY.map((v) => chip("partOfDay", v, v)).join("")}</div>
+
+    <div class="ob-section">Had you smoked?</div>
+    <div class="chips wrap">${chip("smoked", "true", "yes")}${chip("smoked", "false", "no")}</div>
+
+    <div class="ob-section">How long since you'd eaten properly?</div>
+    <div class="chips wrap">${[2, 4, 6, 8].map((h) => chip("hoursSinceEating", String(h), h === 8 ? "8+ hrs" : `${h} hrs`)).join("")}</div>
+
+    <div class="ob-section">How had the day been going?</div>
+    <div class="chips wrap">${chip("dayBefore", "restricted", "under-ate")}${chip("dayBefore", "normal", "normal")}${chip("dayBefore", "heavy", "already heavy")}</div>
+
+    <div class="btn-row mt16"><button class="btn primary" style="width:100%" data-action="ep-save" data-date="${dateK}">Log it</button></div>
+    <div class="small muted mt8">Skip anything you'd rather not answer.</div>
+  `, { type: "episode", dateK });
 }
 
 function sheetAddSnack(dateK) {
@@ -1102,6 +1172,7 @@ function sheetCheckin() {
     if (d.status === "over") { over++; overKcal += d.overage || 0; }
     if (d.status === "skipped") { out++; overKcal += d.overage || 0; }
   }
+  const epWeek = E.episodeStats(state, { days: 7, today });
   const ws = [...state.weighIns].sort((x, y) => x.date.localeCompare(y.date));
   const delta = ws.length >= 2 ? Math.round((ws[ws.length - 1].lb - ws[ws.length - 2].lb) * 10) / 10 : null;
   const proj = E.goalProjection(state);
@@ -1118,7 +1189,8 @@ function sheetCheckin() {
     <div class="diag-row"><span>Ate out / skipped</span><span>${out}</span></div>
     <div class="diag-row"><span>Went over</span><span class="${over ? "warn" : "ok"}">${over}${overKcal ? ` (+${overKcal} kcal)` : ""}</span></div>
     <div class="diag-row"><span>Weight change</span><span class="${delta !== null && delta <= 0 ? "ok" : ""}">${delta === null ? "need 2 weigh-ins" : (delta > 0 ? "+" : "") + delta + " lb"}</span></div>
-    <div class="diag-row"><span>Overage bank</span><span class="${state.overageBank ? "warn" : "ok"}">${state.overageBank || 0} kcal</span></div>
+    <div class="diag-row"><span>Off-plan episodes</span><span>${epWeek.count}</span></div>
+    <div class="diag-row"><span>Overage bank</span><span>${state.overageBank || 0} kcal</span></div>
     <div class="diag-row"><span>Goal pace</span><span>${proj.remainingLb.toFixed(1)} lb to go · ~${proj.daysLeft} days</span></div>
     <div class="ob-section">3 · Set up next week</div>
     <div class="btn-row"><button class="btn primary" data-action="checkin-plan-next">✨ Plan next week</button></div>
@@ -1248,23 +1320,54 @@ function markDone(dateK) {
 function skipDay(dateK, adj, kcal) {
   const day = state.plan.days[dateK];
   if (!day) return;
+  if (adj === "over" && E.isEpisodeSized(kcal)) return sheetEpisode(dateK, { kcal, from: "skipped" });
   day.status = "skipped";
   day.overage = 0;
-  if (adj === "light") state.overageBank = Math.max(0, (state.overageBank || 0) - 250);
-  if (adj === "over") { state.overageBank = (state.overageBank || 0) + kcal; day.overage = kcal; }
+  if (adj === "light") E.unbankOverage(state, 250);
+  if (adj === "over") { day.overage = kcal; E.bankOverage(state, kcal); }
   save(); closeSheet(); renderAll();
 }
 
 function logOver(dateK, kcal) {
   const day = state.plan.days[dateK];
   if (!day) return;
+  // A log this size is not a heavy day. Absorbing it would mean weeks of deliberate
+  // hunger, so it goes to the episode path instead of the bank.
+  if (E.isEpisodeSized(kcal)) return sheetEpisode(dateK, { kcal, from: "over" });
   day.status = "over";
   day.overage = kcal;
   day.eaten = (day.meals || []).map((_, i) => i);
   (day.snacks || []).forEach((s) => (s.eaten = true));
-  state.overageBank = (state.overageBank || 0) + kcal;
+  E.bankOverage(state, kcal);
   E.recordHistory(state, day, dateK);
   save(); closeSheet(); renderAll();
+}
+
+/**
+ * Log an episode. Deliberately does not touch the overage bank, the goal date, or
+ * tomorrow's budget: the day is recorded, and tomorrow starts at the normal number.
+ */
+function logEpisode(dateK) {
+  const day = state.plan.days[dateK];
+  if (!day) return;
+  const draft = episodeDraft || {};
+  day.status = "episode";
+  day.offPlanKcal = Math.max(0, Math.round(Number(draft.kcal)) || 0);
+  delete day.overage; // an episode is never carried as debt
+  day.eaten = (day.meals || []).map((_, i) => i);
+  (day.snacks || []).forEach((s) => (s.eaten = true));
+  E.removeEpisodesOn(state, dateK); // re-logging the same day replaces, never duplicates
+  E.recordEpisode(state, {
+    date: dateK,
+    kcal: day.offPlanKcal,
+    partOfDay: draft.partOfDay,
+    smoked: draft.smoked,
+    hoursSinceEating: draft.hoursSinceEating,
+    dayBefore: draft.dayBefore,
+  });
+  episodeDraft = null;
+  save(); closeSheet(); renderAll();
+  toast("Logged. Tomorrow starts at your normal budget.");
 }
 
 function readKcal(el) {
@@ -1360,9 +1463,11 @@ function handleAction(el) {
 
     case "mark-done": return markDone(el.dataset.date);
     case "undo-status": {
-      const day = state.plan.days[el.dataset.date];
-      if (day.overage) state.overageBank = Math.max(0, (state.overageBank || 0) - day.overage);
-      day.status = "planned"; day.overage = 0;
+      const dateK = el.dataset.date;
+      const day = state.plan.days[dateK];
+      if (day.overage) E.unbankOverage(state, day.overage);
+      E.removeEpisodesOn(state, dateK);
+      day.status = "planned"; day.overage = 0; delete day.offPlanKcal;
       save(); closeSheet(); renderAll(); return;
     }
     case "skip-day": {
@@ -1374,6 +1479,20 @@ function handleAction(el) {
       const kcal = readKcal(el);
       if (!kcal) return;
       return logOver(el.dataset.date, kcal);
+    }
+    case "sheet-episode": return sheetEpisode(el.dataset.date);
+    case "ep-set": {
+      if (!episodeDraft) return;
+      const { field, value } = el.dataset;
+      const parsed = value === "true" ? true : value === "false" ? false : /^\d+$/.test(value) ? +value : value;
+      episodeDraft.kcal = $("#ep-kcal")?.value ?? episodeDraft.kcal; // keep what's typed across the re-render
+      episodeDraft[field] = episodeDraft[field] === parsed ? null : parsed; // tapping again clears it
+      return sheetEpisode(episodeDraft.date);
+    }
+    case "ep-save": {
+      if (!episodeDraft) return;
+      episodeDraft.kcal = $("#ep-kcal")?.value ?? episodeDraft.kcal;
+      return logEpisode(el.dataset.date);
     }
 
     case "set-variant": {

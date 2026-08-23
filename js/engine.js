@@ -11,6 +11,18 @@ const KCAL_PER_LB = 3500;
 const MAX_DAILY_TRIM = 150; // never trim more than this off the daily budget to absorb an overage
 const BUDGET_FLOOR = { male: 1500, female: 1200 };
 
+// A heavy meal out is worth absorbing. An episode is not.
+//
+// Absorbing calories means eating below an already-deficit budget for as many days
+// as it takes, and deliberate restriction after a large binge is the single most
+// reliable trigger for the next one. So the bank is bounded twice: a single log
+// above EPISODE_KCAL is not a heavy day at all and is recorded as an episode, which
+// never reaches the bank; and whatever does reach the bank is capped so the trim can
+// never run longer than MAX_OVERAGE_BANK / MAX_DAILY_TRIM days. Calories past those
+// bounds are not forgiven or hidden — they are simply not paid back through hunger.
+const EPISODE_KCAL = 1200;
+const MAX_OVERAGE_BANK = 900; // ceiling on absorbable debt: at most 6 days of trim
+
 // Extra-activity credits. The TDEE activity multiplier already covers routine
 // training and daily steps; trackers overestimate burn by 27-93% (Stanford 2017,
 // 2025 meta-analyses). So: only genuinely unusual activity earns a credit, at a
@@ -82,6 +94,32 @@ function effectiveBudget(state, day) {
   const trim = Math.min(MAX_DAILY_TRIM, Math.max(0, state.overageBank || 0));
   const credit = day?.activityCredit?.kcal || 0;
   return { budget: dailyBudget(p) - trim + credit, trim, credit };
+}
+
+// Is a logged overage large enough that absorbing it would do more harm than good?
+function isEpisodeSized(kcal) {
+  return Math.max(0, Math.round(kcal) || 0) >= EPISODE_KCAL;
+}
+
+/**
+ * Move part of a logged overage into the bank, respecting the ceiling.
+ * Returns { banked, unbanked } so the caller can tell the owner the truth about
+ * what is being absorbed and what is simply being left alone.
+ */
+function bankOverage(state, kcal) {
+  const amount = Math.max(0, Math.round(kcal) || 0);
+  const before = Math.max(0, state.overageBank || 0);
+  const after = Math.min(MAX_OVERAGE_BANK, before + amount);
+  state.overageBank = after;
+  const banked = after - before;
+  return { banked, unbanked: amount - banked };
+}
+
+/** Reverse a banking (an undo), never below zero. */
+function unbankOverage(state, kcal) {
+  const amount = Math.max(0, Math.round(kcal) || 0);
+  state.overageBank = Math.max(0, (state.overageBank || 0) - amount);
+  return state.overageBank;
 }
 
 // Convert a tracker-reported "calories burned" into an edible credit
@@ -467,6 +505,90 @@ function recordHistory(state, day, key) {
   }
 }
 
+// ---------- episodes ----------
+// An episode is a binge, recorded as an event rather than as a debt. The point of
+// the record is the context around it, not the calorie count: the count says how bad
+// last night was, the context is the only thing that predicts the next one.
+
+const PARTS_OF_DAY = ["morning", "afternoon", "evening", "night"];
+const DAY_BEFORE_KINDS = ["restricted", "normal", "heavy"];
+
+function normalizeEpisode(entry) {
+  const e = entry && typeof entry === "object" ? entry : {};
+  const kcal = Math.max(0, Math.round(Number(e.kcal)) || 0);
+  const hours = Number(e.hoursSinceEating);
+  return {
+    date: typeof e.date === "string" ? e.date : "",
+    kcal,
+    at: typeof e.at === "string" ? e.at : new Date().toISOString(),
+    partOfDay: PARTS_OF_DAY.includes(e.partOfDay) ? e.partOfDay : null,
+    smoked: typeof e.smoked === "boolean" ? e.smoked : null,
+    hoursSinceEating: Number.isFinite(hours) && hours >= 0 ? Math.round(hours) : null,
+    dayBefore: DAY_BEFORE_KINDS.includes(e.dayBefore) ? e.dayBefore : null,
+  };
+}
+
+/** Append an episode to the log. Returns the stored record. */
+function recordEpisode(state, entry) {
+  const e = normalizeEpisode(entry);
+  state.episodes = Array.isArray(state.episodes) ? state.episodes : [];
+  state.episodes.push(e);
+  return e;
+}
+
+/** Remove every episode logged against a day — the undo path for a mislogged day. */
+function removeEpisodesOn(state, dateK) {
+  const before = Array.isArray(state.episodes) ? state.episodes : [];
+  state.episodes = before.filter((e) => e.date !== dateK);
+  return before.length - state.episodes.length;
+}
+
+function median(nums) {
+  if (!nums.length) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+
+/**
+ * What the log actually says, over a window ending today.
+ * Every rate is reported with its denominator: "3 of 4" is a pattern worth acting on,
+ * "3 of 3" after three episodes is not yet evidence of anything, and the owner can only
+ * tell those apart if the count is shown next to the share.
+ */
+function episodeStats(state, { days = 90, today = new Date() } = {}) {
+  const all = Array.isArray(state.episodes) ? state.episodes.map(normalizeEpisode) : [];
+  const cutoff = dateKey(addDays(today, -days));
+  const within = all.filter((e) => e.date && e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date));
+  const last = within.length ? within[within.length - 1] : null;
+
+  const withSmoked = within.filter((e) => e.smoked !== null);
+  const afterSmoking = withSmoked.filter((e) => e.smoked === true).length;
+  const gaps = within.map((e) => e.hoursSinceEating).filter((h) => h !== null);
+  const priorDays = within.map((e) => e.dayBefore).filter((d) => d !== null);
+  const restrictedBefore = priorDays.filter((d) => d === "restricted").length;
+
+  const byPartOfDay = {};
+  for (const part of PARTS_OF_DAY) byPartOfDay[part] = within.filter((e) => e.partOfDay === part).length;
+  const ranked = PARTS_OF_DAY.filter((part) => byPartOfDay[part] > 0).sort((a, b) => byPartOfDay[b] - byPartOfDay[a]);
+
+  return {
+    days,
+    count: within.length,
+    lastDate: last ? last.date : null,
+    daysSince: last ? Math.round((parseKey(dateKey(today)) - parseKey(last.date)) / 86400000) : null,
+    afterSmoking,
+    smokedKnown: withSmoked.length,
+    restrictedBefore,
+    dayBeforeKnown: priorDays.length,
+    medianHoursSinceEating: median(gaps),
+    gapsKnown: gaps.length,
+    byPartOfDay,
+    topPartOfDay: ranked.length ? ranked[0] : null,
+    topPartOfDayCount: ranked.length ? byPartOfDay[ranked[0]] : 0,
+  };
+}
+
 // ---------- shopping list ----------
 
 /**
@@ -518,4 +640,7 @@ export {
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
   generateWeek, recordHistory, shoppingList, collectCarryover, perishUrgency, weekQuality, calibration,
+  EPISODE_KCAL, MAX_OVERAGE_BANK, PARTS_OF_DAY, DAY_BEFORE_KINDS,
+  isEpisodeSized, bankOverage, unbankOverage,
+  normalizeEpisode, recordEpisode, removeEpisodesOn, episodeStats,
 };
