@@ -11,7 +11,7 @@ export const BACKUP_FORMAT = "fuel-backup.v1";
 
 // Bump when the persisted shape changes, and add a migration below. Records
 // written before versioning existed have no schemaVersion and are treated as 1.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const LEGACY_VERSION = 1;
 export const MAX_RECOVERY_SNAPSHOTS = 5;
 
@@ -36,6 +36,24 @@ function defaultState() {
     overageBank: 0,
     planMode: "auto",
     theme: "auto",
+    urges: [],
+    cbt: defaultCbt(),
+  };
+}
+
+/* The CBT-E side. Kept in one container so a backup carries the whole programme —
+   the written plans are the parts that would hurt most to lose, because they were
+   written by the version of him that wasn't in the middle of an urge. */
+function defaultCbt() {
+  return {
+    mode: "off",          // "off" | "stabilization"
+    startedAt: "",
+    occasions: [],        // planned eating occasions: [{ id, label, time: "09:00" }]
+    riskWindow: null,     // { nights: [3, 4], from: 21, to: 1 } — self-reported, Mon=0
+    windowPlan: null,     // written sober: { food, activity, fallback, person, updatedAt }
+    setbackPlan: null,    // written before it's needed: { text, updatedAt }
+    quietPeriod: null,    // the months it stopped: { rows: {...}, updatedAt }
+    exitCriteria: null,   // written on day one: { maxEpisodesPerMonth, minRegularDays, weeks }
   };
 }
 
@@ -45,7 +63,7 @@ const nowIso = () => new Date().toISOString();
 
 // Object-shaped fields (maps keyed by product/template id) and list-shaped fields.
 const MAP_FIELDS = ["history", "productOverrides", "shopChecks", "pantry", "favorites", "opened"];
-const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox"];
+const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox", "urges"];
 
 /**
  * Repair a record's shape without discarding anything readable. Unknown fields are
@@ -65,6 +83,14 @@ function normalizeState(raw) {
   if (!Number.isFinite(out.planSeed)) out.planSeed = 1;
   if (typeof out.planMode !== "string") out.planMode = "auto";
   if (typeof out.theme !== "string") out.theme = "auto";
+  // The CBT-E container keeps unknown keys (a newer build's fields must survive a trip
+  // through an older one) but is repaired field by field, because a half-shaped plan
+  // renders as a blank plan and a blank plan reads as "you never wrote one".
+  out.cbt = { ...defaultCbt(), ...(isObj(out.cbt) ? out.cbt : {}) };
+  if (out.cbt.mode !== "stabilization") out.cbt.mode = "off";
+  if (!Array.isArray(out.cbt.occasions)) out.cbt.occasions = [];
+  for (const f of ["riskWindow", "windowPlan", "setbackPlan", "quietPeriod", "exitCriteria"])
+    if (!isObj(out.cbt[f])) out.cbt[f] = null;
   return out;
 }
 
@@ -77,6 +103,7 @@ function summarizeState(state) {
     weighIns: Array.isArray(s.weighIns) ? s.weighIns.length : 0,
     freezer: Array.isArray(s.freezer) ? s.freezer.reduce((n, f) => n + (Number(f?.portions) || 0), 0) : 0,
     favorites: isObj(s.favorites) ? Object.keys(s.favorites).length : 0,
+    urges: Array.isArray(s.urges) ? s.urges.length : 0,
     hasProfile: isObj(s.profile),
   };
 }
@@ -97,6 +124,15 @@ const MIGRATIONS = [
       // old load() patched this on every boot, which is exactly what a migration is for.
       if (out.profile && out.profile.proteinPerLb === 0.8) out.profile = { ...out.profile, proteinPerLb: 1.0 };
       return out;
+    },
+  },
+  {
+    to: 3,
+    describe: "add the CBT-E containers (urge log and programme state)",
+    migrate(state) {
+      // normalizeState already fills both in; this step exists so the record is
+      // stamped v3 and a phone that has been through it never re-runs the upgrade.
+      return normalizeState(state);
     },
   },
 ];
@@ -363,7 +399,7 @@ function importArchiveInto(storage, payload) {
 }
 
 export {
-  defaultState, normalizeState, summarizeState, versionOf, migrateState, MIGRATIONS,
+  defaultState, defaultCbt, normalizeState, summarizeState, versionOf, migrateState, MIGRATIONS,
   loadState, saveState, clearState, discardCorruptRecord,
   createRecoverySnapshot, listRecoverySnapshots, describeRecoverySnapshots, readRecoverySnapshot, restoreFromSnapshot,
   exportArchive, importArchive, importArchiveInto,

@@ -559,3 +559,135 @@ test("openUrges surfaces what still needs an outcome, and lets old ones go", () 
 
   assert.deepEqual(open.map((u) => u.id), [recent.id], "only the one still worth answering");
 });
+
+// ---------- stage 1: stabilization, regular eating, the risk window ----------
+// The rule this section exists to hold: while stabilization runs, a heavy night must
+// never be repaid out of later budgets. That trim is post-binge undereating with a
+// progress bar, and it is the one behaviour the whole programme is built to stop.
+
+test("stabilization freezes the overage trim without touching the deficit", () => {
+  const banked = freshState({ overageBank: 900 });
+  const normal = E.effectiveBudget(banked, null);
+  assert.equal(normal.trim, E.MAX_DAILY_TRIM, "off-programme, a bank still trims the budget");
+  assert.equal(normal.budget, E.dailyBudget(PROFILE) - E.MAX_DAILY_TRIM);
+
+  const stabilizing = freshState({ overageBank: 900, cbt: { mode: "stabilization" } });
+  const held = E.effectiveBudget(stabilizing, null);
+  assert.equal(held.trim, 0, "no repayment while stabilizing");
+  assert.equal(held.budget, E.dailyBudget(PROFILE), "the deficit he chose is left exactly where it was");
+  assert.equal(E.compensationActive(stabilizing), false);
+  assert.equal(E.compensationActive(banked), true);
+});
+
+test("stabilization leaves an activity credit alone — it isn't compensation", () => {
+  const s = freshState({ overageBank: 900, cbt: { mode: "stabilization" } });
+  const day = { activityCredit: { kcal: 150 } };
+  assert.equal(E.effectiveBudget(s, day).budget, E.dailyBudget(PROFILE) + 150);
+});
+
+test("occasion gaps flag the stretch an 11pm urge lives in", () => {
+  assert.ok(E.occasionGaps(E.DEFAULT_OCCASIONS).ok, "the default schedule has no gap over four hours");
+
+  const sparse = [
+    { id: "breakfast", label: "Breakfast", time: "08:00" },
+    { id: "dinner", label: "Dinner", time: "19:00" },
+  ];
+  const gaps = E.occasionGaps(sparse);
+  assert.equal(gaps.ok, false);
+  assert.equal(gaps.longestHours, 11);
+  assert.equal(gaps.tooLong.length, 1);
+  assert.equal(gaps.tooLong[0].from.id, "breakfast");
+});
+
+test("the next occasion wraps to tomorrow once the day's are done", () => {
+  const at = (h, m = 0) => new Date(2026, 7, 29, h, m);
+  assert.equal(E.nextOccasion(E.DEFAULT_OCCASIONS, at(7)).id, "breakfast");
+  assert.equal(E.nextOccasion(E.DEFAULT_OCCASIONS, at(13)).id, "snack-pm");
+  const late = E.nextOccasion(E.DEFAULT_OCCASIONS, at(23));
+  assert.equal(late.id, "breakfast");
+  assert.equal(late.tomorrow, true, "at 11pm the next thing on the schedule is tomorrow's breakfast");
+  assert.equal(E.nextOccasion([], at(13)), null);
+});
+
+test("the risk window knows tonight from any other night, and holds past midnight", () => {
+  const w = { nights: [3, 4], from: 21, to: 1 }; // Thu/Fri, 9pm–1am
+  const at = (d, h) => E.riskWindowState(w, new Date(2026, 7, d, h, 0));
+
+  assert.equal(at(28, 19).approaching, true, "7pm Friday: sober, and the plan surfaces");
+  assert.equal(at(28, 19).inside, false);
+  assert.equal(at(28, 22).inside, true, "10pm Friday: inside it");
+  assert.equal(at(29, 0).inside, true, "midnight-thirty is still Friday night");
+  assert.equal(at(29, 0).nightKey, "2026-08-28");
+  assert.equal(at(29, 22).tonight, false, "Saturday is not one of his nights");
+  assert.equal(at(26, 22).tonight, false, "nor is Wednesday");
+  assert.equal(at(27, 22).inside, true, "Thursday is");
+  assert.equal(E.riskWindowState(null, new Date()).known, false, "no window reported yet says so");
+});
+
+test("recovery quality measures the day after, which can improve before the count does", () => {
+  // Same two episodes, two different recoveries: three short days, then straight back.
+  const days = {
+    "2026-08-08": planDay(3, 3), "2026-08-09": planDay(3, 0), "2026-08-10": planDay(3, 1),
+    "2026-08-11": planDay(3, 0), "2026-08-12": planDay(3, 3),
+    "2026-08-27": planDay(3, 3), "2026-08-28": planDay(3, 3), "2026-08-29": planDay(3, 3),
+  };
+  const s = urgeState([
+    urge("2026-08-08", 23, { outcome: "escalated" }),
+    urge("2026-08-27", 23, { outcome: "escalated" }),
+    urge("2026-08-22", 23, { outcome: "rode-out" }), // riding it out is not an episode
+  ], days);
+
+  assert.deepEqual(E.episodeNights(s, { endKey: END }), ["2026-08-08", "2026-08-27"]);
+
+  const august = E.recoveryAfterEpisode(s, "2026-08-08", END);
+  assert.equal(august.daysToResume, 4, "three short days before eating was back on schedule");
+  assert.equal(august.shortDays, 3);
+
+  const latest = E.recoveryAfterEpisode(s, "2026-08-27", END);
+  assert.equal(latest.daysToResume, 1, "straight back to the next planned occasion");
+  assert.equal(latest.shortDays, 0);
+
+  const q = E.recoveryQuality(s, { endKey: END });
+  assert.equal(q.n, 2);
+  assert.equal(q.resumedNextDay, 1);
+  assert.equal(q.meanDaysToResume, 2.5);
+});
+
+test("recovery says it doesn't know yet rather than scoring days that haven't happened", () => {
+  const s = urgeState([urge("2026-08-29", 23, { outcome: "escalated" })], { "2026-08-29": planDay(3, 3) });
+  const r = E.recoveryAfterEpisode(s, "2026-08-29", END);
+  assert.equal(r.resolved, false);
+  assert.equal(r.daysToResume, null, "tomorrow hasn't happened");
+  assert.equal(E.recoveryQuality(s, { endKey: END }).meanDaysToResume, null);
+});
+
+test("an ate-out day stops the recovery clock instead of counting as a short day", () => {
+  const days = {
+    "2026-08-25": planDay(3, 0, "skipped"), // out with friends — nothing to read
+    "2026-08-26": planDay(3, 3),
+  };
+  const s = urgeState([urge("2026-08-24", 23, { outcome: "escalated" })], days);
+  const r = E.recoveryAfterEpisode(s, "2026-08-24", END);
+  assert.equal(r.resolved, false, "we can't say he restricted on a day he ate out");
+  assert.equal(r.shortDays, 0);
+});
+
+test("progress is reported in weeks and recoveries, never as days since", () => {
+  const s = urgeState([urge("2026-08-27", 23, { outcome: "escalated" })], { "2026-08-28": planDay(3, 3) });
+  s.cbt = { mode: "stabilization", startedAt: "2026-08-01" };
+  const p = E.stabilizationProgress(s, { endKey: END });
+
+  assert.equal(p.daysIn, 28);
+  assert.equal(p.episodes, 1);
+  assert.equal(p.resumedNextDay, 1, "he ate the next planned occasion");
+  for (const key of Object.keys(p))
+    assert.ok(!/streak|since/i.test(key), `${key} reads as a streak, and a streak makes a lapse a total loss`);
+});
+
+test("clock times render the way a person reads them", () => {
+  assert.equal(E.fmtClock("08:30"), "8:30am");
+  assert.equal(E.fmtClock("19:00"), "7pm");
+  assert.equal(E.fmtClock("12:00"), "12pm");
+  assert.equal(E.fmtClock("00:15"), "12:15am");
+  assert.equal(E.fmtClock("nope"), "");
+});

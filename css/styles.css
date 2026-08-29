@@ -357,3 +357,64 @@ textarea.io { width: 100%; min-height: 110px; border-radius: 12px; border: 1px s
 .diag-row:last-child { border-bottom: none; }
 .diag-row .ok { color: var(--good-text); font-weight: 700; }
 .diag-row .warn { color: var(--critical); font-weight: 700; }
+
+/* ---------- stage 1: the CBT-E programme ---------- */
+
+/* The acute button. Discreet on purpose — this lives on his home screen and gets
+   opened in front of other people — but always in the same place, because the moment
+   it exists for is not one you go hunting through tabs in. */
+.fab {
+  position: fixed; right: 16px; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 45;
+  width: 54px; height: 54px; border-radius: 27px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--accent);
+  box-shadow: 0 3px 14px rgba(11, 11, 11, .16);
+  display: flex; align-items: center; justify-content: center;
+}
+.fab svg { width: 26px; height: 26px; }
+.fab:active { transform: scale(0.94); }
+
+/* The acute sheet: three ways out, no questions. Type is large because the person
+   reading it is not at their best. */
+.acute-head { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 6px; }
+.acute-sub { color: var(--ink-2); font-size: 0.95rem; margin-bottom: 18px; }
+.acute-btn {
+  display: block; width: 100%; text-align: left; margin-bottom: 10px;
+  padding: 16px 18px; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.acute-btn b { display: block; font-size: 1.08rem; font-weight: 700; }
+.acute-btn span { display: block; font-size: 0.85rem; color: var(--ink-2); margin-top: 3px; }
+.acute-btn.primary { background: var(--accent); border-color: transparent; }
+.acute-btn.primary b, .acute-btn.primary span { color: #fff; }
+.acute-btn.primary span { opacity: 0.9; }
+.acute-btn:active { transform: scale(0.99); }
+.delay-clock {
+  font-size: 3.2rem; font-weight: 800; letter-spacing: -0.03em; text-align: center;
+  font-variant-numeric: tabular-nums; margin: 10px 0 14px; color: var(--accent);
+}
+
+/* The morning after. Green rather than red: the day needs no repair, and the card
+   should not look like a warning. */
+.reset-card { border-color: var(--protein); }
+.reset-card h3 { color: var(--protein); }
+.reset-next {
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-top: 12px; font-size: 0.92rem;
+}
+.window-card { border-color: var(--accent); }
+.plan-line {
+  display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 0.9rem;
+}
+.plan-line:last-child { border-bottom: none; }
+.plan-line span { color: var(--muted); flex-shrink: 0; }
+.plan-line b { text-align: right; }
+.next-occasion { font-size: 1.15rem; font-weight: 700; margin: 6px 0 2px; }
+
+/* Wrapping chip groups — the pickers on the morning-after sheet. */
+.chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.chip-wrap .chip { padding: 9px 14px; }
+.time-input {
+  padding: 9px 11px; border-radius: 10px; border: 1px solid var(--hairline);
+  background: var(--surface); font-size: 0.95rem; font-variant-numeric: tabular-nums;
+}

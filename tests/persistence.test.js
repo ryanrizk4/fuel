@@ -47,7 +47,7 @@ test("an unversioned v1 record migrates forward instead of being discarded", () 
   const result = P.loadState(storage);
 
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [2]);
+  assert.deepEqual(result.migrated, [2, 3]);
   assert.equal(result.state.schemaVersion, P.SCHEMA_VERSION);
   // every field the owner cared about survived the upgrade
   assert.equal(Object.keys(result.state.plan.days).length, 1);
@@ -208,7 +208,7 @@ test("an export taken before the archive format still restores", () => {
   const { state, source, migrated } = P.importArchive(JSON.parse(JSON.stringify(legacy)));
 
   assert.equal(source, "legacy");
-  assert.deepEqual(migrated, [2]);
+  assert.deepEqual(migrated, [2, 3]);
   assert.equal(state.schemaVersion, P.SCHEMA_VERSION);
   assert.equal(state.weighIns[0].lb, 184.2);
   assert.equal(state.profile.proteinPerLb, 1.0);
@@ -236,4 +236,50 @@ test("junk files are rejected without touching the stored record", () => {
     assert.throws(() => P.importArchiveInto(storage, junk), /Fuel|backup|state/i);
   }
   assert.deepEqual(parseStored(storage, P.STORE_KEY), good);
+});
+
+// ---------- v3: the CBT-E containers ----------
+
+test("a v2 record gains the CBT-E containers without losing anything", () => {
+  const v2 = { ...legacyRecord(), schemaVersion: 2, myOwnField: "keep me" };
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(v2) });
+  const result = P.loadState(storage);
+
+  assert.equal(result.status, "migrated");
+  assert.deepEqual(result.migrated, [3]);
+  assert.deepEqual(result.state.urges, []);
+  assert.equal(result.state.cbt.mode, "off", "the programme starts off, never switched on behind his back");
+  assert.equal(result.state.cbt.windowPlan, null);
+  assert.equal(result.state.myOwnField, "keep me", "unknown fields survive the upgrade");
+  assert.equal(result.state.overageBank, 120, "the calorie side is untouched by this migration");
+  assert.equal(P.describeRecoverySnapshots(storage).length, 1, "a copy was taken before the upgrade wrote");
+});
+
+test("a half-written programme is repaired field by field, not discarded", () => {
+  const broken = {
+    ...legacyRecord(), schemaVersion: 3,
+    urges: "not a list",
+    cbt: { mode: "banana", occasions: null, windowPlan: { food: "planned cookie" }, futureField: 7 },
+  };
+  const { state } = P.migrateState(broken);
+
+  assert.deepEqual(state.urges, [], "a list-shaped field of the wrong kind falls back to its default");
+  assert.equal(state.cbt.mode, "off", "an unknown mode is not a mode");
+  assert.deepEqual(state.cbt.occasions, []);
+  assert.deepEqual(state.cbt.windowPlan, { food: "planned cookie" }, "what he actually wrote is kept");
+  assert.equal(state.cbt.futureField, 7, "a newer build's field survives a trip through this one");
+});
+
+test("a backup carries the urge log and the written plans", () => {
+  const state = P.normalizeState({
+    ...legacyRecord(),
+    urges: [{ id: "2026-08-28T23:30:00.000Z", date: "2026-08-28", hour: 23, outcome: "escalated" }],
+    cbt: { mode: "stabilization", startedAt: "2026-08-01", windowPlan: { food: "Prime Bites", activity: "call Sam" } },
+  });
+  const wire = JSON.parse(JSON.stringify(P.exportArchive(state)));
+  const restored = P.importArchive(wire).state;
+
+  assert.deepEqual(restored.urges, state.urges);
+  assert.deepEqual(restored.cbt, state.cbt, "the plans written sober are the part it would hurt most to lose");
+  assert.equal(wire.summary.urges, 1);
 });

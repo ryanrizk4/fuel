@@ -76,10 +76,25 @@ function proteinTarget(p) {
   return Math.round(ideal * (p.proteinPerLb || 1.0));
 }
 
+/* Stabilization mode. While it runs, Fuel stops doing the one thing it used to do
+   automatically after a heavy night: quietly shave the next days' budgets until the
+   calories are "paid back". That trim is post-binge undereating with a progress bar —
+   the restriction with the clearest link to loading the next episode, implemented in
+   software. The deficit itself stays exactly where the owner set it; only the
+   compensation comes off, so that if episodes drop we know which change did it. */
+function stabilizationOn(state) {
+  return state?.cbt?.mode === "stabilization";
+}
+
+/** Whether a heavy day may be banked and repaid out of later budgets. */
+function compensationActive(state) {
+  return !stabilizationOn(state);
+}
+
 // Effective budget today = budget − overage-bank trim + any extra-activity credit for the day
 function effectiveBudget(state, day) {
   const p = state.profile;
-  const trim = Math.min(MAX_DAILY_TRIM, Math.max(0, state.overageBank || 0));
+  const trim = compensationActive(state) ? Math.min(MAX_DAILY_TRIM, Math.max(0, state.overageBank || 0)) : 0;
   const credit = day?.activityCredit?.kcal || 0;
   return { budget: dailyBudget(p) - trim + credit, trim, credit };
 }
@@ -760,6 +775,156 @@ function restraintSignal(state, { endKey = dateKey(new Date()), weeks = PATTERN_
   };
 }
 
+// ---------- stage 1: regular eating, the risk window, and recovery ----------
+
+/* Regular eating is the intervention, not a metric: planned occasions, roughly four
+   hours apart, eaten at their time whether or not he's hungry and whether or not
+   last night happened. Fuel already knew what he'd eat; this is the part that says
+   when, and refuses to let the day after an episode be a lighter day. */
+
+const MAX_OCCASION_GAP_HOURS = 4;
+const EPISODE_RESUME_LIMIT = 6;   // how many days out we'll look for eating to resume
+const RISK_WINDOW_LEAD_HOURS = 2; // how early the sober plan surfaces before the window
+
+const DEFAULT_OCCASIONS = [
+  { id: "breakfast", label: "Breakfast", time: "08:30" },
+  { id: "lunch", label: "Lunch", time: "12:30" },
+  { id: "snack-pm", label: "Afternoon snack", time: "16:00" },
+  { id: "dinner", label: "Dinner", time: "19:30" },
+  { id: "snack-eve", label: "Evening snack", time: "21:30" },
+];
+
+const parseClock = (hhmm) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ""));
+  if (!m) return null;
+  const h = +m[1], min = +m[2];
+  return h >= 0 && h < 24 && min >= 0 && min < 60 ? h * 60 + min : null;
+};
+
+function fmtClock(hhmm) {
+  const mins = parseClock(hhmm);
+  if (mins === null) return "";
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return `${h % 12 === 0 ? 12 : h % 12}${m ? ":" + String(m).padStart(2, "0") : ""}${h < 12 ? "am" : "pm"}`;
+}
+
+const sortedOccasions = (occasions) =>
+  (occasions || []).filter((o) => parseClock(o?.time) !== null).sort((a, b) => parseClock(a.time) - parseClock(b.time));
+
+/**
+ * The gaps between planned occasions, and whether any of them is long enough to be
+ * doing the priming itself. The evening gap is measured to the first occasion of the
+ * next day, because that is the stretch an 11pm urge lives in.
+ */
+function occasionGaps(occasions) {
+  const list = sortedOccasions(occasions);
+  if (list.length < 2) return { gaps: [], longestHours: null, tooLong: [], ok: list.length > 0 };
+  const gaps = [];
+  for (let i = 1; i < list.length; i++)
+    gaps.push({ from: list[i - 1], to: list[i], hours: (parseClock(list[i].time) - parseClock(list[i - 1].time)) / 60 });
+  const tooLong = gaps.filter((g) => g.hours > MAX_OCCASION_GAP_HOURS);
+  return { gaps, longestHours: Math.max(...gaps.map((g) => g.hours)), tooLong, ok: tooLong.length === 0 };
+}
+
+/** The next planned occasion due, wrapping to tomorrow's first once the day is done. */
+function nextOccasion(occasions, now = new Date()) {
+  const list = sortedOccasions(occasions);
+  if (!list.length) return null;
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const upcoming = list.find((o) => parseClock(o.time) >= mins);
+  return upcoming ? { ...upcoming, tomorrow: false } : { ...list[0], tomorrow: true };
+}
+
+/* The risk window is self-reported to begin with — he already knows it's Thursday and
+   Friday around 11pm, and an algorithm needs entries it doesn't have yet. decisionPoint()
+   refines it later, once the log can outvote the guess. */
+
+function windowNightKey(riskWindow, now = new Date()) {
+  // Inside a window that has run past midnight, the night still belongs to yesterday.
+  const from = Number(riskWindow?.from);
+  const to = Number(riskWindow?.to);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+  const wraps = to <= from;
+  return wraps && now.getHours() < to ? dateKey(addDays(now, -1)) : dateKey(now);
+}
+
+// Hour ranges here run around the clock, so "9pm to 1am" is one range, not two.
+const inHourRing = (h, from, to) => (from <= to ? h >= from && h < to : h >= from || h < to);
+
+/**
+ * Is tonight one of his nights, and where in it are we?
+ * `approaching` is the one that matters: it fires before the window opens, while the
+ * version of him that makes plans is still the one holding the phone.
+ */
+function riskWindowState(riskWindow, now = new Date()) {
+  const from = Number(riskWindow?.from), to = Number(riskWindow?.to);
+  const nights = Array.isArray(riskWindow?.nights) ? riskWindow.nights : [];
+  if (!Number.isFinite(from) || !Number.isFinite(to) || !nights.length) return { known: false };
+  const nightKey = windowNightKey(riskWindow, now);
+  const tonight = nights.includes(dowIndex(nightKey));
+  const h = now.getHours() + now.getMinutes() / 60;
+  const inside = inHourRing(h, from, to);
+  const approaching = !inside && inHourRing(h, (from - RISK_WINDOW_LEAD_HOURS + 24) % 24, from);
+  return { known: true, nightKey, tonight, inside: tonight && inside, approaching: tonight && approaching, from, to };
+}
+
+/* Recovery quality: the measure that can improve while the episode count hasn't.
+   "Binge, then restrict for three days" becoming "binge, then eat breakfast" is real
+   therapeutic change, and it is the thing this app is actually trying to move. */
+
+function episodeNights(state, { endKey = dateKey(new Date()), weeks = PATTERN_WEEKS } = {}) {
+  const nights = urgesInWindow(state, endKey, weeks)
+    .filter((u) => u.outcome === "escalated")
+    .map(urgeNightKey)
+    .filter(Boolean);
+  return [...new Set(nights)].sort();
+}
+
+/**
+ * For each episode: how many days until planned eating was complete again, and how
+ * many of the days straight after it were short. Days still in the future, or on a
+ * day he ate out, can't answer the question and say so rather than guessing.
+ */
+function recoveryAfterEpisode(state, nightKey, todayKey = dateKey(new Date())) {
+  let daysToResume = null, shortDays = 0, resolved = false;
+  for (let i = 1; i <= EPISODE_RESUME_LIMIT; i++) {
+    const day = regularEatingDay(state, dateKey(addDays(parseKey(nightKey), i)), todayKey);
+    if (day.status === "complete") { daysToResume = i; resolved = true; break; }
+    if (day.status === "partial" || day.status === "missed") { shortDays++; continue; }
+    break; // today, ahead, untracked or unplanned — the question isn't answerable yet
+  }
+  return { nightKey, daysToResume, shortDays, resolved };
+}
+
+function recoveryQuality(state, { endKey = dateKey(new Date()), weeks = PATTERN_WEEKS } = {}) {
+  const episodes = episodeNights(state, { endKey, weeks }).map((n) => recoveryAfterEpisode(state, n, endKey));
+  const resolved = episodes.filter((e) => e.resolved);
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  return {
+    episodes, n: episodes.length, resolved: resolved.length,
+    meanDaysToResume: mean(resolved.map((e) => e.daysToResume)),
+    meanShortDays: mean(resolved.map((e) => e.shortDays)),
+    // The headline the weekly review reads out: did he go straight back to the schedule?
+    resumedNextDay: resolved.filter((e) => e.daysToResume === 1).length,
+  };
+}
+
+/** Where the programme is, in the terms it set for itself on day one. */
+function stabilizationProgress(state, { endKey = dateKey(new Date()), weeks = PATTERN_WEEKS } = {}) {
+  const pattern = urgePattern(state, { endKey, weeks });
+  const eating = regularEating(state, endKey, REGULAR_EATING_DAYS);
+  const recovery = recoveryQuality(state, { endKey, weeks });
+  const started = state?.cbt?.startedAt || "";
+  const daysIn = started ? Math.max(0, Math.round((parseKey(endKey) - parseKey(started)) / 86400000)) : null;
+  return {
+    daysIn, weeks,
+    urges: pattern.n, episodes: pattern.outcomes.escalated,
+    asPlanned: pattern.outcomes["as-planned"], rodeOut: pattern.outcomes["rode-out"],
+    eatingComplete: eating.complete, eatingCounted: eating.counted,
+    meanDaysToResume: recovery.meanDaysToResume, resumedNextDay: recovery.resumedNextDay,
+  };
+}
+
 export {
   ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP,
   dateKey, parseKey, addDays, weekStart, fmtDay,
@@ -770,4 +935,8 @@ export {
   SEEKING, CANNABIS_PROXIMITY, COMPANY, URGE_OUTCOMES, DOW_LABELS,
   dowIndex, fmtHour, newUrge, closeUrge, urgeNightKey, urgesInWindow, openUrges,
   urgePattern, decisionPoint, regularEatingDay, regularEating, restraintSignal,
+  MAX_OCCASION_GAP_HOURS, EPISODE_RESUME_LIMIT, RISK_WINDOW_LEAD_HOURS, DEFAULT_OCCASIONS,
+  stabilizationOn, compensationActive, fmtClock, sortedOccasions, occasionGaps, nextOccasion,
+  windowNightKey, riskWindowState, episodeNights, recoveryAfterEpisode, recoveryQuality,
+  stabilizationProgress,
 };

@@ -59,7 +59,7 @@ For product or template changes:
 
 ## Persistence safety
 
-Persisted records are versioned (`schemaVersion`, currently 2) and migrate forward on load.
+Persisted records are versioned (`schemaVersion`, currently 3) and migrate forward on load.
 Fuel keeps a bounded rolling ring of recovery copies and takes one before any write that
 replaces or deletes the record. All of this lives in `js/persistence.js`, which has no DOM
 access and is covered by `tests/persistence.test.js`.
@@ -73,6 +73,26 @@ access and is covered by `tests/persistence.test.js`.
 - Keep export/import behavior working, and keep older bare-state backups importable.
 - A corrupted primary record is recoverable data: show the owner what happened and offer a
   restore. Blank state is only ever something they choose.
+
+## Stabilization mode (CBT-E)
+
+Fuel carries a second programme for the owner's binge pattern, off by default and switched
+on in Settings. It is not a tracker bolted onto the planner; it changes what the planner is
+allowed to do. Treat these as constraints, not preferences:
+
+- While stabilization is on, a heavy day is never banked and never repaid out of later
+  budgets. Do not reintroduce compensation in any form — no automatic trims, no "calories
+  to make up", no goal-date penalty after an episode.
+- The owner's calorie deficit is his to set and is left alone by the programme. Only the
+  repayment comes off, so the effect of that single change stays legible.
+- Nothing on the programme side may read a calorie or a weight, and nothing may present a
+  streak or a "days since" counter. Both are held by tests; a lapse must never zero a record.
+- Regular eating is the intervention. Planned occasions carry times and must not sit more
+  than four hours apart.
+- The acute screen asks no questions. Detail is captured the next morning. If you are
+  tempted to add a field to it, add it to the morning-after sheet instead.
+- Progress is reported as counts over weeks plus recovery quality (did the next planned
+  occasion get eaten), never as adherence.
 
 ## Recipe ingestion
 

@@ -3,7 +3,7 @@
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
 
-const APP_VERSION = "fuel-v13";
+const APP_VERSION = "fuel-v14";
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -170,6 +170,8 @@ function finishOnboarding() {
 // ---------- rendering ----------
 
 function renderAll() {
+  const fab = $("#fab-acute");
+  if (fab) fab.hidden = !cbtOn();
   renderToday();
   renderPlan();
   renderShop();
@@ -407,6 +409,8 @@ function renderToday() {
       ${credit > 0 ? `<div class="trim-note">🥾 ${esc(day.activityCredit.label)}: +${credit} kcal credited today. <button class="btn small ghost" data-action="remove-activity" data-date="${key}" style="margin-left:6px">Remove</button></div>` : ""}
     </div>
 
+    ${cbtCards()}
+
     <div class="card">
       <div class="list-title-row"><h3>Meals</h3><span class="small muted">tap name to swap · tap ✓ when eaten</span></div>
       ${mealRows || '<div class="empty">No meals planned</div>'}
@@ -584,6 +588,7 @@ function renderProgress() {
   const target = p.startWeightLb - p.goalLossLb;
   const etaStr = proj.eta.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const bank = state.overageBank || 0;
+  const stab = cbtOn();
 
   const entries = [...state.weighIns].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6).map((w, i) =>
     `<div class="freezer-row">
@@ -598,13 +603,18 @@ function renderProgress() {
     <div class="tiles">
       <div class="tile"><div class="t-label">Current</div><div class="t-value">${current} lb</div><div class="t-sub">last weigh-in</div></div>
       <div class="tile"><div class="t-label">Lost so far</div><div class="t-value ${lost > 0 ? "good" : ""}">${lost > 0 ? "−" : ""}${Math.abs(lost)} lb</div><div class="t-sub">${proj.remainingLb.toFixed(1)} lb to go</div></div>
+      ${stab ? "" : `
       <div class="tile"><div class="t-label">Goal date</div><div class="t-value">${etaStr}</div><div class="t-sub">≈ ${proj.daysLeft} days at −${p.deficit}/day</div></div>
-      <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "bad" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal to absorb · pushes goal ~${Math.ceil(proj.bankDays)} day${Math.ceil(proj.bankDays) !== 1 ? "s" : ""}` : "kcal — all clear ✓"}</div></div>
+      <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "bad" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal to absorb · pushes goal ~${Math.ceil(proj.bankDays)} day${Math.ceil(proj.bankDays) !== 1 ? "s" : ""}` : "kcal — all clear ✓"}</div></div>`}
     </div>
+
+    ${stab ? `<div class="trim-note" style="margin-bottom:12px">Weigh in weekly and watch the line, not the number.
+      The goal-date countdown is hidden while stabilization runs, and there's no action to take on the scale
+      for the first four weeks — that was the deal.</div>` : ""}
 
     ${(() => {
       const cal = E.calibration(state);
-      if (!cal) return "";
+      if (!cal || stab) return "";
       const icon = { "on-track": "✅", behind: "🔍", fast: "⚠️" }[cal.status];
       return `<div class="card" ${cal.status !== "on-track" ? 'style="border-color: var(--accent)"' : ""}>
         <h3>${icon} Trend check</h3>
@@ -627,6 +637,7 @@ function renderProgress() {
       ${entries || '<div class="small muted mt8">No entries yet.</div>'}
     </div>
 
+    ${stab ? "" : `
     <div class="card">
       <h3>How the binge math works</h3>
       <div class="small muted mt8">
@@ -635,7 +646,7 @@ function renderProgress() {
         so you don't starve and rebound. Whatever trimming can't cover just moves your goal date. The math
         is stark but honest: one big weekend ≈ a few extra days, not a failed plan.
       </div>
-    </div>
+    </div>`}
 
     <div class="card">
       <h3>Why "calories burned" ≠ calories to eat</h3>
@@ -763,6 +774,19 @@ function renderMore() {
       </div>
       <div class="small muted" style="margin-bottom:6px">Auto-plan uses these before scheduling new cooking. Batch-cook days add portions automatically when you mark the day done.</div>
       ${freezerRows || '<div class="small muted">Freezer empty.</div>'}
+    </div>
+
+    <div class="card">
+      <div class="list-title-row"><h3>Stabilization mode</h3>
+        <span class="small ${cbtOn() ? "ok" : "muted"}">${cbtOn() ? "on ✓" : "off"}</span></div>
+      <div class="small muted mt8">${cbtOn()
+        ? `Started ${esc(cbt().startedAt || "—")}. Overage bank frozen, no repayment after a heavy day, deficit unchanged at −${p.deficit}.`
+        : "Freezes the overage bank and stops Fuel trimming your budget after a heavy night. Your deficit stays where it is."}</div>
+      <div class="btn-row">
+        <button class="btn ${cbtOn() ? "ghost" : "primary"}" data-action="sheet-stabilization">${cbtOn() ? "Review" : "Set it up"}</button>
+        ${cbtOn() ? '<button class="btn ghost" data-action="sheet-window-plan">Window plan</button>' : ""}
+      </div>
+      ${cbtOn() ? '<div class="btn-row"><button class="btn ghost" data-action="sheet-occasions">Eating occasions</button></div>' : ""}
     </div>
 
     <div class="card">
@@ -1120,7 +1144,19 @@ function sheetCheckin() {
     <div class="diag-row"><span>Weight change</span><span class="${delta !== null && delta <= 0 ? "ok" : ""}">${delta === null ? "need 2 weigh-ins" : (delta > 0 ? "+" : "") + delta + " lb"}</span></div>
     <div class="diag-row"><span>Overage bank</span><span class="${state.overageBank ? "warn" : "ok"}">${state.overageBank || 0} kcal</span></div>
     <div class="diag-row"><span>Goal pace</span><span>${proj.remainingLb.toFixed(1)} lb to go · ~${proj.daysLeft} days</span></div>
-    <div class="ob-section">3 · Set up next week</div>
+    ${cbtOn() ? (() => {
+      const prog = E.stabilizationProgress(state, { endKey: todayKey() });
+      const resume = prog.meanDaysToResume;
+      return `<div class="ob-section">3 · The pattern</div>
+        <div class="diag-row"><span>Urges logged (6 weeks)</span><span>${prog.urges}</span></div>
+        <div class="diag-row"><span>Rode out / as planned / escalated</span><span>${prog.rodeOut} · ${prog.asPlanned} · ${prog.episodes}</span></div>
+        <div class="diag-row"><span>Back on schedule next day</span><span class="${prog.resumedNextDay ? "ok" : ""}">${prog.resumedNextDay} of ${prog.episodes}</span></div>
+        <div class="diag-row"><span>Days to resume, average</span><span>${resume === null ? "—" : resume.toFixed(1)}</span></div>
+        <div class="diag-row"><span>Planned eating</span><span>${prog.eatingComplete} of ${prog.eatingCounted} days</span></div>
+        <div class="small muted mt8">The number that matters here is the third one. "Binge, then three lighter days"
+          becoming "binge, then breakfast" is real change even in a week where the count didn't move.</div>`;
+    })() : ""}
+    <div class="ob-section">${cbtOn() ? "4" : "3"} · Set up next week</div>
     <div class="btn-row"><button class="btn primary" data-action="checkin-plan-next">✨ Plan next week</button></div>
     <div class="small muted mt8">Uses your ${state.planMode === "prep" ? "Prep Sunday" : state.planMode === "easy" ? "Low energy" : "Balanced"} mode — change it on the Plan tab first if this week is different.</div>
   `);
@@ -1203,6 +1239,273 @@ function sheetImport() {
   `);
 }
 
+
+// ---------- stage 1: the CBT-E programme ----------
+/* Three surfaces, in order of how much they matter:
+   1. the sober plan, shown before the window opens, while he can still make decisions
+   2. the acute screen, which asks nothing and offers three ways out
+   3. the morning after, which says the day needs no repair and asks the questions then.
+   There is no separate tab. A dashboard is the thing this was supposed to stop being. */
+
+const DOW_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
+const DELAY_MINUTES = 10;
+let delayTick = null;
+
+const cbtOn = () => E.stabilizationOn(state);
+const cbt = () => state.cbt || {};
+const occasionList = () => (cbt().occasions?.length ? cbt().occasions : E.DEFAULT_OCCASIONS);
+
+function saveCbt(patch) {
+  state.cbt = { ...cbt(), ...patch };
+  save();
+}
+
+/** The most recent night that ended in an episode, if it's recent enough to still be today's business. */
+function recentEpisodeNight(withinDays = 2) {
+  const today = todayKey();
+  for (const u of [...(state.urges || [])].sort((a, b) => String(b.at).localeCompare(String(a.at)))) {
+    if (u.outcome !== "escalated") continue;
+    const night = E.urgeNightKey(u);
+    const age = Math.round((E.parseKey(today) - E.parseKey(night)) / 86400000);
+    if (age >= 1 && age <= withinDays) return night;
+  }
+  return null;
+}
+
+/** An urge sitting in a pause that has already run out. */
+function expiredDelay() {
+  return (state.urges || []).find((u) => !u.outcome && u.delayUntil && Date.parse(u.delayUntil) <= Date.now()) || null;
+}
+
+function pushUrge(fields, outcome) {
+  const entry = E.newUrge(fields);
+  const done = outcome ? E.closeUrge(entry, outcome) : entry;
+  state.urges.push(done);
+  save();
+  return done;
+}
+
+// ----- Today cards -----
+
+function cbtCards() {
+  if (!cbtOn()) return "";
+  const now = new Date();
+  const next = E.nextOccasion(occasionList(), now);
+  const win = E.riskWindowState(cbt().riskWindow, now);
+  const plan = cbt().windowPlan;
+  const episode = recentEpisodeNight();
+  const pending = expiredDelay();
+  const out = [];
+
+  // The morning after outranks everything else on the screen.
+  if (episode) {
+    out.push(`
+      <div class="card reset-card">
+        <h3>Nothing needs to be fixed today</h3>
+        <div class="small mt8">Last night was a lapse, not a relapse. There is nothing to repay, no lighter
+          day to run, and no reason to earn it back at the gym. Your budget is exactly what it was.</div>
+        <div class="reset-next">Resume here → <b>${esc(next ? `${next.label}, ${E.fmtClock(next.time)}` : "your next planned meal")}</b></div>
+        <div class="btn-row">
+          <button class="btn primary" data-action="sheet-morning-after" data-night="${episode}">Log what happened</button>
+        </div>
+      </div>`);
+  }
+
+  if (pending) {
+    out.push(`
+      <div class="card" style="border-color: var(--accent)">
+        <h3>You started a ${DELAY_MINUTES}-minute pause</h3>
+        <div class="small muted mt8">Logged at ${esc(new Date(pending.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }))}. How did it go?</div>
+        ${E.URGE_OUTCOMES.map((o) => `<button class="option-row" data-action="close-urge" data-id="${esc(pending.id)}" data-outcome="${o.id}">
+          <div class="o-main"><div class="o-name">${esc(o.label)}</div></div></button>`).join("")}
+      </div>`);
+  }
+
+  // The sober plan, before the window opens. This is the primary intervention.
+  if (win.tonight && (win.approaching || win.inside)) {
+    out.push(`
+      <div class="card window-card">
+        <div class="list-title-row"><h3>${win.inside ? "You're in it" : "Tonight is one of your nights"}</h3>
+          <span class="small muted">${E.fmtHour(win.from)}–${E.fmtHour(win.to)}</span></div>
+        ${plan ? `
+          <div class="small muted mt8">Here's what sober-you decided.</div>
+          ${plan.food ? `<div class="plan-line"><span>Planned food</span><b>${esc(plan.food)}</b></div>` : ""}
+          ${plan.activity ? `<div class="plan-line"><span>Instead of the phone</span><b>${esc(plan.activity)}</b></div>` : ""}
+          ${plan.person ? `<div class="plan-line"><span>Who to message</span><b>${esc(plan.person)}</b></div>` : ""}
+          ${plan.fallback ? `<div class="plan-line"><span>If I'm still in the kitchen</span><b>${esc(plan.fallback)}</b></div>` : ""}
+          <div class="btn-row"><button class="btn ghost small" data-action="sheet-window-plan">Edit the plan</button></div>`
+        : `<div class="small mt8">You haven't written a plan for this window yet. Write it now, while you still can.</div>
+           <div class="btn-row"><button class="btn primary" data-action="sheet-window-plan">Write tonight's plan</button></div>`}
+      </div>`);
+  }
+
+  if (next) {
+    out.push(`
+      <div class="card">
+        <div class="list-title-row"><h3>Next planned occasion</h3>
+          <button class="btn small ghost" data-action="sheet-occasions">Edit times</button></div>
+        <div class="next-occasion"><b>${esc(next.label)}</b> · ${E.fmtClock(next.time)}${next.tomorrow ? " tomorrow" : ""}</div>
+        <div class="small muted">Eat it at its time — whether or not you're hungry, whether or not last night happened.</div>
+      </div>`);
+  }
+  return out.join("");
+}
+
+// ----- the acute screen: designed for the person who is actually there -----
+
+function sheetAcute() {
+  const plan = cbt().windowPlan;
+  openSheet(`
+    <div class="acute-head">Stop making new decisions.</div>
+    <div class="acute-sub">You don't have to figure anything out right now. Pick one.</div>
+    <button class="acute-btn primary" data-action="acute-planned">
+      <b>Eat my planned option now</b>
+      <span>${plan?.food ? esc(plan.food) : "Whatever's on tonight's plan — this is a success, not a failure"}</span>
+    </button>
+    <button class="acute-btn" data-action="acute-delay">
+      <b>Start ${DELAY_MINUTES} minutes</b>
+      <span>${plan?.activity ? esc(plan.activity) : "Do something else. I'll ask again after."}</span>
+    </button>
+    <button class="acute-btn" data-action="acute-started">
+      <b>I already started</b>
+      <span>Then it's logged and today is over. Nothing to repay tomorrow.</span>
+    </button>
+    <div class="small muted mt16">The questions can wait until the morning. This screen isn't collecting data.</div>
+  `);
+}
+
+function sheetDelay(id) {
+  const urge = (state.urges || []).find((u) => u.id === id);
+  if (!urge) return closeSheet();
+  const paint = () => {
+    const left = Math.max(0, Date.parse(urge.delayUntil) - Date.now());
+    const el = $("#delay-clock");
+    if (!el) { clearInterval(delayTick); delayTick = null; return; }
+    el.textContent = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`;
+    if (left <= 0) { clearInterval(delayTick); delayTick = null; $("#delay-after").hidden = false; }
+  };
+  openSheet(`
+    <div class="acute-head">${DELAY_MINUTES} minutes</div>
+    <div class="delay-clock" id="delay-clock">${DELAY_MINUTES}:00</div>
+    <div class="acute-sub">${cbt().windowPlan?.activity ? esc(cbt().windowPlan.activity) : "Leave the kitchen. Put the phone down."}</div>
+    <div class="small muted">You can close the app. Fuel will ask when you come back.</div>
+    <div id="delay-after" hidden>
+      <div class="ob-section">How did it go?</div>
+      ${E.URGE_OUTCOMES.map((o) => `<button class="option-row" data-action="close-urge" data-id="${esc(id)}" data-outcome="${o.id}">
+        <div class="o-main"><div class="o-name">${esc(o.label)}</div></div></button>`).join("")}
+    </div>
+  `);
+  clearInterval(delayTick);
+  delayTick = setInterval(paint, 1000);
+  paint();
+}
+
+// ----- the morning after: sober, and the only place that asks questions -----
+
+function chipRow(group, items, multi = false) {
+  return `<div class="chip-wrap" data-group="${group}" data-multi="${multi ? "1" : ""}">
+    ${items.map((i) => `<button class="chip" data-action="pick" data-value="${i.id}">${esc(i.label)}</button>`).join("")}
+  </div>`;
+}
+
+function sheetMorningAfter(nightKey) {
+  const urge = [...(state.urges || [])].reverse().find((u) => E.urgeNightKey(u) === nightKey);
+  const next = E.nextOccasion(occasionList(), new Date());
+  openSheet(`
+    <h3>Last night</h3>
+    <div class="sub">Sober, the morning after — this is when the questions are worth asking.</div>
+    <div class="trim-note" style="margin-bottom:14px">Whatever you answer, today doesn't change:
+      <b>${esc(next ? `${next.label} at ${E.fmtClock(next.time)}` : "your next planned meal")}</b>, at its time, as planned.</div>
+
+    <div class="ob-section" style="margin-top:4px">What were you actually seeking?</div>
+    ${chipRow("seeking", E.SEEKING, true)}
+    <div class="ob-section">Where was the weed?</div>
+    ${chipRow("cannabis", E.CANNABIS_PROXIMITY)}
+    <div class="ob-section">Who was there?</div>
+    ${chipRow("company", E.COMPANY)}
+    <div class="ob-section">How hungry, 1–10?</div>
+    ${chipRow("hunger", Array.from({ length: 10 }, (_, i) => ({ id: String(i + 1), label: String(i + 1) })))}
+    <div class="field mt16"><label>What was happening right before the thought showed up?</label>
+      <input id="u-before" type="text" placeholder="scrolling in bed, just got home…" /></div>
+    <div class="field"><label>The first thought, in your words</label>
+      <input id="u-thought" type="text" placeholder="it's friday, I've earned this" /></div>
+    <button class="btn primary" style="width:100%" data-action="urge-detail-save" data-id="${esc(urge?.id || "")}" data-night="${esc(nightKey)}">Save</button>
+  `);
+}
+
+// ----- written sober: the window plan, the occasions, the programme itself -----
+
+function sheetWindowPlan() {
+  const p = cbt().windowPlan || {};
+  const w = cbt().riskWindow || { nights: [3, 4], from: 21, to: 1 };
+  openSheet(`
+    <h3>The plan for your window</h3>
+    <div class="sub">Written now, used later. The version of you that writes this is the one worth listening to.</div>
+    <div class="ob-section" style="margin-top:4px">Which nights?</div>
+    <div class="chip-wrap" data-group="nights" data-multi="1">
+      ${DOW_SHORT.map((d, i) => `<button class="chip ${w.nights?.includes(i) ? "on" : ""}" data-action="pick" data-value="${i}">${d}</button>`).join("")}
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Window starts</label>
+        <select id="w-from">${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${w.from === h ? "selected" : ""}>${E.fmtHour(h)}</option>`).join("")}</select></div>
+      <div class="field"><label>and ends</label>
+        <select id="w-to">${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${w.to === h ? "selected" : ""}>${E.fmtHour(h)}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label>Planned food for that window</label>
+      <input id="w-food" type="text" value="${esc(p.food || "")}" placeholder="something you actually want" />
+      <div class="hint">Planned enjoyable food is part of the plan, not a cheat.</div></div>
+    <div class="field"><label>One thing to do instead of the phone</label>
+      <input id="w-activity" type="text" value="${esc(p.activity || "")}" placeholder="shower, walk, gym bag for tomorrow" /></div>
+    <div class="field"><label>One person to message</label>
+      <input id="w-person" type="text" value="${esc(p.person || "")}" placeholder="who you'd actually text at 11pm" /></div>
+    <div class="field"><label>If I'm still standing in the kitchen at midnight</label>
+      <input id="w-fallback" type="text" value="${esc(p.fallback || "")}" placeholder="the fallback you'd accept now" /></div>
+    <button class="btn primary" style="width:100%" data-action="window-save">Save the plan</button>
+  `);
+}
+
+function sheetOccasions() {
+  const list = E.sortedOccasions(occasionList());
+  const gaps = E.occasionGaps(list);
+  openSheet(`
+    <h3>Planned eating occasions</h3>
+    <div class="sub">Regular eating is the intervention. Nothing longer than ${E.MAX_OCCASION_GAP_HOURS} hours apart.</div>
+    ${gaps.tooLong.map((g) => `<div class="trim-note" style="margin-bottom:10px">⚠️ ${Math.round(g.hours)} hours between
+      ${esc(g.from.label)} and ${esc(g.to.label)} — that's the stretch an urge lives in.</div>`).join("")}
+    ${list.map((o, i) => `<div class="freezer-row">
+      <div style="flex:1"><b>${esc(o.label)}</b></div>
+      <input class="time-input" type="time" data-occasion="${i}" value="${esc(o.time)}" />
+    </div>`).join("")}
+    <button class="btn primary mt16" style="width:100%" data-action="occasions-save">Save times</button>
+    <div class="btn-row"><button class="btn ghost" data-action="occasions-reset">Reset to the default schedule</button></div>
+  `);
+}
+
+function sheetStabilization() {
+  const on = cbtOn();
+  const p = state.profile;
+  openSheet(`
+    <h3>${on ? "Stabilization mode is on" : "Start stabilization mode"}</h3>
+    <div class="sub">What Fuel stops doing while it runs.</div>
+    <div class="diag-row"><span>Overage bank</span><span class="${on ? "ok" : ""}">${on ? "frozen ✓" : "active"}</span></div>
+    <div class="diag-row"><span>Budget trimming after a heavy day</span><span class="${on ? "ok" : ""}">${on ? "off ✓" : "on"}</span></div>
+    <div class="diag-row"><span>Goal-date countdown</span><span class="${on ? "ok" : ""}">${on ? "hidden ✓" : "shown"}</span></div>
+    <div class="diag-row"><span>Your daily deficit</span><span>−${p.deficit}/day — unchanged</span></div>
+    <div class="trim-note" style="margin-top:12px">The deficit stays exactly where you set it. The only thing coming
+      off is the repayment: eating less for days after a heavy night is the piece with the clearest link to loading
+      the next one, and it's the one thing this app was doing automatically.</div>
+    ${on ? `
+      <div class="ob-section">Written on day one</div>
+      <div class="small muted">${esc(cbt().exitCriteria?.text || "No exit criteria written.")}</div>
+      <div class="btn-row"><button class="btn ghost danger" data-action="cbt-stop">Turn stabilization off</button></div>`
+    : `
+      <div class="ob-section">Before you start, write the finish line</div>
+      <div class="field"><label>When does the deficit question get revisited?</label>
+        <input id="cbt-exit" type="text" value="≤1 episode/month for 6 weeks and planned eating on 12 of 14 days" /></div>
+      <button class="btn primary" style="width:100%" data-action="cbt-start">Start</button>`}
+  `);
+}
+
 // ---------- actions ----------
 
 function markDone(dateK) {
@@ -1212,8 +1515,10 @@ function markDone(dateK) {
   day.eaten = (day.meals || []).map((_, i) => i);
   (day.snacks || []).forEach((s) => (s.eaten = true));
   E.recordHistory(state, day, dateK);
-  // pay down the overage bank with today's trim
-  if (state.overageBank > 0) state.overageBank = Math.max(0, state.overageBank - Math.min(E.MAX_DAILY_TRIM, state.overageBank));
+  // pay down the overage bank with today's trim — but never while stabilizing, because
+  // that repayment is the post-binge undereating the programme exists to stop
+  if (E.compensationActive(state) && state.overageBank > 0)
+    state.overageBank = Math.max(0, state.overageBank - Math.min(E.MAX_DAILY_TRIM, state.overageBank));
   // freezer bookkeeping
   for (const m of day.meals || []) {
     if (m.fromFreezer) {
@@ -1250,8 +1555,11 @@ function skipDay(dateK, adj, kcal) {
   if (!day) return;
   day.status = "skipped";
   day.overage = 0;
-  if (adj === "light") state.overageBank = Math.max(0, (state.overageBank || 0) - 250);
-  if (adj === "over") { state.overageBank = (state.overageBank || 0) + kcal; day.overage = kcal; }
+  if (adj === "over") day.overage = kcal;
+  if (E.compensationActive(state)) {
+    if (adj === "light") state.overageBank = Math.max(0, (state.overageBank || 0) - 250);
+    if (adj === "over") state.overageBank = (state.overageBank || 0) + kcal;
+  }
   save(); closeSheet(); renderAll();
 }
 
@@ -1259,10 +1567,10 @@ function logOver(dateK, kcal) {
   const day = state.plan.days[dateK];
   if (!day) return;
   day.status = "over";
-  day.overage = kcal;
+  day.overage = kcal;                       // kept for the record either way
   day.eaten = (day.meals || []).map((_, i) => i);
   (day.snacks || []).forEach((s) => (s.eaten = true));
-  state.overageBank = (state.overageBank || 0) + kcal;
+  if (E.compensationActive(state)) state.overageBank = (state.overageBank || 0) + kcal;
   E.recordHistory(state, day, dateK);
   save(); closeSheet(); renderAll();
 }
@@ -1280,6 +1588,112 @@ function handleAction(el) {
   const a = el.dataset.action;
 
   switch (a) {
+    // ----- stage 1: the CBT-E programme -----
+    case "pick": {
+      const group = el.closest(".chip-wrap");
+      if (!group) return;
+      if (group.dataset.multi) el.classList.toggle("on");
+      else group.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c === el));
+      return;
+    }
+    case "sheet-acute": return sheetAcute();
+    case "acute-planned": {
+      pushUrge({}, "as-planned");
+      closeSheet(); renderAll();
+      toast("Logged. That was the plan — not a slip.");
+      return;
+    }
+    case "acute-delay": {
+      const entry = pushUrge({});
+      entry.delayUntil = new Date(Date.now() + DELAY_MINUTES * 60000).toISOString();
+      save();
+      return sheetDelay(entry.id);
+    }
+    case "acute-started": {
+      pushUrge({}, "escalated");
+      closeSheet(); renderAll();
+      toast("Logged. Nothing to repay tomorrow.");
+      return;
+    }
+    case "close-urge": {
+      const i = (state.urges || []).findIndex((u) => u.id === el.dataset.id);
+      if (i < 0) return;
+      state.urges[i] = E.closeUrge(state.urges[i], el.dataset.outcome);
+      delete state.urges[i].delayUntil;
+      save(); closeSheet(); renderAll();
+      toast(el.dataset.outcome === "rode-out" ? "Rode it out — that's the one that counts." : "Logged.");
+      return;
+    }
+    case "sheet-morning-after": return sheetMorningAfter(el.dataset.night);
+    case "urge-detail-save": {
+      const picked = (group, multi) => {
+        const on = [...document.querySelectorAll(`.chip-wrap[data-group="${group}"] .chip.on`)].map((c) => c.dataset.value);
+        return multi ? on : on[0] || null;
+      };
+      const detail = {
+        seeking: picked("seeking", true),
+        cannabis: picked("cannabis"),
+        company: picked("company"),
+        hunger: picked("hunger"),
+        before: $("#u-before")?.value || "",
+        thought: $("#u-thought")?.value || "",
+      };
+      const i = (state.urges || []).findIndex((u) => u.id === el.dataset.id);
+      if (i >= 0) state.urges[i] = { ...state.urges[i], ...E.newUrge(detail, new Date(state.urges[i].at)), id: state.urges[i].id, outcome: state.urges[i].outcome, outcomeAt: state.urges[i].outcomeAt };
+      else pushUrge(detail, "escalated");
+      save(); closeSheet(); renderAll();
+      toast("Saved — that's the data worth having.");
+      return;
+    }
+    case "sheet-window-plan": return sheetWindowPlan();
+    case "window-save": {
+      const nights = [...document.querySelectorAll('.chip-wrap[data-group="nights"] .chip.on')].map((c) => +c.dataset.value);
+      saveCbt({
+        riskWindow: { nights, from: +$("#w-from").value, to: +$("#w-to").value },
+        windowPlan: {
+          food: $("#w-food").value.trim(), activity: $("#w-activity").value.trim(),
+          person: $("#w-person").value.trim(), fallback: $("#w-fallback").value.trim(),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      closeSheet(); renderAll();
+      toast("Plan saved — it'll be waiting before the window opens.");
+      return;
+    }
+    case "sheet-occasions": return sheetOccasions();
+    case "occasions-save": {
+      const list = E.sortedOccasions(occasionList()).map((o, i) => ({
+        ...o, time: document.querySelector(`.time-input[data-occasion="${i}"]`)?.value || o.time,
+      }));
+      saveCbt({ occasions: list });
+      const gaps = E.occasionGaps(list);
+      closeSheet(); renderAll();
+      toast(gaps.ok ? "Schedule saved ✓" : `Saved — but there's a ${Math.round(gaps.longestHours)}h gap in there.`);
+      return;
+    }
+    case "occasions-reset": {
+      saveCbt({ occasions: E.DEFAULT_OCCASIONS.map((o) => ({ ...o })) });
+      closeSheet(); renderAll(); sheetOccasions();
+      return;
+    }
+    case "sheet-stabilization": return sheetStabilization();
+    case "cbt-start": {
+      saveCbt({
+        mode: "stabilization",
+        startedAt: todayKey(),
+        occasions: cbt().occasions?.length ? cbt().occasions : E.DEFAULT_OCCASIONS.map((o) => ({ ...o })),
+        exitCriteria: { text: $("#cbt-exit")?.value?.trim() || "", writtenAt: todayKey() },
+      });
+      closeSheet(); renderAll(); switchTab("today");
+      toast("Stabilization on — the overage bank is frozen.");
+      return;
+    }
+    case "cbt-stop": {
+      if (!confirm("Turn stabilization off? The overage bank starts absorbing heavy days again.")) return;
+      saveCbt({ mode: "off" });
+      closeSheet(); renderAll();
+      return;
+    }
     case "ob-save": return finishOnboarding();
 
     case "toggle-eat": {
