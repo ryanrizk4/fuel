@@ -361,3 +361,201 @@ test("skipped days prioritize their templates next week (groceries already bough
   const carry = E.collectCarryover(DATA, s, E.parseKey("2026-07-06"));
   assert.ok(carry.has("big-mac-bowl"));
 });
+
+// ---------- self-monitoring: urges (CBT-E) ----------
+// The rules these tests exist to hold: an urge belongs to the night it happened on
+// (not the calendar day), a pattern is never claimed from too few entries, regular
+// eating is read as yes/no per day, and nothing on this side of the app ever reads
+// a calorie or a weight.
+
+const END = "2026-08-29"; // a Saturday — the window these tests all end on
+
+// hour is local-clock hour at logging time, exactly as newUrge records it
+function urge(date, hour, extra = {}) {
+  const at = `${date}T${String(hour).padStart(2, "0")}:30:00.000Z`;
+  return { id: at, at, date, hour, seeking: [], hunger: null, cannabis: null, company: null, before: "", thought: "", outcome: null, outcomeAt: null, ...extra };
+}
+
+// A day the planner filled in: `eaten` is the indices actually checked off.
+function planDay(meals = 3, eaten = meals, status = "planned") {
+  return {
+    status,
+    meals: Array.from({ length: meals }, (_, i) => ({ slot: ["breakfast", "lunch", "dinner"][i] || "dinner", templateId: "latte", variantId: "classic" })),
+    eaten: Array.from({ length: eaten }, (_, i) => i),
+    snacks: [],
+  };
+}
+
+function urgeState(urges = [], days = {}) {
+  return { profile: { ...PROFILE }, plan: { days }, urges, weighIns: [], overageBank: 0 };
+}
+
+test("an urge before 4am belongs to the night before, not the calendar day", () => {
+  assert.equal(E.urgeNightKey(urge("2026-08-29", 1)), "2026-08-28", "1am Saturday is Friday night");
+  assert.equal(E.urgeNightKey(urge("2026-08-29", 4)), "2026-08-29", "4am is its own morning");
+  assert.equal(E.urgeNightKey(urge("2026-08-28", 23)), "2026-08-28");
+});
+
+test("urgePattern counts nights, hours, seeking, cannabis and outcomes", () => {
+  const s = urgeState([
+    urge("2026-08-28", 23, { seeking: ["escape", "reward"], hunger: 3, cannabis: "hour", company: "alone", outcome: "escalated" }),
+    urge("2026-08-29", 1, { seeking: ["reward"], hunger: 2, cannabis: "hour", company: "alone", outcome: "rode-out" }),
+    urge("2026-08-22", 22, { seeking: ["comfort"], hunger: 7, cannabis: "none", company: "with-people" }),
+  ]);
+  const p = E.urgePattern(s, { endKey: END });
+
+  assert.equal(p.n, 3);
+  assert.equal(p.byDow[4], 2, "both late-Friday entries land on Friday, including the 1am one");
+  assert.equal(p.byHour[23], 1);
+  assert.equal(p.byHour[1], 1);
+  assert.equal(p.seeking[0].id, "reward", "seeking is ranked by count");
+  assert.equal(p.seeking[0].count, 2);
+  assert.equal(p.cannabis.hour, 2);
+  assert.equal(p.company.alone, 2);
+  assert.deepEqual(p.outcomes, { "rode-out": 1, "as-planned": 0, escalated: 1, open: 1 });
+  assert.equal(p.medianHunger, 3);
+  assert.equal(p.rodeOutShare, 0.5, "share is of closed entries — an open one can't be an outcome");
+});
+
+test("urgePattern only looks inside its window", () => {
+  const s = urgeState([urge("2026-08-28", 23), urge("2026-06-01", 23)]);
+  assert.equal(E.urgePattern(s, { endKey: END, weeks: 6 }).n, 1);
+  assert.equal(E.urgePattern(s, { endKey: END, weeks: 26 }).n, 2);
+});
+
+test("decisionPoint refuses to call a pattern from too few entries", () => {
+  const few = urgeState(Array.from({ length: E.MIN_PATTERN_N - 1 }, (_, i) => urge("2026-08-2" + (1 + i), 23)));
+  assert.equal(E.decisionPoint(E.urgePattern(few, { endKey: END })), null);
+});
+
+test("decisionPoint finds the night and an hour band that wraps midnight", () => {
+  const s = urgeState([
+    urge("2026-08-28", 23), urge("2026-08-29", 0), urge("2026-08-29", 1),
+    urge("2026-08-21", 23), urge("2026-08-25", 14),
+  ]);
+  const dp = E.decisionPoint(E.urgePattern(s, { endKey: END }));
+  assert.deepEqual(dp.nightLabels, ["Fri"], "four of five entries are Friday nights");
+  assert.equal(dp.nightCount, 4);
+  assert.equal(dp.hourFrom, 23);
+  assert.equal(dp.hourTo, 2, "the band is scanned around the clock, so 11pm–2am is one window");
+  assert.equal(dp.hourCount, 4);
+  assert.match(dp.label, /Fri · 11pm–2am/);
+});
+
+test("regular eating is read per day as yes/no, never as amounts", () => {
+  const days = {
+    "2026-08-24": planDay(3, 3),
+    "2026-08-25": planDay(3, 1),
+    "2026-08-26": planDay(3, 0),
+    "2026-08-27": planDay(3, 0, "skipped"),  // ate out — nothing to read
+    "2026-08-28": planDay(3, 0, "over"),     // went over: he ate, and then some
+    "2026-08-29": planDay(3, 1),             // today, still in progress
+  };
+  const s = urgeState([], days);
+  const status = (k) => E.regularEatingDay(s, k, END).status;
+
+  assert.equal(status("2026-08-24"), "complete");
+  assert.equal(status("2026-08-25"), "partial");
+  assert.equal(status("2026-08-26"), "missed");
+  assert.equal(status("2026-08-27"), "untracked");
+  assert.equal(status("2026-08-28"), "complete");
+  assert.equal(status("2026-08-29"), "today");
+  assert.equal(status("2026-08-30"), "none", "no plan is not the same as a missed day");
+
+  const summary = E.regularEating(s, END, 7);
+  assert.equal(summary.counted, 4, "today, ate-out and unplanned days stay out of the denominator");
+  assert.equal(summary.complete, 2);
+  assert.equal(summary.rate, 0.5);
+});
+
+test("restraintSignal compares the days before an urge against the same window's baseline", () => {
+  const days = {};
+  // A steady baseline of complete days...
+  for (let i = 1; i <= 40; i++) days[E.dateKey(E.addDays(E.parseKey(END), -i))] = planDay(3, 3);
+  // ...except the three days before each of four Friday-night urges.
+  const nights = ["2026-08-28", "2026-08-21", "2026-08-14", "2026-08-07"];
+  for (const night of nights) {
+    for (let i = 1; i <= 3; i++) days[E.dateKey(E.addDays(E.parseKey(night), -i))] = planDay(3, 0);
+  }
+  const s = urgeState(nights.map((n) => urge(n, 23)), days);
+  const sig = E.restraintSignal(s, { endKey: END, weeks: 6 });
+
+  assert.equal(sig.nights, 4);
+  assert.equal(sig.priorDays, 12);
+  assert.equal(sig.priorRate, 0, "eating fell apart in the run-up to every logged urge");
+  assert.ok(sig.baseRate > sig.priorRate);
+  assert.equal(sig.direction, "less-regular");
+  assert.ok(sig.enough, "four nights and twelve prior days clears the floor for saying anything");
+});
+
+test("restraintSignal says it doesn't know rather than reading a trend off two entries", () => {
+  const s = urgeState([urge("2026-08-28", 23)], { "2026-08-27": planDay(3, 3) });
+  const sig = E.restraintSignal(s, { endKey: END });
+  assert.equal(sig.enough, false);
+});
+
+test("the pattern side never reads a calorie or a weight", () => {
+  const urges = [
+    urge("2026-08-28", 23, { seeking: ["escape"], hunger: 4, cannabis: "hour", company: "alone", outcome: "escalated" }),
+    urge("2026-08-21", 23, { seeking: ["reward"], hunger: 2, outcome: "rode-out" }),
+  ];
+  const days = { "2026-08-27": planDay(3, 3), "2026-08-26": planDay(3, 0) };
+  const bare = { profile: { ...PROFILE }, plan: { days }, urges };
+  const loaded = {
+    ...bare,
+    weighIns: [{ date: "2026-08-01", lb: 157 }, { date: "2026-08-28", lb: 161 }],
+    overageBank: 2400,
+    plan: { days: Object.fromEntries(Object.entries(days).map(([k, d]) => [k, { ...d, overage: 1800 }])) },
+  };
+
+  assert.deepEqual(E.urgePattern(loaded, { endKey: END }), E.urgePattern(bare, { endKey: END }));
+  assert.deepEqual(E.restraintSignal(loaded, { endKey: END }), E.restraintSignal(bare, { endKey: END }));
+  assert.deepEqual(E.regularEating(loaded, END), E.regularEating(bare, END));
+});
+
+test("nothing in the pattern output is a streak", () => {
+  // A lapse must cost the record nothing: "days since" is the all-or-nothing move
+  // that drives the binge, so the window is the only unit this side of the app has.
+  const s = urgeState([urge("2026-08-28", 23, { outcome: "escalated" })]);
+  const p = E.urgePattern(s, { endKey: END });
+  for (const key of Object.keys(p))
+    assert.ok(!/streak|daysSince|since|clean|record/i.test(key), `pattern must not expose "${key}"`);
+  assert.equal(p.weeks, E.PATTERN_WEEKS, "the unit is weeks of pattern, not days since the last one");
+});
+
+test("newUrge records the clock itself and refuses junk in the fields", () => {
+  const now = new Date(2026, 7, 28, 23, 14, 0);
+  const u = E.newUrge({
+    seeking: ["escape", "not-a-thing"], hunger: 99, cannabis: "hour",
+    company: "solo", before: "x".repeat(400), thought: "  it's friday  ",
+  }, now);
+
+  assert.equal(u.date, "2026-08-28");
+  assert.equal(u.hour, 23);
+  assert.equal(u.at, u.id, "an entry is identified by the moment it was logged");
+  assert.deepEqual(u.seeking, ["escape"], "unknown seeking ids are dropped");
+  assert.equal(u.hunger, 10, "hunger is clamped to the 1–10 scale");
+  assert.equal(u.cannabis, "hour");
+  assert.equal(u.company, null, "an unknown company value is stored as unknown, not guessed");
+  assert.equal(u.before.length, 280);
+  assert.equal(u.thought, "it's friday");
+  assert.equal(u.outcome, null, "the outcome is asked later, not in the moment");
+});
+
+test("an urge closes with a real outcome, and only a real outcome", () => {
+  const now = new Date(2026, 7, 29, 9, 0, 0);
+  const u = E.newUrge({}, new Date(2026, 7, 28, 23, 14, 0));
+  assert.equal(E.closeUrge(u, "escalated", now).outcome, "escalated");
+  assert.equal(E.closeUrge(u, "escalated", now).outcomeAt, now.toISOString());
+  assert.equal(E.closeUrge(u, "gave-up", now).outcome, null, "an unrecognized outcome leaves the entry open");
+});
+
+test("openUrges surfaces what still needs an outcome, and lets old ones go", () => {
+  const now = new Date(2026, 7, 29, 9, 0, 0);
+  const recent = E.newUrge({}, new Date(2026, 7, 28, 23, 14, 0));
+  const stale = E.newUrge({}, new Date(2026, 7, 20, 23, 14, 0));
+  const closed = E.closeUrge(E.newUrge({}, new Date(2026, 7, 29, 1, 0, 0)), "rode-out", now);
+  const open = E.openUrges({ urges: [recent, stale, closed] }, now);
+
+  assert.deepEqual(open.map((u) => u.id), [recent.id], "only the one still worth answering");
+});

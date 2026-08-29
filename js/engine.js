@@ -512,10 +512,262 @@ function shoppingList(data, state, startKey) {
   return { sections: buy, stocked: stocked.sort((a, b) => a.name.localeCompare(b.name)) };
 }
 
+// ---------- self-monitoring: urges (CBT-E) ----------
+
+/* The binge side of the app. CBT-E works three levers — regular eating, real-time
+   self-monitoring, and finding the moment an ordinary evening becomes an inevitable
+   one — so everything here reads two things only: the urge log, and whether the day's
+   planned eating occasions actually happened.
+
+   What this section never touches, on purpose: calories, weight, compensation, and
+   streaks. A "days since" counter turns one lapse into a total loss, which is the
+   same all-or-nothing move that drives the binge in the first place. The unit here
+   is always "the last several weeks", never "days since". */
+
+const NIGHT_ROLLOVER_HOUR = 4;   // 1am Saturday is still Friday night, and the pattern says so
+const PATTERN_WEEKS = 6;         // the window the app speaks in
+const MIN_PATTERN_N = 4;         // fewer entries than this is noise, and gets reported as noise
+const HOUR_BAND = 3;             // width of the high-risk window we report, in hours
+const REGULAR_EATING_DAYS = 14;
+const PRIOR_DAYS = 3;            // days of eating before an urge that a restraint signal reads
+const URGE_TEXT_MAX = 280;       // phone storage is small and a log entry is not an essay
+const OPEN_URGE_HOURS = 36;      // how long an unanswered "how did it go?" stays on screen
+
+const SEEKING = [
+  { id: "comfort", label: "Comfort" },
+  { id: "stimulation", label: "Stimulation" },
+  { id: "escape", label: "Escape" },
+  { id: "reward", label: "A reward" },
+  { id: "release", label: "Permission to stop controlling" },
+  { id: "sensory", label: "Sensory pleasure" },
+];
+
+const CANNABIS_PROXIMITY = [
+  { id: "none", label: "Not today" },
+  { id: "earlier", label: "Earlier today" },
+  { id: "hour", label: "Within the hour" },
+  { id: "now", label: "Right now / about to" },
+];
+
+const COMPANY = [
+  { id: "alone", label: "Alone" },
+  { id: "with-people", label: "With people" },
+];
+
+// "Acted on?" and, if so, the question that separates a decision from an escalation.
+const URGE_OUTCOMES = [
+  { id: "rode-out", label: "Rode it out" },
+  { id: "as-planned", label: "Ate the amount I meant to" },
+  { id: "escalated", label: "Started, then it escalated" },
+];
+
+const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const SEEKING_IDS = new Set(SEEKING.map((s) => s.id));
+const COUNTED_EATING = new Set(["complete", "partial", "missed"]);
+
+/** Monday-indexed day of week, matching weekStart(). */
+function dowIndex(key) {
+  return (parseKey(key).getDay() + 6) % 7;
+}
+
+function fmtHour(h) {
+  const n = ((Math.round(h) % 24) + 24) % 24;
+  const ampm = n < 12 ? "am" : "pm";
+  const h12 = n % 12 === 0 ? 12 : n % 12;
+  return `${h12}${ampm}`;
+}
+
+const clampText = (v) => String(v ?? "").trim().slice(0, URGE_TEXT_MAX);
+
+/**
+ * Build a log entry. Timestamped by the caller's clock so an entry can be replayed
+ * in a test, and identified by that timestamp — logging twice in the same
+ * millisecond is not a thing a person does by hand.
+ */
+function newUrge(fields = {}, now = new Date()) {
+  const hunger = Number(fields.hunger);
+  const seeking = Array.isArray(fields.seeking) ? fields.seeking.filter((s) => SEEKING_IDS.has(s)) : [];
+  return {
+    id: now.toISOString(),
+    at: now.toISOString(),
+    date: dateKey(now),
+    hour: now.getHours(),
+    seeking,
+    hunger: Number.isFinite(hunger) ? Math.min(10, Math.max(1, Math.round(hunger))) : null,
+    cannabis: CANNABIS_PROXIMITY.some((c) => c.id === fields.cannabis) ? fields.cannabis : null,
+    company: COMPANY.some((c) => c.id === fields.company) ? fields.company : null,
+    before: clampText(fields.before),
+    thought: clampText(fields.thought),
+    outcome: null,
+    outcomeAt: null,
+  };
+}
+
+/** Close an entry with what actually happened. Late is fine; never is the only loss. */
+function closeUrge(urge, outcome, now = new Date()) {
+  if (!URGE_OUTCOMES.some((o) => o.id === outcome)) return urge;
+  return { ...urge, outcome, outcomeAt: now.toISOString() };
+}
+
+/** The night an urge belongs to: before 4am it belongs to the evening before. */
+function urgeNightKey(urge) {
+  const h = Number(urge?.hour);
+  if (!urge?.date) return null;
+  return Number.isFinite(h) && h < NIGHT_ROLLOVER_HOUR ? dateKey(addDays(parseKey(urge.date), -1)) : urge.date;
+}
+
+function urgesInWindow(state, endKey, weeks = PATTERN_WEEKS) {
+  const startKey = dateKey(addDays(parseKey(endKey), -(weeks * 7 - 1)));
+  return (state.urges || [])
+    .filter((u) => u && typeof u.date === "string" && u.date >= startKey && u.date <= endKey)
+    .sort((a, b) => String(a.at || a.date).localeCompare(String(b.at || b.date)));
+}
+
+/** Entries still waiting on "how did it go?" — the outcome is asked later, not in the moment. */
+function openUrges(state, now = new Date()) {
+  const cutoff = now.getTime() - OPEN_URGE_HOURS * 3600000;
+  return (state.urges || [])
+    .filter((u) => u && !u.outcome && Date.parse(u.at) >= cutoff)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+
+/**
+ * The shape of the last `weeks`: when urges land, what they're reaching for, what
+ * was around them, and how they ended. Counts only — no rate is asked to carry more
+ * weight than its n, which is why `n` is reported next to everything.
+ */
+function urgePattern(state, { endKey = dateKey(new Date()), weeks = PATTERN_WEEKS } = {}) {
+  const entries = urgesInWindow(state, endKey, weeks);
+  const byDow = Array(7).fill(0);
+  const byHour = Array(24).fill(0);
+  const seeking = Object.fromEntries(SEEKING.map((s) => [s.id, 0]));
+  const cannabis = Object.fromEntries(CANNABIS_PROXIMITY.map((c) => [c.id, 0]));
+  const company = Object.fromEntries(COMPANY.map((c) => [c.id, 0]));
+  const outcomes = { "rode-out": 0, "as-planned": 0, escalated: 0, open: 0 };
+  const hungers = [];
+
+  for (const u of entries) {
+    const night = urgeNightKey(u);
+    if (night) byDow[dowIndex(night)]++;
+    if (Number.isFinite(u.hour)) byHour[((u.hour % 24) + 24) % 24]++;
+    for (const s of u.seeking || []) if (s in seeking) seeking[s]++;
+    if (u.cannabis in cannabis) cannabis[u.cannabis]++;
+    if (u.company in company) company[u.company]++;
+    outcomes[u.outcome && u.outcome in outcomes ? u.outcome : "open"]++;
+    if (Number.isFinite(u.hunger)) hungers.push(u.hunger);
+  }
+
+  const sortedHunger = [...hungers].sort((a, b) => a - b);
+  const closed = outcomes["rode-out"] + outcomes["as-planned"] + outcomes.escalated;
+  return {
+    weeks, endKey, n: entries.length, entries,
+    byDow, byHour, cannabis, company, outcomes, closed,
+    seeking: SEEKING.map((s) => ({ ...s, count: seeking[s.id] })).sort((a, b) => b.count - a.count),
+    medianHunger: sortedHunger.length ? sortedHunger[Math.floor((sortedHunger.length - 1) / 2)] : null,
+    rodeOutShare: closed ? outcomes["rode-out"] / closed : null,
+  };
+}
+
+/**
+ * The decision point: the night and the hours where an ordinary evening turns.
+ * Returns null below MIN_PATTERN_N rather than dressing three entries up as a pattern.
+ * The hour band is scanned around the clock so a 10pm–1am window reads as one window.
+ */
+function decisionPoint(pattern) {
+  if (!pattern || pattern.n < MIN_PATTERN_N) return null;
+  const peak = Math.max(...pattern.byDow);
+  const nights = pattern.byDow.map((c, i) => (c === peak ? i : -1)).filter((i) => i >= 0);
+  let best = { from: 0, count: -1 };
+  for (let h = 0; h < 24; h++) {
+    let count = 0;
+    for (let k = 0; k < HOUR_BAND; k++) count += pattern.byHour[(h + k) % 24];
+    if (count > best.count) best = { from: h, count };
+  }
+  return {
+    nights, nightLabels: nights.map((i) => DOW_LABELS[i]), nightCount: peak,
+    nightShare: peak / pattern.n,
+    hourFrom: best.from, hourTo: (best.from + HOUR_BAND) % 24,
+    hourCount: best.count, hourShare: best.count / pattern.n,
+    label: `${nights.map((i) => DOW_LABELS[i]).join("/")} · ${fmtHour(best.from)}–${fmtHour(best.from + HOUR_BAND)}`,
+  };
+}
+
+/**
+ * Did the day's planned eating occasions happen? Yes/no per day, never amounts —
+ * regular eating is the lever, and counting calories here would import the exact
+ * thing this side of the app is built to stay out of.
+ *   complete/partial/missed  countable
+ *   untracked                ate out, so nothing to read
+ *   today/ahead/none         not answerable yet
+ */
+function regularEatingDay(state, key, todayKey) {
+  const day = state.plan?.days?.[key];
+  const planned = (day?.meals || []).length;
+  if (!day || !planned) return { key, status: "none", planned: 0, eaten: 0 };
+  const eaten = (day.eaten || []).filter((i) => i >= 0 && i < planned).length;
+  if (key > todayKey) return { key, status: "ahead", planned, eaten };
+  if (day.status === "skipped") return { key, status: "untracked", planned, eaten };
+  if (day.status === "done" || day.status === "over") return { key, status: "complete", planned, eaten: planned };
+  if (key === todayKey) return { key, status: "today", planned, eaten };
+  if (eaten >= planned) return { key, status: "complete", planned, eaten };
+  return { key, status: eaten > 0 ? "partial" : "missed", planned, eaten };
+}
+
+function regularEating(state, endKey = dateKey(new Date()), days = REGULAR_EATING_DAYS) {
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) out.push(regularEatingDay(state, dateKey(addDays(parseKey(endKey), -i)), endKey));
+  const counted = out.filter((d) => COUNTED_EATING.has(d.status));
+  const complete = counted.filter((d) => d.status === "complete").length;
+  return {
+    days: out, counted: counted.length, complete,
+    partial: counted.filter((d) => d.status === "partial").length,
+    missed: counted.filter((d) => d.status === "missed").length,
+    rate: counted.length ? complete / counted.length : null,
+  };
+}
+
+/**
+ * How regular eating looked in the days BEFORE each logged urge, against the same
+ * measure across the whole window.
+ *
+ * This is an association in one person's log, not proof of anything — but it is not
+ * neutral either. Dietary restraint driving later binges is one of the better-supported
+ * findings in this literature, and it works cumulatively rather than same-day, which is
+ * exactly why it doesn't feel connected from the inside. The felt disconnection is what
+ * the mechanism predicts, so it is weak evidence against it. This function exists to
+ * show where the pattern lands in his own weeks, not to re-open whether it is real.
+ */
+function restraintSignal(state, { endKey = dateKey(new Date()), weeks = PATTERN_WEEKS } = {}) {
+  const nights = [...new Set(urgesInWindow(state, endKey, weeks).map(urgeNightKey).filter(Boolean))];
+  let priorDays = 0, priorComplete = 0;
+  for (const night of nights) {
+    for (let i = 1; i <= PRIOR_DAYS; i++) {
+      const d = regularEatingDay(state, dateKey(addDays(parseKey(night), -i)), endKey);
+      if (!COUNTED_EATING.has(d.status)) continue;
+      priorDays++;
+      if (d.status === "complete") priorComplete++;
+    }
+  }
+  const base = regularEating(state, endKey, weeks * 7);
+  const priorRate = priorDays ? priorComplete / priorDays : null;
+  return {
+    nights: nights.length, priorDays, priorRate, baseRate: base.rate,
+    baseDays: base.counted, lookback: PRIOR_DAYS,
+    enough: nights.length >= MIN_PATTERN_N && priorDays >= MIN_PATTERN_N && base.counted >= MIN_PATTERN_N,
+    direction: priorRate === null || base.rate === null ? null
+      : priorRate < base.rate - 0.05 ? "less-regular"
+      : priorRate > base.rate + 0.05 ? "more-regular" : "no-difference",
+  };
+}
+
 export {
   ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP,
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
   generateWeek, recordHistory, shoppingList, collectCarryover, perishUrgency, weekQuality, calibration,
+  PATTERN_WEEKS, MIN_PATTERN_N, REGULAR_EATING_DAYS, PRIOR_DAYS, HOUR_BAND, NIGHT_ROLLOVER_HOUR,
+  SEEKING, CANNABIS_PROXIMITY, COMPANY, URGE_OUTCOMES, DOW_LABELS,
+  dowIndex, fmtHour, newUrge, closeUrge, urgeNightKey, urgesInWindow, openUrges,
+  urgePattern, decisionPoint, regularEatingDay, regularEating, restraintSignal,
 };
