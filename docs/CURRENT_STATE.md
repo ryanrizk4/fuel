@@ -4,7 +4,9 @@ Updated: 2026-09-05
 
 ## Product status
 
-Fuel is a personal meal-planning PWA used primarily from the owner's Samsung Galaxy. It is deliberately small, framework-free, and offline-capable.
+Fuel is a responsive meal-planning website and installable PWA used primarily from the owner's
+Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
+framework-free, and offline-capable.
 
 Current visible version: `fuel-v14`.
 
@@ -36,8 +38,8 @@ Current visible version: `fuel-v14`.
 - Canonically hosted on GitHub Pages at `https://ryanrizk4.github.io/fuel/`.
 - Install and use only that canonical origin; browser storage is isolated by origin.
 - GitHub Actions also runs `node --test` on pushes and pull requests.
-- The latest release has 59 automated tests.
-- UI changes require phone-sized testing of the real application.
+- The latest release has 61 automated tests.
+- UI changes require phone-sized and desktop-width testing of the real application.
 - `js/release.js` single-sources the visible application and service-worker cache version.
 
 Fuel is a static GitHub Pages site with no build step. The service worker keeps the app

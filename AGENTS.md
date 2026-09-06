@@ -4,7 +4,10 @@ This file is the current operating contract for any AI or human contributor. `CL
 
 ## Product
 
-Fuel is a personal, mobile-first meal-planning PWA for the owner. It plans high-protein, calorie-budgeted weeks around Trader Joe's shopping, workday constraints, freezer use, and a no-microwave kitchen.
+Fuel is a personal, responsive meal-planning web app and installable PWA for the owner. The Samsung
+Galaxy is the primary day-to-day surface, but desktop and laptop browsers remain supported product
+surfaces. It plans high-protein, calorie-budgeted weeks around Trader Joe's shopping, workday
+constraints, freezer use, and a no-microwave kitchen.
 
 Preserve the product's defining advantages:
 
@@ -41,13 +44,16 @@ The owner's personal state is stored in the phone browser under `fuel.state.v1`.
 
 ## Required checks
 
-Before opening or updating a pull request:
+Before releasing:
 
 ```bash
 node --test
 ```
 
-For UI changes, run the real app over HTTP and test the affected flow at approximately 390×844. Check console errors, horizontal overflow, bottom sheets, keyboard behavior, and PWA cache/version behavior.
+For UI changes, run the real app over HTTP and test the affected flow at approximately 390×844 and
+at a representative desktop width of at least 1280 pixels. Check console errors, horizontal
+overflow, bottom sheets, keyboard behavior, responsive information hierarchy, and PWA cache/version
+behavior.
 
 For product or template changes:
 
@@ -83,16 +89,22 @@ When the owner asks to add a recipe:
 3. Mark unverifiable nutrition data as estimated.
 4. Add two to four variants that preserve the same basic cooking process.
 5. Keep instructions terse and realistic for the owner's equipment.
-6. Run the full tests and verify macros before opening a PR.
+6. Run the full tests and verify macros before releasing.
 
-## Pull-request discipline
+## Release discipline
 
-Use one focused branch per change. A PR must explain:
+The owner delegates normal release mechanics. Complete implementation, checks, publishing to
+`main`, deployment observation, and live verification without asking the owner to manage branches,
+pull requests, merges, or hosting dashboards. Internal branches remain acceptable when they improve
+safety, but they are never the stopping point. Ask only for an account-level permission, protected
+secret, or product decision that cannot safely be resolved. Report decisions and outcomes in chat.
+
+The durable change record must explain:
 
 - What changed and why.
 - User impact.
 - Planner, persistence, nutrition-data, or PWA-cache risks.
-- Tests and phone-sized manual verification.
+- Tests and both phone-sized and desktop-web manual verification.
 
 Do not rewrite Fuel into a framework because it looks more conventional. Rewrite only if the current architecture demonstrably blocks a required capability.
 
