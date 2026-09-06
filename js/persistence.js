@@ -68,6 +68,14 @@ function normalizeState(raw) {
   return out;
 }
 
+// JSON records have no meaningful object-key order. Comparing canonical values lets
+// loadState distinguish a genuinely current record from one normalizeState repaired.
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (isObj(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
 /** Counts for the recovery screen — "restore 42 planned days" beats a bare timestamp. */
 function summarizeState(state) {
   const s = isObj(state) ? state : {};
@@ -230,6 +238,7 @@ function saveState(storage, state) {
  *   "fresh"     nothing stored yet — first run, blank state is correct
  *   "ok"        readable and current
  *   "migrated"  readable, upgraded, and written back (old bytes kept as a recovery copy)
+ *   "repaired"  current version, but a malformed/missing field was repaired safely
  *   "degraded"  readable but a migration failed — usable, original kept, warn the owner
  *   "corrupt"   unreadable — nothing is overwritten and the owner must choose what happens
  * The corrupt path deliberately leaves the stored record alone. Recovery is an
@@ -265,14 +274,22 @@ function loadState(storage, options = {}) {
   }
   if (result.applied.length) {
     // A replacing write: copy the pre-migration record first, then persist the upgrade.
-    createRecoverySnapshot(storage, parsed, `before upgrade to v${result.to}`);
-    saveState(storage, result.state);
+    const snapshot = createRecoverySnapshot(storage, parsed, `before upgrade to v${result.to}`);
+    const persisted = !!snapshot && saveState(storage, result.state);
     return {
-      state: result.state, status: "migrated", snapshots: describeRecoverySnapshots(storage),
-      migrated: result.applied, error: null,
+      state: result.state, status: persisted ? "migrated" : "degraded", snapshots: describeRecoverySnapshots(storage),
+      migrated: result.applied, error: persisted ? null : new Error("The upgraded record could not be saved safely."), persisted,
     };
   }
-  return { state: result.state, status: "ok", snapshots, migrated: [], error: null };
+  if (canonicalJson(parsed) !== canonicalJson(result.state)) {
+    const snapshot = createRecoverySnapshot(storage, parsed, `before shape repair at v${SCHEMA_VERSION}`);
+    const persisted = !!snapshot && saveState(storage, result.state);
+    return {
+      state: result.state, status: persisted ? "repaired" : "degraded", snapshots: describeRecoverySnapshots(storage),
+      migrated: [], error: persisted ? null : new Error("The repaired record could not be saved safely."), persisted,
+    };
+  }
+  return { state: result.state, status: "ok", snapshots, migrated: [], error: null, persisted: true };
 }
 
 function corruptResult(storage, raw, error) {
@@ -289,9 +306,10 @@ function restoreFromSnapshot(storage, index) {
   const recovered = readRecoverySnapshot(storage, index);
   if (!recovered) throw new Error("That recovery copy can't be read.");
   const current = readRaw(storage, STORE_KEY);
-  if (current != null) createRecoverySnapshot(storage, current, "before restore");
+  if (current != null && !createRecoverySnapshot(storage, current, "before restore"))
+    throw new Error("There isn't enough storage to make a safety copy before restoring.");
   const { state } = migrateState(recovered);
-  saveState(storage, state);
+  if (!saveState(storage, state)) throw new Error("The restored data could not be saved.");
   removeRaw(storage, QUARANTINE_KEY);
   return state;
 }
@@ -299,16 +317,18 @@ function restoreFromSnapshot(storage, index) {
 /** Wipe the primary record. The recovery ring survives, so a reset stays undoable. */
 function clearState(storage) {
   const current = readRaw(storage, STORE_KEY);
-  if (current != null) createRecoverySnapshot(storage, current, "before reset");
-  removeRaw(storage, STORE_KEY);
+  if (current != null && !createRecoverySnapshot(storage, current, "before reset"))
+    throw new Error("There isn't enough storage to make a safety copy before resetting.");
+  if (!removeRaw(storage, STORE_KEY)) throw new Error("Fuel could not reset the saved data.");
   removeRaw(storage, QUARANTINE_KEY);
 }
 
 /** Drop the quarantined bytes and start over — the only path to a blank state. */
 function discardCorruptRecord(storage) {
   const corrupt = readRaw(storage, QUARANTINE_KEY) ?? readRaw(storage, STORE_KEY);
-  if (corrupt != null) createRecoverySnapshot(storage, corrupt, "unreadable record discarded");
-  removeRaw(storage, STORE_KEY);
+  if (corrupt != null && !createRecoverySnapshot(storage, corrupt, "unreadable record discarded"))
+    throw new Error("There isn't enough storage to preserve the unreadable record.");
+  if (!removeRaw(storage, STORE_KEY)) throw new Error("Fuel could not clear the unreadable record.");
   removeRaw(storage, QUARANTINE_KEY);
   return normalizeState(null);
 }
@@ -356,8 +376,9 @@ function importArchive(payload) {
 function importArchiveInto(storage, payload) {
   const { state, source, migrated } = importArchive(payload);
   const current = readRaw(storage, STORE_KEY);
-  if (current != null) createRecoverySnapshot(storage, current, "before restore from backup");
-  saveState(storage, state);
+  if (current != null && !createRecoverySnapshot(storage, current, "before restore from backup"))
+    throw new Error("There isn't enough storage to make a safety copy before restoring.");
+  if (!saveState(storage, state)) throw new Error("The backup was valid, but Fuel could not save it.");
   removeRaw(storage, QUARANTINE_KEY);
   return { state, source, migrated };
 }

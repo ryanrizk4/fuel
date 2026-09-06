@@ -105,6 +105,26 @@ test("shape repair keeps unknown fields and fixes wrong-kinded ones", () => {
   assert.deepEqual(repaired.somethingNewer, { keep: true }, "a record from a newer build must survive an older one");
 });
 
+test("a malformed current-version record is copied before shape repair is persisted", () => {
+  const malformed = { schemaVersion: P.SCHEMA_VERSION, profile: null, plan: null, weighIns: "broken", customFutureField: 9 };
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(malformed) });
+  const result = P.loadState(storage);
+
+  assert.equal(result.status, "repaired");
+  assert.deepEqual(result.state.plan, { days: {} });
+  assert.deepEqual(result.state.weighIns, []);
+  assert.equal(result.state.customFutureField, 9);
+  const copies = P.listRecoverySnapshots(storage);
+  assert.match(copies[0].reason, /shape repair/);
+  assert.deepEqual(copies[0].state, malformed, "the exact readable record survives before repair");
+});
+
+test("saveState reports a quota failure instead of pretending the write succeeded", () => {
+  const storage = fakeStorage({}, { limit: 5 });
+  assert.equal(P.saveState(storage, P.defaultState()), false);
+  assert.equal(storage.getItem(P.STORE_KEY), null);
+});
+
 // ---------- corruption recovery ----------
 
 test("a corrupt record offers recovery instead of silently blanking", () => {

@@ -2,7 +2,9 @@
 
 Fuel is a personal, mobile-first meal-planning PWA that builds high-protein, calorie-budgeted weeks around Trader Joe's shopping, workday constraints, freezer inventory, and the owner's actual kitchen.
 
-**Live:** https://ryanrizk4.github.io/fuel/
+**Canonical installed-app origin:** https://ryanrizk4.github.io/fuel/
+
+Install and keep using this exact origin on the phone. Preview or alternate hosting URLs have separate browser storage and therefore will not contain the same personal Fuel history.
 
 ## Why it exists
 
@@ -67,10 +69,8 @@ Read:
 ## Near-term direction
 
 The priority is durability without overengineering. Versioned localStorage migrations,
-recoverable state snapshots, and tested export/restore have shipped. Still open:
-
-- Single-sourced app/service-worker versioning.
-- Provider-neutral operating and user-facing language.
-- Reducing risk in `app.js` as it grows, without adding a framework.
+recoverable state snapshots, visible write failures, tested export/restore, and
+single-sourced app/service-worker versioning have shipped. Continue reducing risk in
+`app.js` as it grows without adding a framework.
 
 A framework rewrite, backend, and multi-user architecture are not current priorities.

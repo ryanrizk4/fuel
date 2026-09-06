@@ -1,12 +1,12 @@
 # Fuel current state
 
-Updated: 2026-07-27
+Updated: 2026-09-05
 
 ## Product status
 
 Fuel is a personal meal-planning PWA used primarily from the owner's Samsung Galaxy. It is deliberately small, framework-free, and offline-capable.
 
-Current visible version: `fuel-v13`.
+Current visible version: `fuel-v14`.
 
 ## Core behavior
 
@@ -27,23 +27,21 @@ Current visible version: `fuel-v13`.
 - Fuel keeps a rolling ring of up to five recovery copies, taken before any write that replaces or deletes the record: upgrades, restores, imports, and resets. The ring shrinks rather than failing when phone storage is full.
 - An unreadable record no longer falls back to blank state. It is quarantined intact and a full-screen recovery path offers the copies, a pasted backup, or an explicit start-fresh.
 - Export produces a versioned `fuel-backup.v1` archive; import still accepts the older bare-state exports. Round trips are covered by tests.
+- A failed localStorage write stays in memory and raises a persistent retry warning; Fuel never reports the change as saved.
+- Current-schema records with damaged container fields are copied before automatic shape repair.
 - `js/persistence.js` holds all of this and has no DOM access, so it is testable under `node --test`.
 
 ## Deployment and quality
 
-- Hosted on Vercel, deployed from `main`, with a preview deployment per pull request.
-- The Vercel build command is `npm test`, so a failing suite blocks the deployment.
+- Canonically hosted on GitHub Pages at `https://ryanrizk4.github.io/fuel/`.
+- Install and use only that canonical origin; browser storage is isolated by origin.
 - GitHub Actions also runs `node --test` on pushes and pull requests.
 - The latest release has 59 automated tests.
 - UI changes require phone-sized testing of the real application.
-- PWA shell caching currently depends on manually keeping the application and service-worker versions aligned.
+- `js/release.js` single-sources the visible application and service-worker cache version.
 
-Fuel is a static site with no build step. `vercel.json` serves the repository root,
-sets security headers and a strict Content-Security-Policy, and marks `sw.js`,
-`index.html`, and the `js/`, `css/`, and `data/` directories no-cache so an update
-actually reaches an installed phone app. `style-src` still allows `'unsafe-inline'`
-for six static inline `style` attributes in `index.html`; removing those is the
-prerequisite for tightening it.
+Fuel is a static GitHub Pages site with no build step. The service worker keeps the app
+shell available offline and uses network-first requests for recipe/product data.
 
 ## Identity
 
@@ -69,10 +67,9 @@ wanted.
 
 ## Near-term priorities
 
-1. Single-source application and service-worker versioning.
-2. Remove model-specific operating text and user-facing copy.
-3. Preserve the framework-free architecture while reducing risk in `app.js` as it grows.
-4. Surface the recovery copies in a periodic backup nudge, so the owner notices drift before a failure does.
+1. Preserve the framework-free architecture while reducing risk in `app.js` as it grows.
+2. Keep phone-sized regression testing part of every UI release.
+3. Consider optional cross-device sync only if the owner explicitly needs it.
 
 ## Deliberate non-priorities
 

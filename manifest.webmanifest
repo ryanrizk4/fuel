@@ -2,9 +2,12 @@
   "name": "Fuel — TJ's Meal Planner",
   "short_name": "Fuel",
   "description": "Personal high-protein meal planner built around Trader Joe's",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
   "background_color": "#f9f9f7",
   "theme_color": "#2a78d6",
   "icons": [

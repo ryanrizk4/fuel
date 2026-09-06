@@ -1,5 +1,6 @@
 /* Service worker: cache-first for the app shell, network-first for data files. */
-const VERSION = "fuel-v13";
+importScripts("js/release.js");
+const VERSION = globalThis.FUEL_RELEASE.version;
 const SHELL = [
   "./",
   "index.html",

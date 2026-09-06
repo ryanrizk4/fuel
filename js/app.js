@@ -2,8 +2,9 @@
 
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
+import "./release.js";
 
-const APP_VERSION = "fuel-v13";
+const APP_VERSION = globalThis.FUEL_RELEASE.version;
 let DATA_UPDATED = "";
 let DATA = null;
 let state = null;
@@ -13,6 +14,10 @@ let planWeekOffset = 0;
 let shopWeekOffset = 0;
 let sheetCtx = null;
 let recovery = null; // set while an unreadable record is waiting on the owner — see load()
+let storageDirty = false;
+let storageWriteBlocked = false;
+const tabScroll = {};
+const VALID_TABS = new Set(["today", "plan", "shop", "meals", "progress", "more"]);
 
 // ---------- state ----------
 // Shape, migrations, recovery copies and the backup format all live in persistence.js.
@@ -24,6 +29,8 @@ function load() {
   // "corrupt" is the only status that takes over the screen: there is no state to show
   // and the stored bytes must survive untouched until the owner picks a way out.
   recovery = result.status === "corrupt" ? result : null;
+  storageWriteBlocked = result.status === "degraded";
+  storageDirty = storageWriteBlocked || result.persisted === false;
   if (result.status === "degraded")
     setTimeout(() => toast("⚠️ Couldn't finish updating your saved data — a recovery copy was kept"), 900);
   return result;
@@ -32,8 +39,12 @@ function load() {
 function save() {
   // Writing now would overwrite the very bytes the recovery screen is offering to
   // rescue, so stay read-only until that screen is dismissed.
-  if (recovery) return;
-  P.saveState(localStorage, state);
+  if (recovery) return false;
+  if (storageWriteBlocked) { storageDirty = true; syncStorageWarning(); return false; }
+  const ok = P.saveState(localStorage, state);
+  storageDirty = !ok;
+  syncStorageWarning();
+  return ok;
 }
 
 // ---------- helpers ----------
@@ -41,6 +52,31 @@ function save() {
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const todayKey = () => E.dateKey(new Date());
+
+function syncStorageWarning() {
+  let warning = $("#storage-warning");
+  if (!storageDirty) { warning?.remove(); return; }
+  if (warning) return;
+  warning = document.createElement("div");
+  warning.id = "storage-warning";
+  warning.className = "storage-warning";
+  warning.setAttribute("role", "alert");
+  warning.innerHTML = storageWriteBlocked
+    ? `<span><b>Saved data needs recovery.</b> Fuel is read-only so it cannot overwrite the original. Copy a backup, then update the app.</span>
+      <button data-action="export-data">Copy backup</button>`
+    : `<span><b>Changes aren't saved.</b> Keep Fuel open, free some phone storage, then retry.</span>
+      <button data-action="retry-save">Retry</button>`;
+  document.body.appendChild(warning);
+}
+
+function backupReminder() {
+  const age = state.lastBackup ? Math.round((E.parseKey(todayKey()) - E.parseKey(state.lastBackup)) / 86400000) : null;
+  if (age !== null && age < 14) return "";
+  return `<div class="card backup-reminder">
+    <div><h3>Keep your Fuel history safe</h3><div class="small muted">${age === null ? "This phone has no external backup yet." : `Your last backup was ${age} days ago.`}</div></div>
+    <button class="btn primary" data-action="export-data">Copy backup</button>
+  </div>`;
+}
 
 function slotLabel(slot) {
   return { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" }[slot] || slot;
@@ -80,6 +116,8 @@ function mealTitle(m) {
 // ---------- boot ----------
 
 async function boot() {
+  if (window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone)
+    document.documentElement.classList.add("standalone");
   const [p, t] = await Promise.all([
     fetch("data/products.json", { cache: "no-cache" }).then((r) => r.json()),
     fetch("data/templates.json", { cache: "no-cache" }).then((r) => r.json()),
@@ -100,6 +138,11 @@ async function boot() {
   } else {
     renderAll();
   }
+  syncStorageWarning();
+  const initialTab = location.hash.slice(1);
+  if (VALID_TABS.has(initialTab) && initialTab !== currentTab) switchTab(initialTab, "replace");
+  else history.replaceState({ fuelTab: currentTab }, "", `#${currentTab}`);
+  installPullToRefresh();
   setTimeout(() => { const s = $("#splash"); s?.classList.add("gone"); setTimeout(() => s?.remove(), 400); }, 550);
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").then((reg) => {
@@ -213,7 +256,7 @@ function renderMeals() {
     <div class="card" style="padding:4px 16px">${trending}</div>
     <div class="card mt8">
       <h3>📥 Recipe inbox</h3>
-      <div class="small muted" style="margin-bottom:8px">Saw something on TikTok/IG? Paste the link or describe it — it's saved here so the moment isn't lost. Next Claude session, say “ingest my recipe inbox”.</div>
+      <div class="small muted" style="margin-bottom:8px">Saw something on TikTok/IG? Paste the link or describe it — it's saved here so the moment isn't lost. In your next AI coding session for Fuel, say “ingest my recipe inbox”.</div>
       <div class="field-row">
         <div class="field" style="margin:0"><input id="inbox-input" placeholder="Link or description…" /></div>
         <button class="btn primary" data-action="inbox-add">Save</button>
@@ -266,12 +309,55 @@ function sheetBrowse(tplId) {
   `);
 }
 
-function switchTab(tab) {
+function switchTab(tab, historyMode = "push") {
+  if (!VALID_TABS.has(tab)) return;
+  if (tab === currentTab) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  tabScroll[currentTab] = window.scrollY;
   currentTab = tab;
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   $(`#view-${tab}`).classList.add("active");
-  document.querySelectorAll(".nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
-  window.scrollTo(0, 0);
+  document.querySelectorAll(".nav button").forEach((b) => {
+    const active = b.dataset.tab === tab;
+    b.classList.toggle("on", active);
+    if (active) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+  if (historyMode === "push") history.pushState({ fuelTab: tab }, "", `#${tab}`);
+  else if (historyMode === "replace") history.replaceState({ fuelTab: tab }, "", `#${tab}`);
+  if (navigator.vibrate && window.matchMedia?.("(pointer: coarse)").matches) navigator.vibrate(8);
+  requestAnimationFrame(() => window.scrollTo({ top: tabScroll[tab] || 0, behavior: "auto" }));
+}
+
+function installPullToRefresh() {
+  let startY = null;
+  let armed = false;
+  const chip = document.createElement("div");
+  chip.className = "pull-refresh";
+  chip.textContent = "Pull to refresh";
+  document.body.appendChild(chip);
+  document.addEventListener("touchstart", (event) => {
+    if (window.scrollY > 0 || document.querySelector(".sheet.open") || event.target.closest("input,select,textarea")) return;
+    startY = event.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener("touchmove", (event) => {
+    if (startY === null) return;
+    const distance = Math.max(0, event.touches[0].clientY - startY);
+    armed = distance > 72;
+    chip.classList.toggle("show", distance > 18);
+    chip.classList.toggle("armed", armed);
+    chip.textContent = armed ? "Release to refresh" : "Pull to refresh";
+  }, { passive: true });
+  document.addEventListener("touchend", () => {
+    chip.classList.remove("show", "armed");
+    if (armed) {
+      navigator.vibrate?.(12);
+      location.reload();
+    }
+    startY = null;
+    armed = false;
+  }, { passive: true });
 }
 
 // ----- Today -----
@@ -290,6 +376,7 @@ function renderToday() {
     el.innerHTML = `
       <div class="screen-title">Today</div>
       <div class="screen-sub">${dateStr}</div>
+      ${backupReminder()}
       <div class="card empty">Nothing planned for today yet.<br><br>
         <button class="btn primary" data-action="plan-this-week">Auto-plan this week</button>
       </div>`;
@@ -377,6 +464,8 @@ function renderToday() {
     <div class="list-title-row"><div class="screen-title">Today</div>
       <button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">${dateStr}</div>
+
+    ${backupReminder()}
 
     <div class="card">
       <div class="today-hero">
@@ -781,7 +870,7 @@ function renderMore() {
       <div class="diag-row"><span>Recipe database</span><span>${DATA.templates.length} meals · ${DATA.products.length} products</span></div>
       <div class="diag-row"><span>Database last researched</span><span>${esc(DATA_UPDATED || "unknown")}</span></div>
       <div class="btn-row"><button class="btn" data-action="check-updates">🔄 Check for updates now</button></div>
-      <div class="small muted mt8">New recipes and TJ's items land when you run an ingestion session with Claude ("add this to my rotation") — the app pulls fresh data automatically on the next open. It doesn't research on its own between sessions.</div>
+      <div class="small muted mt8">New recipes and TJ's items land when you run an AI-assisted ingestion session for this repository ("add this to my rotation") — the app pulls fresh data automatically on the next open. It doesn't research on its own between sessions.</div>
     </div>
 
     <div class="card">
@@ -791,7 +880,7 @@ function renderMore() {
         if (age !== null && age < 14) return `<div class="small muted mt8">Last backup: ${age === 0 ? "today" : age + " days ago"} ✓</div>`;
         return `<div class="trim-note">📦 ${age === null ? "No backup yet" : `Last backup was ${age} days ago`} — your logs live only on this phone. Copy one now.</div>`;
       })()}
-      <div class="small muted mt8">Paste a backup into a Claude Code session and it can be saved to GitHub too.</div>
+      <div class="small muted mt8">Paste a backup into an AI coding session for the Fuel repository and it can be stored securely outside this phone too.</div>
       <div class="btn-row">
         <button class="btn" data-action="export-data">Copy backup</button>
         <button class="btn ghost" data-action="sheet-import">Restore</button>
@@ -809,8 +898,8 @@ function renderMore() {
     <div class="card">
       <h3>Adding recipes from TikTok / IG</h3>
       <div class="small muted mt8">
-        See a recipe you like? Open a Claude Code session on the <b>vividscribe</b> repo from your phone and say
-        “add this to my rotation” + paste the link or describe it. Claude maps it to Trader Joe's ingredients,
+        See a recipe you like? Open an AI coding session for the <b>Fuel</b> repository from your phone and say
+        “add this to my rotation” + paste the link or describe it. The assistant maps it to Trader Joe's ingredients,
         calculates macros, files it as a template with variants, and the app updates on the next visit.
       </div>
     </div>`;
@@ -1190,7 +1279,7 @@ function sheetProducts() {
     <h3>🏪 TJ's product library</h3>
     <div class="sub">Every product the app knows. Tap any to correct its numbers from the label — verified ones show ✓.</div>
     ${html}
-    <div class="small muted mt16">Spot something new at TJ's (like those Egyptian flatbreads)? Tell Claude to add it and it lands here.</div>
+    <div class="small muted mt16">Spot something new at TJ's (like those Egyptian flatbreads)? Ask your AI coding assistant to add it to Fuel and it lands here.</div>
   `);
 }
 
@@ -1541,6 +1630,11 @@ function handleAction(el) {
       applyTheme(); save(); return renderMore();
     }
 
+    case "retry-save": {
+      if (save()) toast("Changes saved ✓");
+      return;
+    }
+
     case "freezer-inc": { state.freezer[+el.dataset.idx].portions++; save(); return renderMore(); }
     case "freezer-dec": {
       const f = state.freezer[+el.dataset.idx];
@@ -1555,11 +1649,27 @@ function handleAction(el) {
     }
 
     case "export-data": {
-      state.lastBackup = todayKey(); save();
       const json = JSON.stringify(P.exportArchive(state, { appVersion: APP_VERSION }));
-      (navigator.clipboard?.writeText(json) || Promise.reject())
-        .then(() => alert("Backup copied to clipboard ✓"))
-        .catch(() => { const t = document.createElement("textarea"); t.value = json; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); alert("Backup copied ✓"); });
+      const copied = () => {
+        state.lastBackup = todayKey();
+        save();
+        renderToday();
+        alert("Backup copied to clipboard ✓");
+      };
+      const fallback = () => {
+        const t = document.createElement("textarea");
+        t.value = json; document.body.appendChild(t); t.select();
+        const ok = document.execCommand("copy");
+        t.remove();
+        if (!ok) throw new Error("copy failed");
+        copied();
+      };
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(json).then(copied).catch(() => {
+        try { fallback(); } catch { alert("Fuel couldn't copy the backup. Your last-backup date was not changed."); }
+      });
+      else {
+        try { fallback(); } catch { alert("Fuel couldn't copy the backup. Your last-backup date was not changed."); }
+      }
       return;
     }
     case "import-data": {
@@ -1577,7 +1687,7 @@ function handleAction(el) {
       try {
         state = P.restoreFromSnapshot(localStorage, +el.dataset.index);
         finishRecovery("Recovered ✓ — your logs are back");
-      } catch { alert("That recovery copy couldn't be read. Try another one."); }
+      } catch (err) { alert(err?.message || "That recovery copy couldn't be read. Try another one."); }
       return;
     }
     case "recover-import": {
@@ -1589,14 +1699,16 @@ function handleAction(el) {
     }
     case "recover-discard": {
       if (!confirm("Start over with an empty Fuel? The unreadable data is kept as a recovery copy, but the app will be blank.")) return;
-      state = P.discardCorruptRecord(localStorage);
-      finishRecovery("Started fresh — the unreadable data is still in your recovery copies");
+      try {
+        state = P.discardCorruptRecord(localStorage);
+        finishRecovery("Started fresh — the unreadable data is still in your recovery copies");
+      } catch (err) { alert(err?.message || "Fuel could not safely start fresh."); }
       return;
     }
     case "reset-all": {
       if (confirm("Delete ALL data — plan, logs, weigh-ins? Fuel keeps one recovery copy in case this is a mistake.")) {
-        P.clearState(localStorage);
-        location.reload();
+        try { P.clearState(localStorage); location.reload(); }
+        catch (err) { alert(err?.message || "Fuel could not safely reset the data."); }
       }
       return;
     }
@@ -1626,6 +1738,11 @@ document.addEventListener("click", (e) => {
   if (e.target.closest('[data-action="close-sheet"]')) return closeSheet();
   const el = e.target.closest("[data-action]");
   if (el) handleAction(el);
+});
+
+window.addEventListener("popstate", (event) => {
+  const tab = event.state?.fuelTab || location.hash.slice(1) || "today";
+  if (VALID_TABS.has(tab)) switchTab(tab, "none");
 });
 
 boot();
