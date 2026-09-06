@@ -3,6 +3,7 @@
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
 import "./release.js";
+import { createReloadGuard } from "./reloadGuard.js";
 
 const APP_VERSION = globalThis.FUEL_RELEASE.version;
 let DATA_UPDATED = "";
@@ -18,6 +19,12 @@ let storageDirty = false;
 let storageWriteBlocked = false;
 const tabScroll = {};
 const VALID_TABS = new Set(["today", "plan", "shop", "meals", "progress", "more"]);
+const reloadSafely = createReloadGuard({ isDirty: () => storageDirty, save: () => save(), reload: () => location.reload(), notify: (message) => toast(message) });
+window.addEventListener("beforeunload", (event) => {
+  if (!storageDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 // ---------- state ----------
 // Shape, migrations, recovery copies and the backup format all live in persistence.js.
@@ -150,7 +157,7 @@ async function boot() {
         const w = reg.installing;
         w?.addEventListener("statechange", () => {
           if (w.state === "installed" && navigator.serviceWorker.controller)
-            toast("✨ Fuel just updated — you're on the newest version");
+            toast("An update is ready. Refresh Fuel to use it.");
         });
       });
     }).catch(() => {});
@@ -331,6 +338,7 @@ function switchTab(tab, historyMode = "push") {
 }
 
 function installPullToRefresh() {
+  if (!window.matchMedia?.("(pointer: coarse)").matches) return;
   let startY = null;
   let armed = false;
   const chip = document.createElement("div");
@@ -338,7 +346,8 @@ function installPullToRefresh() {
   chip.textContent = "Pull to refresh";
   document.body.appendChild(chip);
   document.addEventListener("touchstart", (event) => {
-    if (window.scrollY > 0 || document.querySelector(".sheet.open") || event.target.closest("input,select,textarea")) return;
+    startY = null; armed = false;
+    if (event.touches.length !== 1 || window.scrollY > 0 || document.querySelector(".sheet.open") || event.target.closest("input,select,textarea,button")) return;
     startY = event.touches[0].clientY;
   }, { passive: true });
   document.addEventListener("touchmove", (event) => {
@@ -353,10 +362,14 @@ function installPullToRefresh() {
     chip.classList.remove("show", "armed");
     if (armed) {
       navigator.vibrate?.(12);
-      location.reload();
+      reloadSafely();
     }
     startY = null;
     armed = false;
+  }, { passive: true });
+  document.addEventListener("touchcancel", () => {
+    startY = null; armed = false;
+    chip.classList.remove("show", "armed");
   }, { passive: true });
 }
 
@@ -403,7 +416,7 @@ function renderToday() {
           <div class="meal-name">${esc(t.name)}</div>
           <div class="meal-meta">${mm.calories} kcal · ${mm.protein}g protein${por}${t.variant ? ` · <span class="variant">${esc(t.variant)}</span>` : ""}${mm.estimated ? ' · <span class="badge est">est.</span>' : ""}</div>
         </div>
-        <button class="eat-check ${eaten ? "on" : ""}" data-action="toggle-eat" data-date="${key}" data-idx="${i}" aria-label="mark eaten">✓</button>
+        <button class="eat-check ${eaten ? "on" : ""}" data-action="toggle-eat" data-date="${key}" data-idx="${i}" aria-label="${eaten ? "mark uneaten" : "mark eaten"}" aria-pressed="${!!eaten}">✓</button>
       </div>`;
   }).join("");
 
@@ -420,7 +433,7 @@ function renderToday() {
           <div class="meal-name">${esc(name)} ${treat ? '<span class="badge treat">treat</span>' : ""}</div>
           <div class="meal-meta">${cal} kcal · ${pro}g protein</div>
         </div>
-        <button class="eat-check ${s.eaten ? "on" : ""}" data-action="toggle-snack" data-date="${key}" data-idx="${i}" aria-label="mark eaten">✓</button>
+        <button class="eat-check ${s.eaten ? "on" : ""}" data-action="toggle-snack" data-date="${key}" data-idx="${i}" aria-label="${s.eaten ? "mark uneaten" : "mark eaten"}" aria-pressed="${!!s.eaten}">✓</button>
       </div>`;
   }).join("");
 
@@ -1512,9 +1525,9 @@ function handleAction(el) {
         const pending = reg.waiting || reg.installing;
         if (pending) {
           toast("⬇️ Update found — installing…");
-          navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
+          navigator.serviceWorker.addEventListener("controllerchange", reloadSafely, { once: true });
           pending.postMessage?.("skip");
-          setTimeout(() => location.reload(), 2500);
+          setTimeout(reloadSafely, 2500);
         } else {
           toast(`✓ You're on the latest version (${APP_VERSION})`);
         }

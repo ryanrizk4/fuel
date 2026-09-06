@@ -8,6 +8,10 @@ const SHELL = [
   "js/app.js",
   "js/engine.js",
   "js/persistence.js",
+  "js/release.js",
+  "js/reloadGuard.js",
+  "data/products.json",
+  "data/templates.json",
   "manifest.webmanifest",
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -24,7 +28,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("fuel-") && k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())
   );
 });
 
@@ -32,31 +36,19 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
 
-  // data files: network first so recipe/product updates land, cache fallback for offline
-  if (url.pathname.includes("/data/")) {
-    e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put(e.request, copy));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // shell: cache first, refresh in background
-  e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const fresh = fetch(e.request, { cache: "no-cache" })
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put(e.request, copy));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fresh;
-    })
-  );
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    const cached = await cache.match(e.request);
+    // Keep the shell coherent for this release. Background replacement could mix
+    // new modules with old ones before the next worker finishes installing.
+    if (cached && !url.pathname.includes("/data/")) return cached;
+    try {
+      const res = await fetch(e.request, { cache: "no-cache" });
+      if (!res.ok) return cached || res; // Never cache a server error over good data.
+      e.waitUntil(cache.put(e.request, res.clone()).catch(() => {}));
+      return res;
+    } catch {
+      return cached || new Response("Fuel is offline. Reconnect to load this resource.", { status: 503 });
+    }
+  })());
 });

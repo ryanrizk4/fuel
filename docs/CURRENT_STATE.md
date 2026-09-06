@@ -1,6 +1,6 @@
 # Fuel current state
 
-Updated: 2026-09-05
+Updated: 2026-09-06
 
 ## Product status
 
@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v14`.
+Current visible version: `fuel-v15`.
 
 ## Core behavior
 
@@ -35,15 +35,23 @@ Current visible version: `fuel-v14`.
 
 ## Deployment and quality
 
-- Canonically hosted on GitHub Pages at `https://ryanrizk4.github.io/fuel/`.
-- Install and use only that canonical origin; browser storage is isolated by origin.
+- Vercel production is `https://fuel-rosy-one.vercel.app/`. GitHub Pages has also been used at
+  `https://ryanrizk4.github.io/fuel/`. Earlier documentation incorrectly treated Pages as the only
+  supported installed origin. Preserve the owner's existing origin; never ask them to switch
+  without an explicit export/import migration because browser storage is isolated by origin.
 - GitHub Actions also runs `node --test` on pushes and pull requests.
-- The latest release has 61 automated tests.
+- The release includes engine, persistence, reload-safety, and service-worker regression tests.
 - UI changes require phone-sized and desktop-width testing of the real application.
 - `js/release.js` single-sources the visible application and service-worker cache version.
 
-Fuel is a static GitHub Pages site with no build step. The service worker keeps the app
-shell available offline and uses network-first requests for recipe/product data.
+Fuel is a static site with no build step. The service worker precaches every required module
+and both data files. The shell remains coherent for each release; failed network responses cannot
+replace working cached data. Only old Fuel-owned caches are removed. Automatic reloads retry failed
+storage writes first and leave the app open if saving still fails; browser navigation gets an
+unsaved-data warning. These protections cover unsaved application state, not every unfinished form.
+Meal toggles expose their selected state to assistive technology. `scripts/ui-smoke.mjs` exercises
+all tabs plus settings, saved-meal reopening, and offline reopening at 390 and 1280 pixels using
+isolated synthetic profiles. It needs Playwright in PW_DIR and a local HTTP server via QA_URL.
 
 ## Identity
 
@@ -52,9 +60,9 @@ the store, so opening instantly and working offline outranks cross-device sync.
 Personal state stays in browser localStorage on the owner's device.
 
 Adding the shared Supabase/Google sign-in used by Sentinel was considered and
-declined in Phase 6: the data-loss risk that would justify a server was addressed by
-versioned state, recovery copies, and export/import instead, and meal logs do not
-carry the sensitivity that makes authentication worthwhile for financial records. It
+declined in Phase 6. Versioning and on-device recovery reduce write/corruption risk, but do not
+protect against a lost phone, erased browser storage, or origin changes. A copied backup is not
+durable until saved elsewhere. Meal and weight logs are private health-related information. Sync
 remains available later, additively, if cross-device meal sync is ever actually
 wanted.
 

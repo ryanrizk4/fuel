@@ -99,6 +99,12 @@ pull requests, merges, or hosting dashboards. Internal branches remain acceptabl
 safety, but they are never the stopping point. Ask only for an account-level permission, protected
 secret, or product decision that cannot safely be resolved. Report decisions and outcomes in chat.
 
+Contributors are also expected to act as proactive product and technical thought partners. Complete
+the requested work faithfully, then surface adjacent improvements, integrations, risks, or missed
+opportunities when they offer a concrete expected benefit for the owner. Weigh fit, reliability,
+privacy, ongoing cost, maintenance, and complexity before recommending or adding anything. Do not
+install plugins, add services, or expand the product merely because a capability exists.
+
 The durable change record must explain:
 
 - What changed and why.

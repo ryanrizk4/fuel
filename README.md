@@ -2,9 +2,11 @@
 
 Fuel is a personal, mobile-first meal-planning PWA that builds high-protein, calorie-budgeted weeks around Trader Joe's shopping, workday constraints, freezer inventory, and the owner's actual kitchen.
 
-**Canonical installed-app origin:** https://ryanrizk4.github.io/fuel/
+**Vercel production:** https://fuel-rosy-one.vercel.app/
 
-Install and keep using this exact origin on the phone. Preview or alternate hosting URLs have separate browser storage and therefore will not contain the same personal Fuel history.
+GitHub Pages has also hosted Fuel at https://ryanrizk4.github.io/fuel/. Keep using the origin already
+installed on your phone. Moving to another address requires exporting and importing your history:
+alternate origins have separate browser storage and do not automatically share personal data.
 
 ## Why it exists
 
