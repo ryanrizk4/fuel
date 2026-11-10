@@ -7,10 +7,64 @@
       "name": "Pret",
       "emoji": "☕",
       "items": [
-        { "id": "pret-usual-coffee", "name": "Pret coffee (your usual)", "emoji": "☕", "calories": 200, "protein": 10, "confidence": "estimated", "note": "Your number: ~200 kcal. Adjust once and save it as a usual." },
-        { "id": "pret-latte-oat", "name": "Pret oat latte (regular)", "emoji": "☕", "calories": 150, "protein": 2, "confidence": "estimated" },
-        { "id": "pret-black-coffee", "name": "Pret black coffee / americano", "emoji": "☕", "calories": 5, "protein": 0, "confidence": "estimated" },
-        { "id": "pret-protein-pot", "name": "Pret egg & spinach protein pot", "emoji": "🥚", "calories": 140, "protein": 12, "confidence": "estimated" }
+        {
+          "id": "pret-usual-coffee",
+          "name": "Pret coffee (your usual)",
+          "emoji": "☕",
+          "calories": 200,
+          "protein": 10,
+          "confidence": "estimated",
+          "note": "Your number: ~200 kcal. Adjust once and save it as a usual.",
+          "aliases": [
+            "pret coffee",
+            "pret latte",
+            "my coffee",
+            "usual coffee",
+            "my usual coffee",
+            "pret"
+          ]
+        },
+        {
+          "id": "pret-latte-oat",
+          "name": "Pret oat latte (regular)",
+          "emoji": "☕",
+          "calories": 150,
+          "protein": 2,
+          "confidence": "estimated",
+          "aliases": [
+            "pret oat latte",
+            "oat latte from pret"
+          ]
+        },
+        {
+          "id": "pret-black-coffee",
+          "name": "Pret black coffee / americano",
+          "emoji": "☕",
+          "calories": 5,
+          "protein": 0,
+          "confidence": "estimated",
+          "aliases": [
+            "pret black coffee",
+            "pret americano"
+          ]
+        },
+        {
+          "id": "pret-protein-pot",
+          "name": "Pret egg & spinach protein pot",
+          "emoji": "🥚",
+          "calories": 140,
+          "protein": 12,
+          "confidence": "estimated",
+          "aliases": [
+            "pret protein pot",
+            "egg pot",
+            "protein pot"
+          ]
+        }
+      ],
+      "aliases": [
+        "pret",
+        "pret a manger"
       ]
     },
     {
@@ -18,10 +72,66 @@
       "name": "Just Salad",
       "emoji": "🥗",
       "items": [
-        { "id": "js-chicken-caesar-salad", "name": "Chicken Caesar salad", "emoji": "🥗", "calories": 400, "protein": 37, "confidence": "estimated", "note": "Third-party data ranges 280–400; using the higher figure" },
-        { "id": "js-chicken-caesar-wrap", "name": "Chicken Caesar wrap", "emoji": "🌯", "calories": 560, "protein": 45, "confidence": "estimated", "note": "Based on the (spicy) chicken Caesar wrap, 550–570 kcal" },
-        { "id": "js-chopped-chicken-bowl", "name": "Chopped bowl with chicken", "emoji": "🥙", "calories": 550, "protein": 38, "confidence": "estimated", "note": "Best guess for a chicken chopped bowl with dressing — correct it once and save" },
-        { "id": "js-chicken-caesar-salad-double", "name": "Chicken Caesar salad, extra chicken", "emoji": "🥗", "calories": 520, "protein": 60, "confidence": "estimated" }
+        {
+          "id": "js-chicken-caesar-salad",
+          "name": "Chicken Caesar salad",
+          "emoji": "🥗",
+          "calories": 400,
+          "protein": 37,
+          "confidence": "estimated",
+          "note": "Third-party data ranges 280–400; using the higher figure",
+          "aliases": [
+            "just salad caesar",
+            "caesar salad",
+            "chicken caesar",
+            "chicken caesar salad",
+            "caesar"
+          ]
+        },
+        {
+          "id": "js-chicken-caesar-wrap",
+          "name": "Chicken Caesar wrap",
+          "emoji": "🌯",
+          "calories": 560,
+          "protein": 45,
+          "confidence": "estimated",
+          "note": "Based on the (spicy) chicken Caesar wrap, 550–570 kcal",
+          "aliases": [
+            "caesar wrap",
+            "chicken caesar wrap",
+            "just salad wrap"
+          ]
+        },
+        {
+          "id": "js-chopped-chicken-bowl",
+          "name": "Chopped bowl with chicken",
+          "emoji": "🥙",
+          "calories": 550,
+          "protein": 38,
+          "confidence": "estimated",
+          "note": "Best guess for a chicken chopped bowl with dressing — correct it once and save",
+          "aliases": [
+            "chopped bowl",
+            "chopped salad",
+            "chopped chicken bowl",
+            "chopt"
+          ]
+        },
+        {
+          "id": "js-chicken-caesar-salad-double",
+          "name": "Chicken Caesar salad, extra chicken",
+          "emoji": "🥗",
+          "calories": 520,
+          "protein": 60,
+          "confidence": "estimated",
+          "aliases": [
+            "caesar salad extra chicken",
+            "caesar double chicken"
+          ]
+        }
+      ],
+      "aliases": [
+        "just salad"
       ]
     },
     {
@@ -30,48 +140,607 @@
       "emoji": "🌯",
       "builder": true,
       "components": [
-        { "id": "tortilla", "name": "Flour tortilla (burrito)", "group": "Base", "calories": 320, "protein": 8, "confidence": "published" },
-        { "id": "romaine", "name": "Romaine lettuce", "group": "Base", "calories": 5, "protein": 0, "confidence": "published" },
-        { "id": "supergreens", "name": "Supergreens blend", "group": "Base", "calories": 15, "protein": 1, "confidence": "published" },
-        { "id": "white-rice", "name": "Cilantro-lime white rice", "group": "Rice & beans", "calories": 210, "protein": 4, "confidence": "published" },
-        { "id": "brown-rice", "name": "Cilantro-lime brown rice", "group": "Rice & beans", "calories": 210, "protein": 4, "confidence": "published" },
-        { "id": "black-beans", "name": "Black beans", "group": "Rice & beans", "calories": 130, "protein": 8, "confidence": "published" },
-        { "id": "pinto-beans", "name": "Pinto beans", "group": "Rice & beans", "calories": 130, "protein": 8, "confidence": "published" },
-        { "id": "chicken", "name": "Chicken", "group": "Protein", "calories": 180, "protein": 32, "confidence": "published" },
-        { "id": "steak", "name": "Steak", "group": "Protein", "calories": 150, "protein": 21, "confidence": "published" },
-        { "id": "barbacoa", "name": "Barbacoa", "group": "Protein", "calories": 170, "protein": 24, "confidence": "published" },
-        { "id": "carnitas", "name": "Carnitas", "group": "Protein", "calories": 210, "protein": 23, "confidence": "published" },
-        { "id": "al-pastor", "name": "Chicken al pastor", "group": "Protein", "calories": 200, "protein": 23, "confidence": "estimated" },
-        { "id": "sofritas", "name": "Sofritas", "group": "Protein", "calories": 150, "protein": 8, "confidence": "published" },
-        { "id": "fajita-veggies", "name": "Fajita veggies", "group": "Toppings", "calories": 20, "protein": 1, "confidence": "published" },
-        { "id": "tomato-salsa", "name": "Fresh tomato salsa", "group": "Toppings", "calories": 25, "protein": 0, "confidence": "published" },
-        { "id": "corn-salsa", "name": "Roasted chili-corn salsa", "group": "Toppings", "calories": 80, "protein": 3, "confidence": "published" },
-        { "id": "green-salsa", "name": "Tomatillo green-chili salsa", "group": "Toppings", "calories": 15, "protein": 0, "confidence": "published" },
-        { "id": "red-salsa", "name": "Tomatillo red-chili salsa", "group": "Toppings", "calories": 30, "protein": 0, "confidence": "published" },
-        { "id": "cheese", "name": "Cheese", "group": "Extras", "calories": 110, "protein": 6, "confidence": "published" },
-        { "id": "sour-cream", "name": "Sour cream", "group": "Extras", "calories": 110, "protein": 2, "confidence": "published" },
-        { "id": "queso", "name": "Queso blanco", "group": "Extras", "calories": 120, "protein": 5, "confidence": "published" },
-        { "id": "guac", "name": "Guacamole", "group": "Extras", "calories": 230, "protein": 2, "confidence": "published" },
-        { "id": "chips", "name": "Chips (side)", "group": "Sides", "calories": 540, "protein": 7, "confidence": "published" }
+        {
+          "id": "tortilla",
+          "name": "Flour tortilla (burrito)",
+          "group": "Base",
+          "calories": 320,
+          "protein": 8,
+          "confidence": "published",
+          "aliases": [
+            "tortilla",
+            "burrito tortilla"
+          ]
+        },
+        {
+          "id": "romaine",
+          "name": "Romaine lettuce",
+          "group": "Base",
+          "calories": 5,
+          "protein": 0,
+          "confidence": "published",
+          "aliases": [
+            "lettuce",
+            "romaine"
+          ]
+        },
+        {
+          "id": "supergreens",
+          "name": "Supergreens blend",
+          "group": "Base",
+          "calories": 15,
+          "protein": 1,
+          "confidence": "published",
+          "aliases": [
+            "supergreens",
+            "greens"
+          ]
+        },
+        {
+          "id": "white-rice",
+          "name": "Cilantro-lime white rice",
+          "group": "Rice & beans",
+          "calories": 210,
+          "protein": 4,
+          "confidence": "published",
+          "aliases": [
+            "rice",
+            "white rice",
+            "cilantro lime rice"
+          ]
+        },
+        {
+          "id": "brown-rice",
+          "name": "Cilantro-lime brown rice",
+          "group": "Rice & beans",
+          "calories": 210,
+          "protein": 4,
+          "confidence": "published",
+          "aliases": [
+            "brown rice"
+          ]
+        },
+        {
+          "id": "black-beans",
+          "name": "Black beans",
+          "group": "Rice & beans",
+          "calories": 130,
+          "protein": 8,
+          "confidence": "published",
+          "aliases": [
+            "beans",
+            "black beans"
+          ]
+        },
+        {
+          "id": "pinto-beans",
+          "name": "Pinto beans",
+          "group": "Rice & beans",
+          "calories": 130,
+          "protein": 8,
+          "confidence": "published",
+          "aliases": [
+            "pinto",
+            "pinto beans"
+          ]
+        },
+        {
+          "id": "chicken",
+          "name": "Chicken",
+          "group": "Protein",
+          "calories": 180,
+          "protein": 32,
+          "confidence": "published",
+          "aliases": [
+            "chicken"
+          ]
+        },
+        {
+          "id": "steak",
+          "name": "Steak",
+          "group": "Protein",
+          "calories": 150,
+          "protein": 21,
+          "confidence": "published",
+          "aliases": [
+            "steak"
+          ]
+        },
+        {
+          "id": "barbacoa",
+          "name": "Barbacoa",
+          "group": "Protein",
+          "calories": 170,
+          "protein": 24,
+          "confidence": "published",
+          "aliases": [
+            "barbacoa"
+          ]
+        },
+        {
+          "id": "carnitas",
+          "name": "Carnitas",
+          "group": "Protein",
+          "calories": 210,
+          "protein": 23,
+          "confidence": "published",
+          "aliases": [
+            "carnitas",
+            "pork"
+          ]
+        },
+        {
+          "id": "al-pastor",
+          "name": "Chicken al pastor",
+          "group": "Protein",
+          "calories": 200,
+          "protein": 23,
+          "confidence": "estimated",
+          "aliases": [
+            "al pastor",
+            "pastor"
+          ]
+        },
+        {
+          "id": "sofritas",
+          "name": "Sofritas",
+          "group": "Protein",
+          "calories": 150,
+          "protein": 8,
+          "confidence": "published",
+          "aliases": [
+            "sofritas",
+            "tofu"
+          ]
+        },
+        {
+          "id": "fajita-veggies",
+          "name": "Fajita veggies",
+          "group": "Toppings",
+          "calories": 20,
+          "protein": 1,
+          "confidence": "published",
+          "aliases": [
+            "fajitas",
+            "fajita",
+            "fajita veggies",
+            "veggies",
+            "peppers and onions"
+          ]
+        },
+        {
+          "id": "tomato-salsa",
+          "name": "Fresh tomato salsa",
+          "group": "Toppings",
+          "calories": 25,
+          "protein": 0,
+          "confidence": "published",
+          "aliases": [
+            "salsa",
+            "pico",
+            "pico de gallo",
+            "mild salsa",
+            "tomato salsa"
+          ]
+        },
+        {
+          "id": "corn-salsa",
+          "name": "Roasted chili-corn salsa",
+          "group": "Toppings",
+          "calories": 80,
+          "protein": 3,
+          "confidence": "published",
+          "aliases": [
+            "corn",
+            "corn salsa"
+          ]
+        },
+        {
+          "id": "green-salsa",
+          "name": "Tomatillo green-chili salsa",
+          "group": "Toppings",
+          "calories": 15,
+          "protein": 0,
+          "confidence": "published",
+          "aliases": [
+            "green salsa",
+            "salsa verde",
+            "tomatillo"
+          ]
+        },
+        {
+          "id": "red-salsa",
+          "name": "Tomatillo red-chili salsa",
+          "group": "Toppings",
+          "calories": 30,
+          "protein": 0,
+          "confidence": "published",
+          "aliases": [
+            "red salsa",
+            "hot salsa"
+          ]
+        },
+        {
+          "id": "cheese",
+          "name": "Cheese",
+          "group": "Extras",
+          "calories": 110,
+          "protein": 6,
+          "confidence": "published",
+          "aliases": [
+            "cheese"
+          ]
+        },
+        {
+          "id": "sour-cream",
+          "name": "Sour cream",
+          "group": "Extras",
+          "calories": 110,
+          "protein": 2,
+          "confidence": "published",
+          "aliases": [
+            "sour cream"
+          ]
+        },
+        {
+          "id": "queso",
+          "name": "Queso blanco",
+          "group": "Extras",
+          "calories": 120,
+          "protein": 5,
+          "confidence": "published",
+          "aliases": [
+            "queso"
+          ]
+        },
+        {
+          "id": "guac",
+          "name": "Guacamole",
+          "group": "Extras",
+          "calories": 230,
+          "protein": 2,
+          "confidence": "published",
+          "aliases": [
+            "guac",
+            "guacamole",
+            "avocado"
+          ]
+        },
+        {
+          "id": "chips",
+          "name": "Chips (side)",
+          "group": "Sides",
+          "calories": 540,
+          "protein": 7,
+          "confidence": "published",
+          "aliases": [
+            "chips"
+          ]
+        }
       ],
       "items": [
-        { "id": "chipotle-bowl-double-chicken", "name": "Chicken bowl, double protein", "emoji": "🥣", "picks": { "chicken": 2, "white-rice": 1, "black-beans": 1, "fajita-veggies": 1, "tomato-salsa": 1, "romaine": 1 } },
-        { "id": "chipotle-bowl-double-chicken-light", "name": "Double chicken bowl, half rice, no beans", "emoji": "🥣", "picks": { "chicken": 2, "white-rice": 0.5, "fajita-veggies": 1, "tomato-salsa": 1, "romaine": 1 } },
-        { "id": "chipotle-salad-double-chicken", "name": "Double chicken salad bowl (no rice)", "emoji": "🥗", "picks": { "romaine": 1, "chicken": 2, "black-beans": 1, "fajita-veggies": 1, "tomato-salsa": 1, "green-salsa": 1 } },
-        { "id": "chipotle-bowl-chicken", "name": "Chicken bowl (standard)", "emoji": "🥣", "picks": { "chicken": 1, "white-rice": 1, "black-beans": 1, "tomato-salsa": 1, "cheese": 1, "romaine": 1 } },
-        { "id": "chipotle-burrito-chicken", "name": "Chicken burrito", "emoji": "🌯", "picks": { "tortilla": 1, "chicken": 1, "white-rice": 1, "black-beans": 1, "tomato-salsa": 1, "cheese": 1 } },
-        { "id": "chipotle-bowl-steak-chicken", "name": "Steak + chicken bowl", "emoji": "🥣", "picks": { "steak": 1, "chicken": 1, "white-rice": 1, "fajita-veggies": 1, "tomato-salsa": 1, "romaine": 1 } }
+        {
+          "id": "chipotle-bowl-double-chicken",
+          "name": "Chicken bowl, double protein",
+          "emoji": "🥣",
+          "picks": {
+            "chicken": 2,
+            "white-rice": 1,
+            "black-beans": 1,
+            "fajita-veggies": 1,
+            "tomato-salsa": 1,
+            "romaine": 1
+          },
+          "aliases": [
+            "chipotle bowl",
+            "burrito bowl",
+            "double chicken bowl",
+            "chipotle double chicken",
+            "bowl double chicken"
+          ]
+        },
+        {
+          "id": "chipotle-bowl-double-chicken-light",
+          "name": "Double chicken bowl, half rice, no beans",
+          "emoji": "🥣",
+          "picks": {
+            "chicken": 2,
+            "white-rice": 0.5,
+            "fajita-veggies": 1,
+            "tomato-salsa": 1,
+            "romaine": 1
+          },
+          "aliases": [
+            "double chicken half rice",
+            "chipotle light bowl"
+          ]
+        },
+        {
+          "id": "chipotle-salad-double-chicken",
+          "name": "Double chicken salad bowl (no rice)",
+          "emoji": "🥗",
+          "picks": {
+            "romaine": 1,
+            "chicken": 2,
+            "black-beans": 1,
+            "fajita-veggies": 1,
+            "tomato-salsa": 1,
+            "green-salsa": 1
+          },
+          "aliases": [
+            "chipotle salad",
+            "salad bowl",
+            "chipotle salad bowl",
+            "lifestyle bowl"
+          ]
+        },
+        {
+          "id": "chipotle-bowl-chicken",
+          "name": "Chicken bowl (standard)",
+          "emoji": "🥣",
+          "picks": {
+            "chicken": 1,
+            "white-rice": 1,
+            "black-beans": 1,
+            "tomato-salsa": 1,
+            "cheese": 1,
+            "romaine": 1
+          },
+          "aliases": [
+            "chipotle chicken bowl",
+            "chicken bowl",
+            "regular chipotle bowl"
+          ]
+        },
+        {
+          "id": "chipotle-burrito-chicken",
+          "name": "Chicken burrito",
+          "emoji": "🌯",
+          "picks": {
+            "tortilla": 1,
+            "chicken": 1,
+            "white-rice": 1,
+            "black-beans": 1,
+            "tomato-salsa": 1,
+            "cheese": 1
+          },
+          "aliases": [
+            "chipotle burrito",
+            "chicken burrito"
+          ]
+        },
+        {
+          "id": "chipotle-bowl-steak-chicken",
+          "name": "Steak + chicken bowl",
+          "emoji": "🥣",
+          "picks": {
+            "steak": 1,
+            "chicken": 1,
+            "white-rice": 1,
+            "fajita-veggies": 1,
+            "tomato-salsa": 1,
+            "romaine": 1
+          },
+          "aliases": [
+            "steak and chicken bowl",
+            "steak chicken bowl"
+          ]
+        }
+      ],
+      "aliases": [
+        "chipotle"
       ]
     }
   ],
   "home": [
-    { "id": "home-turkey-ham-sandwich", "name": "Turkey, ham & cheese sandwich", "emoji": "🥪", "items": [ { "product": "tj-daily-baked-bread", "qty": 2 }, { "product": "tj-turkey-breast-sliced", "qty": 0.5 }, { "product": "tj-black-forest-ham", "qty": 1 }, { "product": "tj-sliced-swiss", "qty": 1 }, { "product": "mustard-yellow", "qty": 1 } ] },
-    { "id": "home-turkey-ham-wrap", "name": "Turkey, ham & cheese wrap (Carb Balance)", "emoji": "🌯", "items": [ { "product": "mission-carb-balance-tortilla", "qty": 2 }, { "product": "tj-turkey-breast-sliced", "qty": 0.5 }, { "product": "tj-black-forest-ham", "qty": 1 }, { "product": "tj-sliced-swiss", "qty": 1 }, { "product": "tj-romaine", "qty": 0.5 }, { "product": "mustard-yellow", "qty": 1 } ] },
-    { "id": "home-pulled-quesadilla", "name": "Pulled chicken & pulled pork quesadilla", "emoji": "🫓", "items": [ { "product": "mission-carb-balance-tortilla", "qty": 2 }, { "product": "tj-pulled-chicken-bbq", "qty": 0.5 }, { "product": "tj-pulled-pork-bbq", "qty": 0.5 }, { "product": "tj-lite-mozzarella", "qty": 1 } ] },
-    { "id": "home-pulled-chicken-quesadilla", "name": "Pulled chicken quesadilla", "emoji": "🫓", "items": [ { "product": "mission-carb-balance-tortilla", "qty": 2 }, { "product": "tj-pulled-chicken-bbq", "qty": 1 }, { "product": "tj-lite-mozzarella", "qty": 1 } ] },
-    { "id": "home-pulled-pork-quesadilla", "name": "Pulled pork quesadilla", "emoji": "🫓", "items": [ { "product": "mission-carb-balance-tortilla", "qty": 2 }, { "product": "tj-pulled-pork-bbq", "qty": 0.67 }, { "product": "tj-lite-mozzarella", "qty": 1 } ] },
-    { "id": "home-eggs-toast", "name": "Eggs & turkey bacon on toast", "emoji": "🍳", "items": [ { "product": "tj-large-egg", "qty": 2 }, { "product": "tj-egg-whites", "qty": 1 }, { "product": "tj-turkey-bacon", "qty": 2 }, { "product": "tj-daily-baked-bread", "qty": 1 } ] },
-    { "id": "home-greek-yogurt-bowl", "name": "Greek yogurt & berries", "emoji": "🥣", "items": [ { "product": "tj-greek-yogurt-nonfat", "qty": 1 }, { "product": "tj-frozen-berries", "qty": 0.5 }, { "product": "tj-honey", "qty": 0.5 } ] }
+    {
+      "id": "home-turkey-ham-sandwich",
+      "name": "Turkey, ham & cheese sandwich",
+      "emoji": "🥪",
+      "items": [
+        {
+          "product": "tj-daily-baked-bread",
+          "qty": 2
+        },
+        {
+          "product": "tj-turkey-breast-sliced",
+          "qty": 0.5
+        },
+        {
+          "product": "tj-black-forest-ham",
+          "qty": 1
+        },
+        {
+          "product": "tj-sliced-swiss",
+          "qty": 1
+        },
+        {
+          "product": "mustard-yellow",
+          "qty": 1
+        }
+      ],
+      "aliases": [
+        "turkey ham cheese sandwich",
+        "turkey sandwich",
+        "ham sandwich",
+        "turkey and ham sandwich",
+        "ham and cheese sandwich",
+        "turkey and cheese sandwich",
+        "my sandwich"
+      ]
+    },
+    {
+      "id": "home-turkey-ham-wrap",
+      "name": "Turkey, ham & cheese wrap (Carb Balance)",
+      "emoji": "🌯",
+      "items": [
+        {
+          "product": "mission-carb-balance-tortilla",
+          "qty": 2
+        },
+        {
+          "product": "tj-turkey-breast-sliced",
+          "qty": 0.5
+        },
+        {
+          "product": "tj-black-forest-ham",
+          "qty": 1
+        },
+        {
+          "product": "tj-sliced-swiss",
+          "qty": 1
+        },
+        {
+          "product": "tj-romaine",
+          "qty": 0.5
+        },
+        {
+          "product": "mustard-yellow",
+          "qty": 1
+        }
+      ],
+      "aliases": [
+        "turkey wrap",
+        "turkey ham wrap",
+        "ham wrap",
+        "turkey and ham wrap",
+        "turkey ham cheese wrap",
+        "carb balance wrap",
+        "my wrap"
+      ]
+    },
+    {
+      "id": "home-pulled-quesadilla",
+      "name": "Pulled chicken & pulled pork quesadilla",
+      "emoji": "🫓",
+      "items": [
+        {
+          "product": "mission-carb-balance-tortilla",
+          "qty": 2
+        },
+        {
+          "product": "tj-pulled-chicken-bbq",
+          "qty": 0.5
+        },
+        {
+          "product": "tj-pulled-pork-bbq",
+          "qty": 0.5
+        },
+        {
+          "product": "tj-lite-mozzarella",
+          "qty": 1
+        }
+      ],
+      "aliases": [
+        "pulled chicken and pulled pork quesadilla",
+        "pulled pork and chicken quesadilla",
+        "pulled chicken pork quesadilla",
+        "my quesadilla",
+        "quesadilla"
+      ]
+    },
+    {
+      "id": "home-pulled-chicken-quesadilla",
+      "name": "Pulled chicken quesadilla",
+      "emoji": "🫓",
+      "items": [
+        {
+          "product": "mission-carb-balance-tortilla",
+          "qty": 2
+        },
+        {
+          "product": "tj-pulled-chicken-bbq",
+          "qty": 1
+        },
+        {
+          "product": "tj-lite-mozzarella",
+          "qty": 1
+        }
+      ],
+      "aliases": [
+        "pulled chicken quesadilla",
+        "bbq chicken quesadilla",
+        "chicken quesadilla"
+      ]
+    },
+    {
+      "id": "home-pulled-pork-quesadilla",
+      "name": "Pulled pork quesadilla",
+      "emoji": "🫓",
+      "items": [
+        {
+          "product": "mission-carb-balance-tortilla",
+          "qty": 2
+        },
+        {
+          "product": "tj-pulled-pork-bbq",
+          "qty": 0.67
+        },
+        {
+          "product": "tj-lite-mozzarella",
+          "qty": 1
+        }
+      ],
+      "aliases": [
+        "pulled pork quesadilla",
+        "pork quesadilla",
+        "bbq pork quesadilla"
+      ]
+    },
+    {
+      "id": "home-eggs-toast",
+      "name": "Eggs & turkey bacon on toast",
+      "emoji": "🍳",
+      "items": [
+        {
+          "product": "tj-large-egg",
+          "qty": 2
+        },
+        {
+          "product": "tj-egg-whites",
+          "qty": 1
+        },
+        {
+          "product": "tj-turkey-bacon",
+          "qty": 2
+        },
+        {
+          "product": "tj-daily-baked-bread",
+          "qty": 1
+        }
+      ],
+      "aliases": [
+        "eggs toast turkey bacon",
+        "eggs and turkey bacon",
+        "egg and turkey bacon toast",
+        "eggs with turkey bacon"
+      ]
+    },
+    {
+      "id": "home-greek-yogurt-bowl",
+      "name": "Greek yogurt & berries",
+      "emoji": "🥣",
+      "items": [
+        {
+          "product": "tj-greek-yogurt-nonfat",
+          "qty": 1
+        },
+        {
+          "product": "tj-frozen-berries",
+          "qty": 0.5
+        },
+        {
+          "product": "tj-honey",
+          "qty": 0.5
+        }
+      ],
+      "aliases": [
+        "yogurt and berries",
+        "greek yogurt bowl",
+        "yogurt bowl",
+        "yogurt with berries"
+      ]
+    }
   ],
   "starterUsuals": [
     "pret-usual-coffee",

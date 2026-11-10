@@ -1,0 +1,1730 @@
+{
+ "$schema": "Generic foods for the typed-meal parser (js/parse.js). Typical US portions, estimated from standard nutrition references. 'oz' = ounces in one unit, so '6 oz chicken' scales correctly. addon=true entries are used for 'add X' / 'no X' / 'extra X' on fixed-number restaurant items.",
+ "updated": "2026-11-10",
+ "foods": [
+  {
+   "id": "egg",
+   "name": "Egg",
+   "emoji": "🥚",
+   "unit": "1 large egg",
+   "calories": 72,
+   "protein": 6,
+   "aliases": [
+    "egg",
+    "eggs",
+    "fried egg",
+    "boiled egg",
+    "hard boiled egg",
+    "scrambled egg",
+    "scrambled eggs",
+    "poached egg",
+    "omelet egg"
+   ]
+  },
+  {
+   "id": "egg-white",
+   "name": "Egg whites",
+   "emoji": "🥚",
+   "unit": "1/4 cup",
+   "calories": 30,
+   "protein": 6,
+   "aliases": [
+    "egg white",
+    "egg whites"
+   ]
+  },
+  {
+   "id": "omelet",
+   "name": "Omelet (3 eggs, cheese)",
+   "emoji": "🍳",
+   "unit": "1 omelet",
+   "calories": 330,
+   "protein": 22,
+   "aliases": [
+    "omelet",
+    "omelette",
+    "cheese omelet"
+   ]
+  },
+  {
+   "id": "toast",
+   "name": "Toast",
+   "emoji": "🍞",
+   "unit": "1 slice",
+   "calories": 90,
+   "protein": 3,
+   "aliases": [
+    "toast",
+    "slice of bread",
+    "bread",
+    "slice toast",
+    "sourdough",
+    "sourdough toast",
+    "whole wheat toast"
+   ]
+  },
+  {
+   "id": "butter",
+   "name": "Butter",
+   "emoji": "🧈",
+   "unit": "1 tbsp",
+   "calories": 100,
+   "protein": 0,
+   "aliases": [
+    "butter"
+   ],
+   "addon": true
+  },
+  {
+   "id": "bagel",
+   "name": "Bagel",
+   "emoji": "🥯",
+   "unit": "1 bagel",
+   "calories": 280,
+   "protein": 10,
+   "aliases": [
+    "bagel",
+    "plain bagel",
+    "everything bagel",
+    "sesame bagel"
+   ]
+  },
+  {
+   "id": "bagel-cream-cheese",
+   "name": "Bagel with cream cheese",
+   "emoji": "🥯",
+   "unit": "1 bagel",
+   "calories": 450,
+   "protein": 13,
+   "aliases": [
+    "bagel with cream cheese",
+    "bagel and cream cheese",
+    "bagel cream cheese",
+    "bagel with schmear"
+   ]
+  },
+  {
+   "id": "bec",
+   "name": "Bacon, egg & cheese sandwich",
+   "emoji": "🥪",
+   "unit": "1 sandwich",
+   "calories": 480,
+   "protein": 22,
+   "aliases": [
+    "bacon egg and cheese",
+    "bacon egg cheese",
+    "bec",
+    "egg and cheese sandwich",
+    "breakfast sandwich",
+    "egg sandwich",
+    "sausage egg and cheese"
+   ]
+  },
+  {
+   "id": "oatmeal",
+   "name": "Oatmeal",
+   "emoji": "🥣",
+   "unit": "1 cup cooked",
+   "calories": 160,
+   "protein": 6,
+   "aliases": [
+    "oatmeal",
+    "oats",
+    "porridge",
+    "overnight oats"
+   ]
+  },
+  {
+   "id": "granola",
+   "name": "Granola",
+   "emoji": "🥣",
+   "unit": "1/2 cup",
+   "calories": 240,
+   "protein": 5,
+   "aliases": [
+    "granola"
+   ]
+  },
+  {
+   "id": "cereal",
+   "name": "Cereal with milk",
+   "emoji": "🥣",
+   "unit": "1 bowl",
+   "calories": 250,
+   "protein": 8,
+   "aliases": [
+    "cereal",
+    "bowl of cereal"
+   ]
+  },
+  {
+   "id": "pancakes",
+   "name": "Pancakes",
+   "emoji": "🥞",
+   "unit": "3 pancakes",
+   "calories": 520,
+   "protein": 12,
+   "aliases": [
+    "pancakes",
+    "pancake",
+    "waffles",
+    "waffle",
+    "french toast"
+   ]
+  },
+  {
+   "id": "greek-yogurt",
+   "name": "Greek yogurt (plain nonfat)",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 130,
+   "protein": 23,
+   "aliases": [
+    "greek yogurt",
+    "yogurt",
+    "plain yogurt",
+    "skyr",
+    "yoghurt"
+   ]
+  },
+  {
+   "id": "cottage-cheese",
+   "name": "Cottage cheese",
+   "emoji": "🥛",
+   "unit": "1/2 cup",
+   "calories": 90,
+   "protein": 12,
+   "aliases": [
+    "cottage cheese"
+   ]
+  },
+  {
+   "id": "protein-shake",
+   "name": "Protein shake",
+   "emoji": "🥤",
+   "unit": "1 scoop + water",
+   "calories": 130,
+   "protein": 25,
+   "aliases": [
+    "protein shake",
+    "protein powder",
+    "shake",
+    "whey",
+    "scoop of protein",
+    "protein smoothie"
+   ]
+  },
+  {
+   "id": "protein-bar",
+   "name": "Protein bar",
+   "emoji": "🍫",
+   "unit": "1 bar",
+   "calories": 210,
+   "protein": 20,
+   "aliases": [
+    "protein bar",
+    "quest bar",
+    "rxbar",
+    "barebells"
+   ]
+  },
+  {
+   "id": "smoothie",
+   "name": "Fruit smoothie",
+   "emoji": "🥤",
+   "unit": "16 oz",
+   "calories": 300,
+   "protein": 5,
+   "aliases": [
+    "smoothie",
+    "fruit smoothie"
+   ]
+  },
+  {
+   "id": "turkey-bacon",
+   "name": "Turkey bacon",
+   "emoji": "🥓",
+   "unit": "1 slice",
+   "calories": 30,
+   "protein": 5,
+   "aliases": [
+    "turkey bacon"
+   ],
+   "addon": true
+  },
+  {
+   "id": "bacon",
+   "name": "Bacon",
+   "emoji": "🥓",
+   "unit": "1 slice",
+   "calories": 45,
+   "protein": 3,
+   "aliases": [
+    "bacon",
+    "bacon strip",
+    "bacon strips"
+   ],
+   "addon": true
+  },
+  {
+   "id": "sausage",
+   "name": "Breakfast sausage",
+   "emoji": "🌭",
+   "unit": "2 links",
+   "calories": 180,
+   "protein": 9,
+   "aliases": [
+    "sausage",
+    "sausages",
+    "breakfast sausage",
+    "sausage links"
+   ]
+  },
+  {
+   "id": "avocado-toast",
+   "name": "Avocado toast",
+   "emoji": "🥑",
+   "unit": "1 slice",
+   "calories": 260,
+   "protein": 6,
+   "aliases": [
+    "avocado toast",
+    "avo toast"
+   ]
+  },
+  {
+   "id": "croissant",
+   "name": "Croissant",
+   "emoji": "🥐",
+   "unit": "1 croissant",
+   "calories": 270,
+   "protein": 5,
+   "aliases": [
+    "croissant",
+    "butter croissant"
+   ]
+  },
+  {
+   "id": "muffin",
+   "name": "Muffin",
+   "emoji": "🧁",
+   "unit": "1 muffin",
+   "calories": 420,
+   "protein": 6,
+   "aliases": [
+    "muffin",
+    "blueberry muffin"
+   ]
+  },
+  {
+   "id": "donut",
+   "name": "Donut",
+   "emoji": "🍩",
+   "unit": "1 donut",
+   "calories": 280,
+   "protein": 4,
+   "aliases": [
+    "donut",
+    "doughnut"
+   ]
+  },
+  {
+   "id": "coffee",
+   "name": "Black coffee",
+   "emoji": "☕",
+   "unit": "1 cup",
+   "calories": 5,
+   "protein": 0,
+   "aliases": [
+    "coffee",
+    "black coffee",
+    "americano",
+    "cold brew",
+    "drip coffee",
+    "iced coffee",
+    "espresso"
+   ]
+  },
+  {
+   "id": "latte",
+   "name": "Latte (whole milk, 16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 220,
+   "protein": 12,
+   "aliases": [
+    "latte",
+    "cappuccino",
+    "flat white",
+    "cortado",
+    "iced latte"
+   ]
+  },
+  {
+   "id": "latte-oat",
+   "name": "Oat milk latte (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 190,
+   "protein": 3,
+   "aliases": [
+    "oat latte",
+    "oat milk latte",
+    "oatmilk latte"
+   ]
+  },
+  {
+   "id": "latte-skim",
+   "name": "Skim latte (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 130,
+   "protein": 12,
+   "aliases": [
+    "skim latte",
+    "nonfat latte",
+    "skinny latte"
+   ]
+  },
+  {
+   "id": "mocha",
+   "name": "Mocha (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 360,
+   "protein": 13,
+   "aliases": [
+    "mocha",
+    "caramel macchiato",
+    "frappuccino",
+    "flavored latte"
+   ]
+  },
+  {
+   "id": "tea",
+   "name": "Tea",
+   "emoji": "🍵",
+   "unit": "1 cup",
+   "calories": 2,
+   "protein": 0,
+   "aliases": [
+    "tea",
+    "green tea",
+    "black tea",
+    "herbal tea"
+   ]
+  },
+  {
+   "id": "matcha-latte",
+   "name": "Matcha latte",
+   "emoji": "🍵",
+   "unit": "16 oz",
+   "calories": 240,
+   "protein": 9,
+   "aliases": [
+    "matcha latte",
+    "matcha"
+   ]
+  },
+  {
+   "id": "soda",
+   "name": "Soda",
+   "emoji": "🥤",
+   "unit": "12 oz can",
+   "calories": 150,
+   "protein": 0,
+   "aliases": [
+    "soda",
+    "coke",
+    "pepsi",
+    "sprite",
+    "ginger ale",
+    "soft drink"
+   ]
+  },
+  {
+   "id": "diet-soda",
+   "name": "Diet soda",
+   "emoji": "🥤",
+   "unit": "12 oz can",
+   "calories": 0,
+   "protein": 0,
+   "aliases": [
+    "diet soda",
+    "diet coke",
+    "coke zero",
+    "pepsi zero",
+    "seltzer",
+    "sparkling water",
+    "la croix",
+    "water"
+   ]
+  },
+  {
+   "id": "juice",
+   "name": "Orange juice",
+   "emoji": "🧃",
+   "unit": "12 oz",
+   "calories": 165,
+   "protein": 2,
+   "aliases": [
+    "juice",
+    "orange juice",
+    "oj",
+    "apple juice"
+   ]
+  },
+  {
+   "id": "beer",
+   "name": "Beer",
+   "emoji": "🍺",
+   "unit": "12 oz",
+   "calories": 150,
+   "protein": 2,
+   "aliases": [
+    "beer",
+    "beers",
+    "lager",
+    "ipa",
+    "pint"
+   ]
+  },
+  {
+   "id": "light-beer",
+   "name": "Light beer",
+   "emoji": "🍺",
+   "unit": "12 oz",
+   "calories": 100,
+   "protein": 1,
+   "aliases": [
+    "light beer",
+    "michelob ultra",
+    "bud light",
+    "coors light"
+   ]
+  },
+  {
+   "id": "wine",
+   "name": "Wine",
+   "emoji": "🍷",
+   "unit": "5 oz glass",
+   "calories": 125,
+   "protein": 0,
+   "aliases": [
+    "wine",
+    "glass of wine",
+    "red wine",
+    "white wine",
+    "rose",
+    "prosecco",
+    "champagne"
+   ]
+  },
+  {
+   "id": "cocktail",
+   "name": "Cocktail",
+   "emoji": "🍸",
+   "unit": "1 drink",
+   "calories": 220,
+   "protein": 0,
+   "aliases": [
+    "cocktail",
+    "margarita",
+    "mojito",
+    "espresso martini",
+    "old fashioned"
+   ]
+  },
+  {
+   "id": "spirit-mixer",
+   "name": "Spirit + diet mixer",
+   "emoji": "🥃",
+   "unit": "1 drink",
+   "calories": 100,
+   "protein": 0,
+   "aliases": [
+    "vodka soda",
+    "tequila soda",
+    "whiskey",
+    "vodka",
+    "tequila",
+    "gin and tonic",
+    "rum and coke",
+    "shot",
+    "shots"
+   ]
+  },
+  {
+   "id": "milk",
+   "name": "Milk (2%)",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 130,
+   "protein": 8,
+   "aliases": [
+    "milk",
+    "glass of milk",
+    "2 percent milk"
+   ]
+  },
+  {
+   "id": "chocolate-milk",
+   "name": "Chocolate milk",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 200,
+   "protein": 8,
+   "aliases": [
+    "chocolate milk"
+   ]
+  },
+  {
+   "id": "banana",
+   "name": "Banana",
+   "emoji": "🍌",
+   "unit": "1 medium",
+   "calories": 105,
+   "protein": 1,
+   "aliases": [
+    "banana",
+    "bananas"
+   ]
+  },
+  {
+   "id": "apple",
+   "name": "Apple",
+   "emoji": "🍎",
+   "unit": "1 medium",
+   "calories": 95,
+   "protein": 0,
+   "aliases": [
+    "apple",
+    "apples"
+   ]
+  },
+  {
+   "id": "orange",
+   "name": "Orange",
+   "emoji": "🍊",
+   "unit": "1 medium",
+   "calories": 65,
+   "protein": 1,
+   "aliases": [
+    "orange",
+    "oranges",
+    "clementine",
+    "clementines",
+    "mandarin"
+   ]
+  },
+  {
+   "id": "berries",
+   "name": "Berries",
+   "emoji": "🫐",
+   "unit": "1 cup",
+   "calories": 70,
+   "protein": 1,
+   "aliases": [
+    "berries",
+    "blueberries",
+    "strawberries",
+    "raspberries",
+    "blackberries"
+   ]
+  },
+  {
+   "id": "grapes",
+   "name": "Grapes",
+   "emoji": "🍇",
+   "unit": "1 cup",
+   "calories": 100,
+   "protein": 1,
+   "aliases": [
+    "grapes"
+   ]
+  },
+  {
+   "id": "fruit",
+   "name": "Fruit cup",
+   "emoji": "🍉",
+   "unit": "1 cup",
+   "calories": 80,
+   "protein": 1,
+   "aliases": [
+    "fruit",
+    "fruit cup",
+    "melon",
+    "watermelon",
+    "pineapple",
+    "mango"
+   ]
+  },
+  {
+   "id": "salad-side",
+   "name": "Side salad",
+   "emoji": "🥗",
+   "unit": "1 side",
+   "calories": 120,
+   "protein": 2,
+   "aliases": [
+    "side salad",
+    "garden salad",
+    "green salad",
+    "house salad"
+   ]
+  },
+  {
+   "id": "veggies",
+   "name": "Vegetables",
+   "emoji": "🥦",
+   "unit": "1 cup",
+   "calories": 40,
+   "protein": 2,
+   "aliases": [
+    "veggies",
+    "vegetables",
+    "broccoli",
+    "green beans",
+    "spinach",
+    "asparagus",
+    "zucchini",
+    "carrots",
+    "cucumber",
+    "peppers",
+    "roasted vegetables"
+   ]
+  },
+  {
+   "id": "potato",
+   "name": "Baked potato",
+   "emoji": "🥔",
+   "unit": "1 medium",
+   "calories": 160,
+   "protein": 4,
+   "aliases": [
+    "potato",
+    "baked potato",
+    "sweet potato",
+    "potatoes",
+    "mashed potatoes"
+   ]
+  },
+  {
+   "id": "chicken-breast",
+   "name": "Chicken breast (cooked)",
+   "emoji": "🍗",
+   "unit": "4 oz cooked",
+   "calories": 185,
+   "protein": 35,
+   "aliases": [
+    "chicken",
+    "chicken breast",
+    "grilled chicken",
+    "baked chicken",
+    "rotisserie chicken"
+   ],
+   "oz": 4
+  },
+  {
+   "id": "chicken-thigh",
+   "name": "Chicken thighs (cooked)",
+   "emoji": "🍗",
+   "unit": "4 oz cooked",
+   "calories": 230,
+   "protein": 28,
+   "aliases": [
+    "chicken thigh",
+    "chicken thighs",
+    "dark meat chicken"
+   ],
+   "oz": 4
+  },
+  {
+   "id": "wings",
+   "name": "Chicken wings",
+   "emoji": "🍗",
+   "unit": "6 wings",
+   "calories": 480,
+   "protein": 36,
+   "aliases": [
+    "wings",
+    "chicken wings",
+    "buffalo wings"
+   ]
+  },
+  {
+   "id": "tenders",
+   "name": "Chicken tenders",
+   "emoji": "🍗",
+   "unit": "4 tenders",
+   "calories": 440,
+   "protein": 28,
+   "aliases": [
+    "chicken tenders",
+    "chicken fingers",
+    "chicken strips",
+    "nuggets",
+    "chicken nuggets"
+   ]
+  },
+  {
+   "id": "steak",
+   "name": "Steak (cooked)",
+   "emoji": "🥩",
+   "unit": "6 oz cooked",
+   "calories": 420,
+   "protein": 46,
+   "aliases": [
+    "steak",
+    "sirloin",
+    "ribeye",
+    "strip steak",
+    "flank steak"
+   ],
+   "oz": 6
+  },
+  {
+   "id": "ground-beef",
+   "name": "Ground beef (90/10, cooked)",
+   "emoji": "🥩",
+   "unit": "4 oz cooked",
+   "calories": 240,
+   "protein": 28,
+   "aliases": [
+    "ground beef",
+    "beef",
+    "taco meat"
+   ],
+   "oz": 4
+  },
+  {
+   "id": "salmon",
+   "name": "Salmon (cooked)",
+   "emoji": "🐟",
+   "unit": "5 oz cooked",
+   "calories": 290,
+   "protein": 32,
+   "aliases": [
+    "salmon",
+    "salmon fillet",
+    "grilled salmon"
+   ],
+   "oz": 5
+  },
+  {
+   "id": "tuna",
+   "name": "Tuna (canned)",
+   "emoji": "🐟",
+   "unit": "1 can",
+   "calories": 130,
+   "protein": 29,
+   "aliases": [
+    "tuna",
+    "tuna can",
+    "can of tuna"
+   ]
+  },
+  {
+   "id": "shrimp",
+   "name": "Shrimp",
+   "emoji": "🍤",
+   "unit": "4 oz",
+   "calories": 120,
+   "protein": 23,
+   "aliases": [
+    "shrimp",
+    "prawns"
+   ],
+   "oz": 4
+  },
+  {
+   "id": "white-fish",
+   "name": "White fish",
+   "emoji": "🐟",
+   "unit": "5 oz cooked",
+   "calories": 150,
+   "protein": 32,
+   "aliases": [
+    "fish",
+    "cod",
+    "tilapia",
+    "mahi",
+    "halibut"
+   ],
+   "oz": 5
+  },
+  {
+   "id": "turkey-slices",
+   "name": "Deli turkey",
+   "emoji": "🦃",
+   "unit": "3 oz",
+   "calories": 90,
+   "protein": 16,
+   "aliases": [
+    "turkey",
+    "deli turkey",
+    "sliced turkey",
+    "turkey slices"
+   ],
+   "oz": 3
+  },
+  {
+   "id": "ham",
+   "name": "Deli ham",
+   "emoji": "🍖",
+   "unit": "3 oz",
+   "calories": 100,
+   "protein": 15,
+   "aliases": [
+    "ham",
+    "deli ham"
+   ],
+   "oz": 3
+  },
+  {
+   "id": "tofu",
+   "name": "Tofu",
+   "emoji": "🧈",
+   "unit": "1/2 block",
+   "calories": 180,
+   "protein": 20,
+   "aliases": [
+    "tofu"
+   ]
+  },
+  {
+   "id": "pork",
+   "name": "Pork chop (cooked)",
+   "emoji": "🍖",
+   "unit": "5 oz cooked",
+   "calories": 280,
+   "protein": 38,
+   "aliases": [
+    "pork",
+    "pork chop",
+    "pork tenderloin"
+   ],
+   "oz": 5
+  },
+  {
+   "id": "burger-patty",
+   "name": "Burger patty",
+   "emoji": "🍔",
+   "unit": "1 patty (4 oz)",
+   "calories": 280,
+   "protein": 22,
+   "aliases": [
+    "patty",
+    "burger patty",
+    "beef patty"
+   ]
+  },
+  {
+   "id": "jerky",
+   "name": "Beef jerky",
+   "emoji": "🥩",
+   "unit": "1 oz",
+   "calories": 80,
+   "protein": 10,
+   "aliases": [
+    "jerky",
+    "beef jerky",
+    "turkey jerky"
+   ]
+  },
+  {
+   "id": "string-cheese",
+   "name": "String cheese",
+   "emoji": "🧀",
+   "unit": "1 stick",
+   "calories": 70,
+   "protein": 7,
+   "aliases": [
+    "string cheese",
+    "cheese stick"
+   ]
+  },
+  {
+   "id": "hummus",
+   "name": "Hummus",
+   "emoji": "🥙",
+   "unit": "1/4 cup",
+   "calories": 140,
+   "protein": 4,
+   "aliases": [
+    "hummus"
+   ]
+  },
+  {
+   "id": "nuts",
+   "name": "Nuts",
+   "emoji": "🥜",
+   "unit": "1 oz handful",
+   "calories": 170,
+   "protein": 6,
+   "aliases": [
+    "nuts",
+    "almonds",
+    "cashews",
+    "peanuts",
+    "walnuts",
+    "pistachios",
+    "handful of nuts",
+    "trail mix"
+   ]
+  },
+  {
+   "id": "peanut-butter",
+   "name": "Peanut butter",
+   "emoji": "🥜",
+   "unit": "2 tbsp",
+   "calories": 190,
+   "protein": 8,
+   "aliases": [
+    "peanut butter",
+    "almond butter",
+    "pb"
+   ]
+  },
+  {
+   "id": "rice",
+   "name": "Rice",
+   "emoji": "🍚",
+   "unit": "1 cup cooked",
+   "calories": 205,
+   "protein": 4,
+   "aliases": [
+    "rice",
+    "white rice",
+    "brown rice",
+    "jasmine rice",
+    "fried rice"
+   ]
+  },
+  {
+   "id": "pasta",
+   "name": "Pasta",
+   "emoji": "🍝",
+   "unit": "2 cups cooked",
+   "calories": 440,
+   "protein": 16,
+   "aliases": [
+    "pasta",
+    "spaghetti",
+    "penne",
+    "noodles",
+    "mac and cheese"
+   ]
+  },
+  {
+   "id": "fries",
+   "name": "French fries",
+   "emoji": "🍟",
+   "unit": "medium",
+   "calories": 380,
+   "protein": 4,
+   "aliases": [
+    "fries",
+    "french fries",
+    "chips side",
+    "sweet potato fries"
+   ]
+  },
+  {
+   "id": "chips",
+   "name": "Potato chips",
+   "emoji": "🥔",
+   "unit": "1 oz bag",
+   "calories": 150,
+   "protein": 2,
+   "aliases": [
+    "chips",
+    "potato chips",
+    "crisps",
+    "doritos",
+    "tortilla chips"
+   ]
+  },
+  {
+   "id": "tortilla",
+   "name": "Flour tortilla (large)",
+   "emoji": "🫓",
+   "unit": "1 tortilla",
+   "calories": 210,
+   "protein": 5,
+   "aliases": [
+    "tortilla",
+    "wrap tortilla",
+    "flour tortilla"
+   ]
+  },
+  {
+   "id": "pita",
+   "name": "Pita",
+   "emoji": "🫓",
+   "unit": "1 pita",
+   "calories": 165,
+   "protein": 6,
+   "aliases": [
+    "pita",
+    "pita bread",
+    "naan",
+    "flatbread"
+   ]
+  },
+  {
+   "id": "crackers",
+   "name": "Crackers",
+   "emoji": "🍘",
+   "unit": "1 serving",
+   "calories": 130,
+   "protein": 2,
+   "aliases": [
+    "crackers",
+    "rice cakes",
+    "pretzels"
+   ]
+  },
+  {
+   "id": "popcorn",
+   "name": "Popcorn",
+   "emoji": "🍿",
+   "unit": "3 cups",
+   "calories": 100,
+   "protein": 3,
+   "aliases": [
+    "popcorn"
+   ]
+  },
+  {
+   "id": "pizza-slice",
+   "name": "Pizza slice",
+   "emoji": "🍕",
+   "unit": "1 slice",
+   "calories": 290,
+   "protein": 12,
+   "aliases": [
+    "pizza",
+    "slice of pizza",
+    "pizza slice",
+    "slices of pizza",
+    "pepperoni pizza",
+    "cheese pizza"
+   ]
+  },
+  {
+   "id": "burger",
+   "name": "Burger",
+   "emoji": "🍔",
+   "unit": "1 burger",
+   "calories": 650,
+   "protein": 32,
+   "aliases": [
+    "burger",
+    "cheeseburger",
+    "hamburger",
+    "smashburger"
+   ]
+  },
+  {
+   "id": "burrito",
+   "name": "Burrito",
+   "emoji": "🌯",
+   "unit": "1 burrito",
+   "calories": 950,
+   "protein": 45,
+   "aliases": [
+    "burrito",
+    "breakfast burrito"
+   ]
+  },
+  {
+   "id": "tacos",
+   "name": "Taco",
+   "emoji": "🌮",
+   "unit": "1 taco",
+   "calories": 200,
+   "protein": 10,
+   "aliases": [
+    "taco",
+    "tacos",
+    "street taco",
+    "street tacos"
+   ]
+  },
+  {
+   "id": "sandwich",
+   "name": "Sandwich",
+   "emoji": "🥪",
+   "unit": "1 sandwich",
+   "calories": 500,
+   "protein": 28,
+   "aliases": [
+    "sandwich",
+    "sub",
+    "deli sandwich",
+    "hero",
+    "hoagie",
+    "panini"
+   ]
+  },
+  {
+   "id": "wrap",
+   "name": "Wrap",
+   "emoji": "🌯",
+   "unit": "1 wrap",
+   "calories": 550,
+   "protein": 30,
+   "aliases": [
+    "wrap"
+   ]
+  },
+  {
+   "id": "salad-chicken",
+   "name": "Chicken salad (restaurant)",
+   "emoji": "🥗",
+   "unit": "1 bowl",
+   "calories": 550,
+   "protein": 38,
+   "aliases": [
+    "chicken salad",
+    "salad with chicken",
+    "grain bowl",
+    "salad bowl",
+    "salad",
+    "grilled chicken salad",
+    "chicken salad bowl"
+   ]
+  },
+  {
+   "id": "poke",
+   "name": "Poke bowl",
+   "emoji": "🍣",
+   "unit": "1 bowl",
+   "calories": 650,
+   "protein": 35,
+   "aliases": [
+    "poke",
+    "poke bowl"
+   ]
+  },
+  {
+   "id": "sushi-roll",
+   "name": "Sushi roll",
+   "emoji": "🍣",
+   "unit": "1 roll (6-8 pcs)",
+   "calories": 300,
+   "protein": 12,
+   "aliases": [
+    "sushi",
+    "sushi roll",
+    "california roll",
+    "spicy tuna roll",
+    "maki"
+   ]
+  },
+  {
+   "id": "sashimi",
+   "name": "Sashimi",
+   "emoji": "🍣",
+   "unit": "6 pieces",
+   "calories": 200,
+   "protein": 32,
+   "aliases": [
+    "sashimi",
+    "nigiri"
+   ]
+  },
+  {
+   "id": "ramen",
+   "name": "Ramen",
+   "emoji": "🍜",
+   "unit": "1 bowl",
+   "calories": 750,
+   "protein": 30,
+   "aliases": [
+    "ramen",
+    "pho",
+    "noodle soup"
+   ]
+  },
+  {
+   "id": "soup",
+   "name": "Soup",
+   "emoji": "🍲",
+   "unit": "1 bowl",
+   "calories": 250,
+   "protein": 10,
+   "aliases": [
+    "soup",
+    "chicken soup",
+    "lentil soup",
+    "chili"
+   ]
+  },
+  {
+   "id": "shawarma-plate",
+   "name": "Chicken shawarma plate",
+   "emoji": "🥙",
+   "unit": "1 plate",
+   "calories": 800,
+   "protein": 50,
+   "aliases": [
+    "shawarma",
+    "shawarma plate",
+    "chicken over rice",
+    "halal cart",
+    "gyro",
+    "gyro plate",
+    "platter"
+   ]
+  },
+  {
+   "id": "falafel",
+   "name": "Falafel wrap",
+   "emoji": "🧆",
+   "unit": "1 wrap",
+   "calories": 650,
+   "protein": 20,
+   "aliases": [
+    "falafel",
+    "falafel wrap",
+    "falafel sandwich"
+   ]
+  },
+  {
+   "id": "chinese-entree",
+   "name": "Chinese takeout entrée",
+   "emoji": "🥡",
+   "unit": "1 container",
+   "calories": 900,
+   "protein": 35,
+   "aliases": [
+    "chinese food",
+    "general tso",
+    "orange chicken",
+    "lo mein",
+    "sesame chicken",
+    "chinese takeout"
+   ]
+  },
+  {
+   "id": "thai-curry",
+   "name": "Thai curry with rice",
+   "emoji": "🍛",
+   "unit": "1 plate",
+   "calories": 800,
+   "protein": 30,
+   "aliases": [
+    "curry",
+    "thai curry",
+    "pad thai",
+    "pad see ew",
+    "indian food",
+    "tikka masala"
+   ]
+  },
+  {
+   "id": "dumplings",
+   "name": "Dumplings",
+   "emoji": "🥟",
+   "unit": "6 pieces",
+   "calories": 400,
+   "protein": 16,
+   "aliases": [
+    "dumplings",
+    "gyoza",
+    "potstickers"
+   ]
+  },
+  {
+   "id": "hot-dog",
+   "name": "Hot dog",
+   "emoji": "🌭",
+   "unit": "1 hot dog",
+   "calories": 290,
+   "protein": 11,
+   "aliases": [
+    "hot dog",
+    "hotdog"
+   ]
+  },
+  {
+   "id": "quesadilla",
+   "name": "Quesadilla (restaurant)",
+   "emoji": "🫓",
+   "unit": "1 quesadilla",
+   "calories": 700,
+   "protein": 35,
+   "aliases": [
+    "quesadilla"
+   ]
+  },
+  {
+   "id": "mac-cheese",
+   "name": "Mac and cheese",
+   "emoji": "🧀",
+   "unit": "1 cup",
+   "calories": 400,
+   "protein": 15,
+   "aliases": [
+    "mac n cheese",
+    "macaroni"
+   ]
+  },
+  {
+   "id": "cookie",
+   "name": "Cookie",
+   "emoji": "🍪",
+   "unit": "1 large cookie",
+   "calories": 220,
+   "protein": 3,
+   "aliases": [
+    "cookie",
+    "cookies",
+    "chocolate chip cookie"
+   ]
+  },
+  {
+   "id": "chocolate",
+   "name": "Chocolate",
+   "emoji": "🍫",
+   "unit": "1 oz",
+   "calories": 150,
+   "protein": 2,
+   "aliases": [
+    "chocolate",
+    "candy",
+    "candy bar",
+    "snickers",
+    "dark chocolate"
+   ]
+  },
+  {
+   "id": "ice-cream",
+   "name": "Ice cream",
+   "emoji": "🍨",
+   "unit": "1 cup",
+   "calories": 280,
+   "protein": 5,
+   "aliases": [
+    "ice cream",
+    "gelato",
+    "froyo",
+    "frozen yogurt"
+   ]
+  },
+  {
+   "id": "cake",
+   "name": "Cake slice",
+   "emoji": "🍰",
+   "unit": "1 slice",
+   "calories": 400,
+   "protein": 4,
+   "aliases": [
+    "cake",
+    "cheesecake",
+    "brownie",
+    "pie",
+    "dessert"
+   ]
+  },
+  {
+   "id": "pastry",
+   "name": "Pastry",
+   "emoji": "🥐",
+   "unit": "1 pastry",
+   "calories": 350,
+   "protein": 5,
+   "aliases": [
+    "pastry",
+    "danish",
+    "cinnamon roll",
+    "scone"
+   ]
+  },
+  {
+   "id": "dressing",
+   "name": "Dressing",
+   "emoji": "🥗",
+   "unit": "2 tbsp",
+   "calories": 140,
+   "protein": 0,
+   "aliases": [
+    "dressing",
+    "caesar dressing",
+    "ranch",
+    "vinaigrette",
+    "sauce",
+    "mayo",
+    "aioli"
+   ],
+   "addon": true
+  },
+  {
+   "id": "croutons",
+   "name": "Croutons",
+   "emoji": "🥖",
+   "unit": "1/4 cup",
+   "calories": 60,
+   "protein": 2,
+   "aliases": [
+    "croutons",
+    "crouton"
+   ],
+   "addon": true
+  },
+  {
+   "id": "cheese",
+   "name": "Cheese",
+   "emoji": "🧀",
+   "unit": "1 oz / 1 slice",
+   "calories": 100,
+   "protein": 7,
+   "aliases": [
+    "cheese",
+    "cheddar",
+    "swiss",
+    "provolone",
+    "mozzarella",
+    "american cheese"
+   ],
+   "addon": true
+  },
+  {
+   "id": "parmesan",
+   "name": "Parmesan",
+   "emoji": "🧀",
+   "unit": "2 tbsp",
+   "calories": 40,
+   "protein": 4,
+   "aliases": [
+    "parmesan",
+    "parm"
+   ],
+   "addon": true
+  },
+  {
+   "id": "feta",
+   "name": "Feta",
+   "emoji": "🧀",
+   "unit": "1/4 cup",
+   "calories": 80,
+   "protein": 4,
+   "aliases": [
+    "feta",
+    "goat cheese"
+   ],
+   "addon": true
+  },
+  {
+   "id": "avocado",
+   "name": "Avocado",
+   "emoji": "🥑",
+   "unit": "1/2 avocado",
+   "calories": 120,
+   "protein": 1,
+   "aliases": [
+    "avocado",
+    "avo",
+    "guac",
+    "guacamole"
+   ],
+   "addon": true
+  },
+  {
+   "id": "chicken-addon",
+   "name": "Extra chicken",
+   "emoji": "🍗",
+   "unit": "3 oz",
+   "calories": 140,
+   "protein": 26,
+   "aliases": [
+    "chicken",
+    "extra chicken",
+    "grilled chicken"
+   ],
+   "addon": true
+  },
+  {
+   "id": "egg-addon",
+   "name": "Egg",
+   "emoji": "🥚",
+   "unit": "1 egg",
+   "calories": 72,
+   "protein": 6,
+   "aliases": [
+    "egg",
+    "hard boiled egg"
+   ],
+   "addon": true
+  },
+  {
+   "id": "sour-cream",
+   "name": "Sour cream",
+   "emoji": "🥛",
+   "unit": "2 tbsp",
+   "calories": 60,
+   "protein": 1,
+   "aliases": [
+    "sour cream"
+   ],
+   "addon": true
+  },
+  {
+   "id": "olive-oil",
+   "name": "Oil",
+   "emoji": "🫒",
+   "unit": "1 tbsp",
+   "calories": 120,
+   "protein": 0,
+   "aliases": [
+    "oil",
+    "olive oil"
+   ],
+   "addon": true
+  },
+  {
+   "id": "cream-sugar",
+   "name": "Cream & sugar",
+   "emoji": "🥛",
+   "unit": "1 splash + 1 tsp",
+   "calories": 50,
+   "protein": 0,
+   "aliases": [
+    "cream",
+    "sugar",
+    "cream and sugar",
+    "milk and sugar"
+   ],
+   "addon": true
+  },
+  {
+   "id": "syrup",
+   "name": "Sweetener / syrup",
+   "emoji": "🍯",
+   "unit": "1 pump / 1 tbsp",
+   "calories": 30,
+   "protein": 0,
+   "aliases": [
+    "syrup",
+    "pump",
+    "vanilla",
+    "caramel",
+    "sweetener"
+   ],
+   "addon": true
+  },
+  {
+   "id": "tortilla-addon",
+   "name": "Tortilla",
+   "emoji": "🫓",
+   "unit": "1 tortilla",
+   "calories": 210,
+   "protein": 5,
+   "aliases": [
+    "tortilla",
+    "wrap"
+   ],
+   "addon": true
+  },
+  {
+   "id": "rice-addon",
+   "name": "Rice",
+   "emoji": "🍚",
+   "unit": "1/2 cup",
+   "calories": 105,
+   "protein": 2,
+   "aliases": [
+    "rice"
+   ],
+   "addon": true
+  },
+  {
+   "id": "bread-addon",
+   "name": "Bread",
+   "emoji": "🍞",
+   "unit": "1 slice",
+   "calories": 90,
+   "protein": 3,
+   "aliases": [
+    "bread",
+    "bun",
+    "roll"
+   ],
+   "addon": true
+  },
+  {
+   "id": "bacon-addon",
+   "name": "Bacon",
+   "emoji": "🥓",
+   "unit": "2 slices",
+   "calories": 90,
+   "protein": 6,
+   "aliases": [
+    "bacon"
+   ],
+   "addon": true
+  },
+  {
+   "id": "nuts-addon",
+   "name": "Nuts / seeds",
+   "emoji": "🥜",
+   "unit": "2 tbsp",
+   "calories": 100,
+   "protein": 3,
+   "aliases": [
+    "nuts",
+    "almonds",
+    "seeds",
+    "walnuts",
+    "pecans"
+   ],
+   "addon": true
+  },
+  {
+   "id": "tomato-addon",
+   "name": "Tomato",
+   "emoji": "🍅",
+   "unit": "few slices",
+   "calories": 10,
+   "protein": 0,
+   "aliases": [
+    "tomato",
+    "tomatoes",
+    "lettuce",
+    "onion",
+    "onions",
+    "pickles",
+    "peppers"
+   ],
+   "addon": true
+  },
+  {
+   "id": "honey",
+   "name": "Honey",
+   "emoji": "🍯",
+   "unit": "1 tbsp",
+   "calories": 64,
+   "protein": 0,
+   "aliases": [
+    "honey",
+    "drizzle of honey"
+   ],
+   "addon": true
+  },
+  {
+   "id": "jam",
+   "name": "Jam",
+   "emoji": "🍓",
+   "unit": "1 tbsp",
+   "calories": 50,
+   "protein": 0,
+   "aliases": [
+    "jam",
+    "jelly"
+   ],
+   "addon": true
+  }
+ ]
+}

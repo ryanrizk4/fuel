@@ -444,3 +444,31 @@ textarea.io { width: 100%; min-height: 110px; border-radius: 12px; border: 1px s
 .good-text { color: var(--good-text); font-weight: 650; }
 .bad-text { color: var(--critical); font-weight: 650; }
 [data-hist-day] { cursor: pointer; }
+
+/* ---------- type it ---------- */
+textarea.type-box { font-family: inherit; font-size: 1rem; min-height: 78px; }
+.type-examples { margin: 6px 0 4px; line-height: 1.7; }
+button.link { color: var(--accent); font-weight: 650; text-decoration: underline; text-underline-offset: 2px; padding: 0; font-size: inherit; text-align: left; }
+.type-item { border: 1px solid var(--hairline); border-radius: 14px; padding: 10px 12px; margin-top: 10px; background: var(--surface); }
+.type-item.check { border-color: var(--warning); }
+.type-item.unknown { border-color: var(--serious); background: color-mix(in srgb, var(--serious) 6%, var(--surface)); }
+.ti-head { display: flex; gap: 10px; align-items: flex-start; }
+.ti-emoji { font-size: 1.4rem; line-height: 1.2; }
+.ti-main { flex: 1; min-width: 0; }
+.ti-name-text { font-weight: 700; font-size: .96rem; }
+.ti-name { width: 100%; font-weight: 700; font-size: .96rem; border: 1px solid var(--hairline); border-radius: 8px; padding: 4px 8px; background: var(--surface); color: var(--ink); }
+.ti-sub { font-size: .76rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.ti-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.ti-chip { font-size: .72rem; font-weight: 650; padding: 2px 8px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-variant-numeric: tabular-nums; }
+.ti-warn { font-size: .74rem; color: var(--critical); margin-top: 4px; }
+.ti-nums { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.ti-nums label { display: flex; flex-direction: column; font-size: .68rem; color: var(--muted); font-weight: 650; flex: 1 1 70px; }
+.ti-nums input { margin-top: 2px; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink); font-size: .95rem; font-variant-numeric: tabular-nums; width: 100%; }
+.ti-qty { display: flex; gap: 2px; background: var(--surface-2); border-radius: 9px; padding: 2px; flex: 1 1 150px; }
+.ti-qty button { flex: 1; padding: 6px 2px; border-radius: 7px; font-size: .78rem; font-weight: 650; color: var(--ink-2); }
+.ti-qty button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.ti-remember { display: flex; gap: 8px; align-items: center; font-size: .8rem; margin-top: 8px; }
+.ti-remember input { width: 17px; height: 17px; accent-color: var(--accent); }
+.ti-alts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.ti-alt { font-size: .76rem; padding: 4px 9px; border-radius: 14px; border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink-2); }
+.btn:disabled { opacity: .5; }

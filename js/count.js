@@ -4,6 +4,7 @@
 
 import * as E from "./engine.js";
 import * as AI from "./ai.js";
+import * as PZ from "./parse.js";
 
 let ctx = null;
 let viewOffset = 0;          // 0 = today, -1 = yesterday … up to a year back
@@ -11,6 +12,8 @@ let build = null;            // builder draft: { kind, place?, picks|items, name
 let aiImage = null;          // { mediaType, data, preview }
 let aiResult = null;         // { items, note }
 let scanStream = null;
+let typed = null;            // { key, text, items, edits: {i: {calories, protein, name, removed, remember}} }
+let typeTimer = null;
 let scanTimer = null;
 
 const st = () => ctx.state();
@@ -237,7 +240,7 @@ export function renderCountToday(el) {
 
     <div class="log-actions">
       <button class="btn primary" data-action="c-sheet-log" data-date="${key}">＋ Log food</button>
-      <button class="btn" data-action="c-sheet-ai" data-date="${key}">✨ Describe / photo</button>
+      <button class="btn" data-action="c-sheet-type" data-date="${key}">✍️ Type it</button>
       <button class="btn" data-action="c-sheet-scan" data-date="${key}">▦ Scan</button>
     </div>
 
@@ -506,7 +509,7 @@ export function sheetLog(key) {
       ${section("🍽 Fuel meals (1 serving)", meals.map((i) => row(i, key, left)).join(""))}
       ${section("▦ Scanned", scanned.map((i) => row(i, key, left)).join(""))}
       ${section("🛒 Single ingredients", singles.map((i) => row(i, key, left)).join(""))}
-      <div class="empty" id="log-empty" hidden>Nothing matches. Add it with Quick add above, or let ✨ Describe / photo estimate it.</div>
+      <div class="empty" id="log-empty" hidden>Nothing matches by name.<br><button class="btn primary mt8" data-action="c-type-from-search" data-date="${key}">✍️ Understand what I typed</button></div>
     </div>
   `);
 }
@@ -659,11 +662,11 @@ function sheetEntry(key, id) {
   `);
 }
 
-function saveUsual({ name, emoji, calories, protein, detail, ref }) {
+function saveUsual({ name, emoji, calories, protein, detail, ref, aliases }) {
   const s = st();
   if (ref && s.usuals.some((u) => u.ref === ref)) return ctx.toast("Already in your usuals");
   if (!ref && s.usuals.some((u) => !u.ref && u.name === name && u.calories === calories)) return ctx.toast("Already in your usuals");
-  s.usuals.push(ref ? { id: uid(), ref } : { id: uid(), name, emoji: emoji || "⭐", calories, protein, detail: detail || "" });
+  s.usuals.push(ref ? { id: uid(), ref } : { id: uid(), name, emoji: emoji || "⭐", calories, protein, detail: detail || "", ...(aliases?.length ? { aliases } : {}) });
   ctx.save();
   ctx.toast(`⭐ ${name} is now a one-tap usual`);
 }
@@ -707,12 +710,12 @@ function getKey() { try { return localStorage.getItem(AI.KEY_SLOT) || ""; } catc
 export function hasAiKey() { return !!getKey(); }
 export function clearAiKey() { try { localStorage.removeItem(AI.KEY_SLOT); } catch { /* nothing to clear */ } }
 
-function sheetAI(key) {
+function sheetAI(key, prefill = "") {
   aiResult = null;
   if (!getKey()) {
     ctx.openSheet(`
       <h3>✨ Describe it or snap it</h3>
-      <div class="sub">Type “2 eggs, toast and a Pret latte” or take a photo of your plate — Fuel splits it into items with calories and protein you can adjust before logging.</div>
+      <div class="sub">For photos and meals “✍️ Type it” can't place. (Typing works without this — it runs on your phone.) Fuel splits the meal into items with calories and protein you adjust before logging.</div>
       <div class="trim-note">This uses the Claude API with <b>your own API key</b>. The key stays on this phone only: it's never in backups or exports. Each estimate costs roughly a cent.</div>
       <div class="field mt16"><label for="ai-key">Claude API key</label><input id="ai-key" type="password" autocomplete="off" placeholder="sk-ant-…" /></div>
       <button class="btn primary" style="width:100%" data-action="c-ai-key" data-date="${key}">Save key on this phone</button>
@@ -723,13 +726,147 @@ function sheetAI(key) {
   ctx.openSheet(`
     <h3>✨ Describe it or snap it</h3>
     <div class="sub">Logging to ${E.fmtDay(E.parseKey(key))}. Be as loose as you like.</div>
-    <div class="field"><textarea id="ai-text" class="io" style="font-family:inherit;font-size:.95rem;min-height:84px" placeholder="e.g. Chipotle bowl double chicken, half rice, fajita veg, plus a Diet Coke"></textarea></div>
+    <div class="field"><textarea id="ai-text" class="io" style="font-family:inherit;font-size:.95rem;min-height:84px" placeholder="e.g. Chipotle bowl double chicken, half rice, fajita veg, plus a Diet Coke">${esc(prefill)}</textarea></div>
     <label class="btn" style="width:100%;display:flex;justify-content:center;gap:8px">📷 ${aiImage ? "Change photo" : "Add a photo"}
       <input id="ai-photo" type="file" accept="image/*" capture="environment" hidden /></label>
     <div id="ai-thumb">${aiImage ? `<img src="${aiImage.preview}" alt="Food photo" class="ai-thumb" />` : ""}</div>
     <button class="btn primary mt16" style="width:100%" data-action="c-ai-run" data-date="${key}">Estimate</button>
     <div id="ai-out"></div>
   `);
+}
+
+
+// ---------- ✍️ Type it: on-phone meal parser (no AI) ----------
+
+function lexicon() {
+  return PZ.buildLexicon({ eats: eats(), data: ctx.data(), state: st(), foods: ctx.data().foods || [] });
+}
+
+export function sheetType(key, prefill = "") {
+  typed = { key, text: prefill, items: [], edits: {} };
+  ctx.openSheet(`
+    <h3>✍️ What did you eat?</h3>
+    <div class="sub">Type it or dictate it (🎤 on your keyboard). Separate foods with commas or “and”; change things with <b>no</b>, <b>extra</b>, <b>double</b>, <b>light</b>, <b>add</b>. Runs on your phone, no AI.</div>
+    <textarea id="type-text" class="io type-box" placeholder="e.g. chipotle bowl double chicken no rice extra guac, and a pret coffee" aria-label="What you ate">${esc(prefill)}</textarea>
+    <div class="type-examples small muted">Try: <button class="link" data-action="c-type-example">2 eggs, toast and a latte</button> · <button class="link" data-action="c-type-example">caesar salad no croutons add avocado</button> · <button class="link" data-action="c-type-example">half a pulled pork quesadilla</button></div>
+    <div class="small muted" style="margin-top:6px">📷 Photo or a tricky meal? <button class="link" data-action="c-type-ai" data-date="${key}">✨ AI estimate</button></div>
+    <div id="type-out"></div>
+  `);
+  const box = $("#type-text");
+  if (box) { box.focus(); if (prefill) runType(); }
+}
+
+function runType() {
+  if (!typed) return;
+  const text = $("#type-text")?.value || "";
+  if (text !== typed.text) typed.edits = {};
+  typed.text = text;
+  typed.items = text.trim() ? PZ.parseMeal(text, lexicon()).items : [];
+  renderType();
+}
+
+function typedTotals(it, i) {
+  const ed = typed.edits[i] || {};
+  const q = it.qty || 1;
+  return {
+    calories: ed.calories ?? (it.calories === null ? null : Math.round(it.calories * q)),
+    protein: ed.protein ?? (it.protein === null ? null : Math.round(it.protein * q)),
+    name: ed.name ?? it.name,
+  };
+}
+
+function renderType() {
+  const out = $("#type-out");
+  if (!out || !typed) return;
+  if (!typed.items.length) { out.innerHTML = ""; return; }
+  const left = dayStatus(typed.key).left;
+  let total = 0, missing = 0, count = 0;
+  const rows = typed.items.map((it, i) => {
+    const ed = typed.edits[i] || {};
+    if (ed.removed) return "";
+    count++;
+    const t = typedTotals(it, i);
+    if (t.calories === null || t.calories === "" || Number.isNaN(+t.calories)) missing++; else total += +t.calories;
+    const unknown = it.status === "unknown";
+    const chips = [
+      ...(it.qty !== 1 ? [`×${it.qty === 0.5 ? "½" : it.qty}`] : []),
+      ...it.notes,
+      ...it.changes.map((c) => `${c.label}${c.kcal ? ` (${c.kcal > 0 ? "+" : ""}${c.kcal})` : ""}`),
+    ].map((c) => `<span class="ti-chip">${esc(c)}</span>`).join("");
+    return `
+      <div class="type-item ${unknown ? "unknown" : it.status}">
+        <div class="ti-head">
+          <span class="ti-emoji">${esc(it.emoji)}</span>
+          <div class="ti-main">
+            ${unknown ? `<input class="ti-name" data-type-name="${i}" value="${esc(t.name)}" aria-label="Name" />`
+              : `<div class="ti-name-text">${esc(it.name)}</div>`}
+            <div class="ti-sub">${unknown ? `Didn't recognize “${esc(it.text)}” — add numbers once and Fuel remembers it.` : `from “${esc(it.text)}”`}</div>
+            ${chips ? `<div class="ti-chips">${chips}</div>` : ""}
+            ${it.ignored?.length ? `<div class="ti-warn">Couldn't apply: ${esc(it.ignored.join(", "))}</div>` : ""}
+          </div>
+          <button class="row-side" data-action="c-type-remove" data-idx="${i}" aria-label="Remove ${esc(t.name)}">✕</button>
+        </div>
+        <div class="ti-nums">
+          <label><span>kcal</span><input type="number" inputmode="numeric" data-type-cal="${i}" value="${t.calories ?? ""}" placeholder="?" /></label>
+          <label><span>protein g</span><input type="number" inputmode="decimal" data-type-pro="${i}" value="${t.protein ?? ""}" placeholder="0" /></label>
+          ${!unknown ? `<div class="ti-qty">${[0.5, 1, 1.5, 2].map((q) => `<button class="${(it.qty || 1) === q ? "on" : ""}" data-action="c-type-qty" data-idx="${i}" data-qty="${q}">${q === 0.5 ? "½" : q === 1.5 ? "1½" : q}×</button>`).join("")}</div>` : ""}
+        </div>
+        ${unknown ? `<label class="ti-remember"><input type="checkbox" data-type-remember="${i}" ${ed.remember === false ? "" : "checked"} /> Remember “${esc(it.text)}” as a usual</label>` : ""}
+        ${!unknown && it.alts?.length ? `<div class="ti-alts"><span class="small muted">${it.status === "check" ? "Did you mean" : "Or"}:</span> ${it.alts.map((a, k) => `<button class="ti-alt" data-action="c-type-swap" data-idx="${i}" data-alt="${k}">${esc(a.emoji)} ${esc(a.name)} · ${fmt(a.calories)}</button>`).join("")}</div>` : ""}
+      </div>`;
+  }).join("");
+  const after = left - total;
+  out.innerHTML = `
+    ${rows}
+    <div class="build-total">
+      <div><b>${fmt(total)} kcal</b>${missing ? ` + ${missing} without numbers` : ""} · ${after < 0 ? `<span style="color:var(--critical)">${fmt(-after)} over budget</span>` : `${fmt(after)} left after this`}</div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn primary" data-action="c-type-log" ${!count || missing ? "disabled" : ""}>${missing ? "Add the missing numbers" : `Log ${count} item${count === 1 ? "" : "s"}`}</button>
+        <button class="btn ghost" data-action="c-type-log" data-save="1" ${!count || missing ? "disabled" : ""}>Log + ⭐ as one usual</button>
+      </div>
+      ${hasAiKey() ? `<button class="btn ghost small mt8" style="width:100%" data-action="c-type-ai">✨ Not right? Let AI estimate it instead</button>` : ""}
+    </div>`;
+}
+
+// Phrases "Type it" couldn't fully place, kept (outside the state record, it's not health
+// data that matters) so the owner can paste them into a tuning session.
+const MISS_SLOT = "fuel.typemisses.v1";
+export function typeMisses() { try { return JSON.parse(localStorage.getItem(MISS_SLOT) || "[]"); } catch { return []; } }
+export function clearTypeMisses() { try { localStorage.removeItem(MISS_SLOT); } catch { /* ignore */ } }
+function recordMisses(text, items) {
+  const misses = items.filter((it) => it.status === "unknown" || it.ignored?.length || it.swapped || it.edited)
+    .map((it) => ({ phrase: it.text, got: it.status === "unknown" ? "unrecognized" : it.swapped ? `swapped to ${it.name}` : it.edited ? `numbers changed on ${it.name}` : `ignored: ${it.ignored.join(", ")}` }));
+  if (!misses.length) return;
+  try {
+    const all = [{ text, at: new Date().toISOString().slice(0, 10), misses }, ...typeMisses()].slice(0, 40);
+    localStorage.setItem(MISS_SLOT, JSON.stringify(all));
+  } catch { /* storage full: tuning notes are optional */ }
+}
+
+function typeLog(saveAsOne) {
+  const key = typed.key;
+  recordMisses(typed.text, typed.items.map((it, i) => ({ ...it, edited: typed.edits[i]?.calories != null && it.status !== "unknown" && +typed.edits[i].calories !== Math.round(it.calories * (it.qty || 1)) })).filter((_, i) => !typed.edits[i]?.removed));
+  const day = logDay(key);
+  const picked = [];
+  typed.items.forEach((it, i) => {
+    const ed = typed.edits[i] || {};
+    if (ed.removed) return;
+    const t = typedTotals(it, i);
+    const cal = Math.max(0, Math.round(+t.calories || 0)), pro = Math.max(0, Math.round((+t.protein || 0) * 10) / 10);
+    const q = it.status === "unknown" ? 1 : it.qty || 1;
+    const name = (t.name || it.text).trim();
+    day.entries.push({ id: uid(), name, emoji: it.emoji === "❓" ? "✏️" : it.emoji, calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, qty: q, ref: it.id || null, detail: it.status === "unknown" ? "" : PZ.describe(it), source: "Typed", at: new Date().toISOString() });
+    picked.push({ name, emoji: it.emoji, calories: cal, protein: pro });
+    // teach the parser: next time this phrase is recognized with these numbers
+    if (it.status === "unknown" && ed.remember !== false) saveUsual({ name, emoji: "✏️", calories: cal, protein: pro, aliases: [it.text] });
+  });
+  if (!picked.length) return;
+  if (saveAsOne) saveUsual({ name: picked.length === 1 ? picked[0].name : typed.text.trim().slice(0, 70), emoji: picked[0].emoji === "❓" ? "✏️" : picked[0].emoji, calories: picked.reduce((n, p) => n + p.calories, 0), protein: picked.reduce((n, p) => n + p.protein, 0), detail: typed.text.trim(), aliases: [typed.text.trim()] });
+  typed = null;
+  afterLogChange(key);
+  ctx.closeSheet();
+  const { left } = dayStatus(key);
+  ctx.toast(left < 0 ? `⚠️ Logged — ${fmt(-left)} over today` : `✓ Logged ${picked.length} item${picked.length === 1 ? "" : "s"} · ${fmt(left)} kcal left`);
 }
 
 async function readPhoto(file) {
@@ -877,13 +1014,28 @@ function sheetScanResult(key, code, food) {
 
 function onInput(e) {
   if (e.target.id === "log-search") filterLog(e.target.value);
+  else if (e.target.id === "type-text") { clearTimeout(typeTimer); typeTimer = setTimeout(runType, 220); }
+  else if (typed && e.target.dataset.typeCal !== undefined) { (typed.edits[e.target.dataset.typeCal] ||= {}).calories = e.target.value === "" ? null : +e.target.value; refreshTypeTotal(); }
+  else if (typed && e.target.dataset.typePro !== undefined) { (typed.edits[e.target.dataset.typePro] ||= {}).protein = e.target.value === "" ? null : +e.target.value; }
+  else if (typed && e.target.dataset.typeName !== undefined) { (typed.edits[e.target.dataset.typeName] ||= {}).name = e.target.value; }
   else if (e.target.id === "qa-name") e.target.dataset.touched = "1";
   else if (e.target.id === "b-search") renderBuildSearch(e.target.value);
   else if (e.target.id === "b-name" && build) build.name = e.target.value;
   else if (["g-current", "g-goal", "g-date"].includes(e.target.id)) updateGoalPreview();
 }
 
+// Update the footer without re-rendering the inputs the owner is typing into.
+function refreshTypeTotal() {
+  const out = $("#type-out .build-total");
+  if (!out || !typed) return;
+  const active = document.activeElement?.dataset;
+  const focus = active?.typeCal ?? null;
+  renderType();
+  if (focus !== null) { const el = document.querySelector(`[data-type-cal="${focus}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
+}
+
 async function onChange(e) {
+  if (typed && e.target.dataset.typeRemember !== undefined) { (typed.edits[e.target.dataset.typeRemember] ||= {}).remember = e.target.checked; return; }
   if (e.target.id !== "ai-photo" || !e.target.files?.[0]) return;
   try {
     aiImage = await readPhoto(e.target.files[0]);
@@ -909,6 +1061,26 @@ export function handleCount(el) {
     case "c-day": viewOffset = Math.min(0, Math.max(-365, viewOffset + +el.dataset.delta)); ctx.renderAll(); return true;
     case "c-sheet-log": return sheetLog(key), true;
     case "c-sheet-ai": return sheetAI(key), true;
+    case "c-sheet-type": return sheetType(key), true;
+    case "c-type-from-search": return sheetType(key, $("#log-search")?.value || ""), true;
+    case "c-type-example": { const b = $("#type-text"); if (b) { b.value = el.textContent; runType(); } return true; }
+    case "c-type-remove": { (typed.edits[el.dataset.idx] ||= {}).removed = true; renderType(); return true; }
+    case "c-type-qty": {
+      const it = typed.items[+el.dataset.idx];
+      if (it) { it.qty = +el.dataset.qty; delete typed.edits[el.dataset.idx]?.calories; delete typed.edits[el.dataset.idx]?.protein; renderType(); }
+      return true;
+    }
+    case "c-type-swap": {
+      const it = typed.items[+el.dataset.idx];
+      const alt = it?.alts?.[+el.dataset.alt];
+      if (!alt) return true;
+      it.alts = [{ id: it.id, name: it.name, emoji: it.emoji, calories: it.calories, protein: it.protein, build: it.build, kind: it.kind }, ...it.alts.filter((_, k) => k !== +el.dataset.alt)];
+      Object.assign(it, { id: alt.id, name: alt.name, emoji: alt.emoji, calories: alt.calories, protein: alt.protein, build: alt.build, kind: alt.kind, changes: [], ignored: [], status: "ok", swapped: true });
+      delete typed.edits[el.dataset.idx];
+      renderType(); return true;
+    }
+    case "c-type-log": typeLog(!!el.dataset.save); return true;
+    case "c-type-ai": { const text = typed?.text || $("#type-text")?.value || ""; sheetAI(typed?.key || key, text); return true; }
     case "c-sheet-scan": return sheetScan(key), true;
     case "c-sheet-walk": return sheetWalk(key), true;
     case "c-sheet-goal": return sheetGoal(), true;

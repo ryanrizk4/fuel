@@ -26,6 +26,8 @@ Preserve the product's defining advantages:
 - `js/engine.js`: pure planning and nutrition logic with no DOM access (includes count-mode math:
   settlement, payback, walks, goal pacing, week balance, barcode parsing).
 - `js/count.js`: "Just count" mode UI (logging, builder, barcode, AI, payback, goal sheets).
+- `js/parse.js`: "Type it" typed-meal parser (no AI); `data/foods.json` is its common-foods list.
+- `js/history.js`: History & stats on the Progress tab (charts, weekly table, CSV export).
 - `js/ai.js`: Claude API request/response for food estimates; owner's key, stored outside state.
 - `js/persistence.js`: versioned state records, forward migrations, recovery copies, and the backup format. No DOM access.
 - `data/products.json`: product/macronutrient database.
