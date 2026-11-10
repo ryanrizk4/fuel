@@ -9,6 +9,7 @@ const SHELL = [
   "js/engine.js",
   "js/count.js",
   "js/ai.js",
+  "js/history.js",
   "js/persistence.js",
   "js/release.js",
   "js/reloadGuard.js",

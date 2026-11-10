@@ -6,7 +6,7 @@ import * as E from "./engine.js";
 import * as AI from "./ai.js";
 
 let ctx = null;
-let viewOffset = 0;          // 0 = today, -1 = yesterday … -6
+let viewOffset = 0;          // 0 = today, -1 = yesterday … up to a year back
 let build = null;            // builder draft: { kind, place?, picks|items, name, emoji, key }
 let aiImage = null;          // { mediaType, data, preview }
 let aiResult = null;         // { items, note }
@@ -18,6 +18,12 @@ const esc = (s) => ctx.esc(s);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
 const $ = (sel) => document.querySelector(sel);
+
+/** Jump Today's count view to any past day (from History). */
+export function openDay(key) {
+  const diff = Math.round((E.parseKey(key) - E.parseKey(ctx.todayKey())) / 86400000);
+  viewOffset = Math.max(-365, Math.min(0, diff));
+}
 
 export function initCount(context) {
   ctx = context;
@@ -193,7 +199,7 @@ export function renderCountToday(el) {
     <div class="list-title-row"><div class="screen-title">${isToday ? "Today" : viewOffset === -1 ? "Yesterday" : E.fmtDay(E.parseKey(key))}</div>
       <button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="day-nav">
-      <button class="btn small ghost" data-action="c-day" data-delta="-1" ${viewOffset <= -6 ? "disabled" : ""} aria-label="Previous day">‹</button>
+      <button class="btn small ghost" data-action="c-day" data-delta="-1" ${viewOffset <= -365 ? "disabled" : ""} aria-label="Previous day">‹</button>
       <span class="screen-sub" style="margin:0">${dateStr}</span>
       <button class="btn small ghost" data-action="c-day" data-delta="1" ${isToday ? "disabled" : ""} aria-label="Next day">›</button>
     </div>
@@ -900,7 +906,7 @@ export function handleCount(el) {
       ctx.toast(s.trackMode === "count" ? "Just counting — Plan and Shop are tucked away until you switch back" : "Full planning mode");
       return true;
     }
-    case "c-day": viewOffset = Math.min(0, Math.max(-6, viewOffset + +el.dataset.delta)); ctx.renderAll(); return true;
+    case "c-day": viewOffset = Math.min(0, Math.max(-365, viewOffset + +el.dataset.delta)); ctx.renderAll(); return true;
     case "c-sheet-log": return sheetLog(key), true;
     case "c-sheet-ai": return sheetAI(key), true;
     case "c-sheet-scan": return sheetScan(key), true;

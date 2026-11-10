@@ -435,3 +435,12 @@ textarea.io { width: 100%; min-height: 110px; border-radius: 12px; border: 1px s
 @media (min-width: 900px) {
   .quick-row { flex-wrap: wrap; overflow: visible; }
 }
+
+/* ---------- history ---------- */
+.week-table { font-size: .82rem; font-variant-numeric: tabular-nums; }
+.wt-row { display: grid; grid-template-columns: 1.3fr 1.1fr 0.9fr 0.8fr; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--hairline); align-items: baseline; }
+.wt-row:last-child { border-bottom: none; }
+.wt-head { color: var(--muted); font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.good-text { color: var(--good-text); font-weight: 650; }
+.bad-text { color: var(--critical); font-weight: 650; }
+[data-hist-day] { cursor: pointer; }

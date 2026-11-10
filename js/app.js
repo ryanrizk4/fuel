@@ -3,6 +3,7 @@
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
 import * as C from "./count.js";
+import * as H from "./history.js";
 import "./release.js";
 import { createReloadGuard } from "./reloadGuard.js";
 
@@ -77,6 +78,14 @@ function syncStorageWarning() {
   document.body.appendChild(warning);
 }
 
+// Browsers give a site roughly 5 MB of localStorage. A year of detailed logs uses well
+// under 1 MB, but recovery copies multiply it, so show the owner where they stand.
+function storageUsed() {
+  let n = 0;
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); n += (k.length + (localStorage.getItem(k) || "").length) * 2; } } catch { /* unavailable */ }
+  return n;
+}
+
 function backupReminder() {
   const age = state.lastBackup ? Math.round((E.parseKey(todayKey()) - E.parseKey(state.lastBackup)) / 86400000) : null;
   if (age !== null && age < 14) return "";
@@ -136,6 +145,14 @@ async function boot() {
   C.initCount({
     state: () => state, data: () => DATA, save, openSheet, closeSheet, toast, esc, todayKey, renderAll, switchTab,
     backupReminder,
+  });
+  H.initHistory({
+    state: () => state, data: () => DATA, openSheet, esc, todayKey, toast,
+    renderProgress: () => renderProgress(),
+    openDayInToday: (key) => {
+      if (state.trackMode !== "count") { state.trackMode = "count"; save(); toast("Switched to Just count to edit that day — switch back anytime"); }
+      C.openDay(key); closeSheet(); renderAll(); switchTab("today");
+    },
   });
   DATA_UPDATED = p.updated || t.updated || "";
   load();
@@ -715,7 +732,7 @@ function renderProgress() {
 
   el.innerHTML = `
     <div class="list-title-row"><div class="screen-title">Progress</div><button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
-    <div class="screen-sub">Goal: ${target} lb (−${p.goalLossLb} from ${p.startWeightLb})</div>
+    <div class="screen-sub">Goal: ${target} lb (−${p.goalLossLb} from ${p.startWeightLb}) · your history from both modes lives here</div>
 
     <div class="tiles">
       <div class="tile"><div class="t-label">Current</div><div class="t-value">${current} lb</div><div class="t-sub">last weigh-in</div></div>
@@ -723,6 +740,8 @@ function renderProgress() {
       <div class="tile"><div class="t-label">Goal date</div><div class="t-value">${etaStr}</div><div class="t-sub">≈ ${proj.daysLeft} days at −${p.deficit}/day</div></div>
       <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "bad" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal to absorb · pushes goal ~${Math.ceil(proj.bankDays)} day${Math.ceil(proj.bankDays) !== 1 ? "s" : ""}` : "kcal — all clear ✓"}</div></div>
     </div>
+
+    ${H.historySection()}
 
     ${(() => {
       const cal = E.calibration(state);
@@ -914,6 +933,11 @@ function renderMore() {
       <div class="diag-row"><span>Offline mode ready</span><span class="${navigator.serviceWorker?.controller ? "ok" : "warn"}">${navigator.serviceWorker?.controller ? "yes ✓" : "first visit"}</span></div>
       <div class="diag-row"><span>Connection</span><span class="${navigator.onLine ? "ok" : "warn"}">${navigator.onLine ? "online ✓" : "offline — cached data"}</span></div>
       <div class="diag-row"><span>Last live data check</span><span>${esc(state.lastDataFetch || "—")}</span></div>
+      ${(() => {
+        const used = storageUsed();
+        const pct = Math.round((used / 5_000_000) * 100);
+        return `<div class="diag-row"><span>Phone storage used by Fuel</span><span class="${pct >= 70 ? "warn" : "ok"}">${(used / 1_000_000).toFixed(2)} MB · ~${pct}%</span></div>`;
+      })()}
       <div class="diag-row"><span>Recipe database</span><span>${DATA.templates.length} meals · ${DATA.products.length} products</span></div>
       <div class="diag-row"><span>Database last researched</span><span>${esc(DATA_UPDATED || "unknown")}</span></div>
       <div class="btn-row"><button class="btn" data-action="check-updates">🔄 Check for updates now</button></div>
@@ -1422,6 +1446,7 @@ function readKcal(el) {
 function handleAction(el) {
   const a = el.dataset.action;
   if (C.handleCount(el)) return;
+  if (H.handleHistory(el)) return;
 
   switch (a) {
     case "ob-save": return finishOnboarding();
@@ -1790,6 +1815,7 @@ document.addEventListener("click", (e) => {
     setTimeout(() => (tip.style.display = "none"), 2200);
     return;
   }
+  if (H.handleChartTap(e.target)) return;
   const nav = e.target.closest(".nav button");
   if (nav) return switchTab(nav.dataset.tab);
   if (e.target.closest("#sheet-backdrop")) return closeSheet();

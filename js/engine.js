@@ -734,6 +734,141 @@ function weekBalance(state, todayK) {
   return { days, deficit: Math.round(deficit), target, lb: Math.round((deficit / KCAL_PER_LB) * 10) / 10, maintenance: maint, walked };
 }
 
+// ---------- history & statistics (both modes) ----------
+
+/**
+ * One row per calendar day in [fromKey, toKey], merging both ways of using Fuel:
+ * a count-mode log wins when present; otherwise a logged plan day is converted to
+ * calories eaten. source: "count" | "plan" | null (nothing logged). `approx` marks
+ * days whose calories are inferred (e.g. "ate out, about on plan").
+ */
+function dailyHistory(data, state, fromKey, toKey) {
+  const out = [];
+  const base = state.profile ? dailyBudget(state.profile) : 0;
+  for (let d = parseKey(fromKey); dateKey(d) <= toKey; d = addDays(d, 1)) {
+    const key = dateKey(d);
+    const log = state.foodLog?.[key];
+    const walked = (log?.walks || []).reduce((n, w) => n + (w.kcal || 0), 0);
+    if (log?.entries?.length) {
+      const t = logTotals(log.entries);
+      out.push({ key, source: "count", calories: t.calories, protein: t.protein, budget: log.settled?.budget ?? base, walked, items: log.entries.length, approx: false });
+      continue;
+    }
+    const plan = state.plan?.days?.[key];
+    if (plan && plan.status && plan.status !== "planned") {
+      let cal, pro, approx = false;
+      if (plan.status === "done") ({ calories: cal, protein: pro } = dayConsumed(data, state, plan));
+      else if (plan.status === "over") { const t = dayTotals(data, state, plan); cal = t.calories + (plan.overage || 0); pro = t.protein; }
+      else { cal = base + (plan.overage || 0); pro = 0; approx = true; } // ate out: only the estimate is known
+      out.push({ key, source: "plan", calories: cal, protein: pro, budget: base, walked, items: (plan.meals || []).length, approx });
+      continue;
+    }
+    if (plan?.eaten?.length && key < toKey) {
+      const t = dayConsumed(data, state, plan);
+      out.push({ key, source: "plan", calories: t.calories, protein: t.protein, budget: base, walked, items: plan.eaten.length, approx: true });
+      continue;
+    }
+    out.push({ key, source: null, calories: 0, protein: 0, budget: base, walked, items: 0, approx: false });
+  }
+  return out;
+}
+
+/** Headline numbers for a range of dailyHistory rows. Today (if present) is excluded from adherence. */
+function historyStats(rows, { maintenance, proteinTarget, todayKey } = {}) {
+  const logged = rows.filter((r) => r.source);
+  const closed = logged.filter((r) => r.key !== todayKey);
+  const n = logged.length;
+  const avg = (f) => (n ? Math.round(logged.reduce((s, r) => s + f(r), 0) / n) : 0);
+  const under = closed.filter((r) => r.calories <= r.budget).length;
+  const proteinHit = closed.filter((r) => proteinTarget && r.protein >= proteinTarget * 0.9 && !r.approx).length;
+  // streak of consecutive closed, logged, within-budget days ending at the most recent closed day
+  let streak = 0;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (r.key === todayKey) continue;
+    if (r.source && r.calories <= r.budget) streak++;
+    else break;
+  }
+  let best = 0, run = 0;
+  for (const r of rows) {
+    if (r.key === todayKey) continue;
+    if (r.source && r.calories <= r.budget) { run++; best = Math.max(best, run); } else run = 0;
+  }
+  const deficit = maintenance ? closed.reduce((s, r) => s + (maintenance - r.calories + (r.walked || 0)), 0) : 0;
+  const overDays = closed.filter((r) => r.calories > r.budget);
+  return {
+    days: rows.length, logged: n, closed: closed.length,
+    avgCalories: avg((r) => r.calories), avgProtein: avg((r) => r.protein),
+    underBudget: under, adherence: closed.length ? Math.round((under / closed.length) * 100) : 0,
+    proteinDays: proteinHit, streak, bestStreak: best,
+    deficit: Math.round(deficit), estLb: Math.round((deficit / KCAL_PER_LB) * 10) / 10,
+    overDays: overDays.length, overTotal: overDays.reduce((s, r) => s + (r.calories - r.budget), 0),
+    biggestDay: closed.reduce((m, r) => (r.calories > (m?.calories ?? -1) ? r : m), null),
+  };
+}
+
+/** Week-by-week (Mon start) summary with the scale's change over the same week. */
+function weeklySummary(rows, state, maintenance) {
+  const weeks = new Map();
+  for (const r of rows) {
+    const wk = dateKey(weekStart(parseKey(r.key)));
+    if (!weeks.has(wk)) weeks.set(wk, []);
+    weeks.get(wk).push(r);
+  }
+  const ws = [...(state.weighIns || [])].sort((a, b) => a.date.localeCompare(b.date));
+  const weightAt = (key) => { let w = null; for (const x of ws) { if (x.date <= key) w = x.lb; else break; } return w; };
+  return [...weeks.entries()].map(([wk, days]) => {
+    const logged = days.filter((d) => d.source);
+    const end = dateKey(addDays(parseKey(wk), 6));
+    const startW = weightAt(dateKey(addDays(parseKey(wk), -1))), endW = weightAt(end);
+    const deficit = logged.reduce((s, d) => s + (maintenance - d.calories + (d.walked || 0)), 0);
+    return {
+      week: wk, logged: logged.length,
+      avgCalories: logged.length ? Math.round(logged.reduce((s, d) => s + d.calories, 0) / logged.length) : 0,
+      avgProtein: logged.length ? Math.round(logged.reduce((s, d) => s + d.protein, 0) / logged.length) : 0,
+      overDays: logged.filter((d) => d.calories > d.budget).length,
+      deficit: Math.round(deficit), estLb: Math.round((deficit / KCAL_PER_LB) * 10) / 10,
+      weightChange: startW !== null && endW !== null && endW !== startW ? Math.round((endW - startW) * 10) / 10 : null,
+    };
+  }).reverse();
+}
+
+/** Most-logged foods in count mode over [fromKey, toKey]. */
+function topFoods(state, fromKey, toKey, limit = 8) {
+  const m = new Map();
+  for (const [k, d] of Object.entries(state.foodLog || {})) {
+    if (k < fromKey || k > toKey) continue;
+    for (const e of d.entries || []) {
+      const q = Number.isFinite(e.qty) ? e.qty : 1;
+      const cur = m.get(e.name) || { name: e.name, emoji: e.emoji || "🍽", count: 0, calories: 0, protein: 0 };
+      cur.count++; cur.calories += e.calories * q; cur.protein += e.protein * q;
+      m.set(e.name, cur);
+    }
+  }
+  return [...m.values()].sort((a, b) => b.count - a.count || b.calories - a.calories).slice(0, limit)
+    .map((f) => ({ ...f, calories: Math.round(f.calories), protein: Math.round(f.protein) }));
+}
+
+/** Spreadsheet export: one row per logged food (count mode) or logged plan day. */
+function historyCsv(data, state, fromKey, toKey) {
+  const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = [["date", "source", "item", "quantity", "calories", "protein_g", "day_budget", "note"].join(",")];
+  for (const r of dailyHistory(data, state, fromKey, toKey)) {
+    if (r.source === "count") {
+      for (const e of state.foodLog[r.key].entries) {
+        const qty = Number.isFinite(e.qty) ? e.qty : 1;
+        lines.push([r.key, "count", e.name, qty, Math.round(e.calories * qty), Math.round(e.protein * qty * 10) / 10, r.budget, e.detail || ""].map(q).join(","));
+      }
+      for (const w of state.foodLog[r.key].walks || []) lines.push([r.key, "walk", `Extra walk ${w.minutes} min`, 1, -w.kcal, 0, r.budget, w.applied].map(q).join(","));
+    } else if (r.source === "plan") {
+      lines.push([r.key, "plan", `Plan day (${state.plan.days[r.key].status})`, 1, r.calories, r.protein, r.budget, r.approx ? "estimated" : ""].map(q).join(","));
+    }
+  }
+  const ws = (state.weighIns || []).filter((w) => w.date >= fromKey && w.date <= toKey);
+  for (const w of ws) lines.push([w.date, "weigh-in", "Weight (lb)", 1, "", "", "", w.lb].map(q).join(","));
+  return lines.join("\n") + "\n";
+}
+
 // ---------- shopping list ----------
 
 /**
@@ -783,6 +918,7 @@ export {
   ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP, PAYBACK_RATES, MAX_WEEKLY_LOSS_PCT, BUDGET_FLOOR,
   paybackRate, dailyTrim, walkCredit, walkMinutesFor, paybackOptions, goalPlan,
   componentTotals, productTotals, catalogItems, logTotals, settleCountDays, resettleDay, weekBalance, suggestFits, parseOpenFoodFacts,
+  dailyHistory, historyStats, weeklySummary, topFoods, historyCsv,
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
