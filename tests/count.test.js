@@ -238,3 +238,74 @@ test("the AI key is never part of the saved state or a backup", () => {
   assert.ok(!Object.keys(P.defaultState()).some((k) => /key|api/i.test(k)));
   assert.notEqual(AI.KEY_SLOT, P.STORE_KEY);
 });
+
+// ---------- history & stats ----------
+
+function historyState() {
+  const st = mkState();
+  const budget = E.dailyBudget(st.profile);
+  st.foodLog["2026-11-02"] = { entries: [entry(budget - 200, 150)], walks: [] };
+  st.foodLog["2026-11-03"] = { entries: [entry(budget + 800, 90)], walks: [{ minutes: 60, kcal: 144, applied: "today" }] };
+  st.foodLog["2026-11-05"] = { entries: [entry(budget - 100, 140)], walks: [], settled: { budget: budget - 150, trim: 150, over: 50, eaten: budget - 100 } };
+  // a plan-mode day marked done, and one "ate out"
+  const meals = [{ slot: "lunch", templateId: templates[0].id, variantId: "classic" }];
+  st.plan.days["2026-11-06"] = { meals, snacks: [], status: "done", eaten: [0] };
+  st.plan.days["2026-11-07"] = { meals, snacks: [], status: "skipped", eaten: [], overage: 500 };
+  return { st, budget };
+}
+
+test("history merges both modes and keeps unlogged days as gaps", () => {
+  const { st, budget } = historyState();
+  const rows = E.dailyHistory(DATA, st, "2026-11-01", "2026-11-08");
+  assert.equal(rows.length, 8);
+  const by = Object.fromEntries(rows.map((r) => [r.key, r]));
+  assert.equal(by["2026-11-01"].source, null);
+  assert.equal(by["2026-11-02"].source, "count");
+  assert.equal(by["2026-11-03"].walked, 144);
+  assert.equal(by["2026-11-05"].budget, budget - 150, "a settled day keeps the budget it actually had");
+  assert.equal(by["2026-11-06"].source, "plan");
+  assert.equal(by["2026-11-06"].calories, E.mealMacros(DATA, st, templates[0].id, "classic").calories);
+  assert.equal(by["2026-11-07"].calories, budget + 500);
+  assert.equal(by["2026-11-07"].approx, true);
+});
+
+test("history stats: averages, adherence, streaks and estimated loss", () => {
+  const { st, budget } = historyState();
+  const rows = E.dailyHistory(DATA, st, "2026-11-01", "2026-11-08");
+  const maint = E.tdee(st.profile);
+  const s = E.historyStats(rows, { maintenance: maint, proteinTarget: 150, todayKey: "2026-11-08" });
+  assert.equal(s.logged, 5);
+  assert.equal(s.overDays, 3, "the binge day, the slightly-over payback day and the ate-out day");
+  assert.equal(s.underBudget, 2);
+  assert.equal(s.adherence, 40);
+  assert.equal(s.streak, 0, "the most recent finished logged day was over budget");
+  assert.equal(s.bestStreak, 1);
+  const expectedDef = rows.filter((r) => r.source).reduce((n, r) => n + maint - r.calories + r.walked, 0);
+  assert.equal(s.deficit, expectedDef);
+  assert.equal(s.biggestDay.key, "2026-11-03");
+});
+
+test("weekly summary lines up logged deficit with the scale", () => {
+  const { st } = historyState();
+  st.weighIns = [{ date: "2026-11-01", lb: 160 }, { date: "2026-11-08", lb: 159 }];
+  const rows = E.dailyHistory(DATA, st, "2026-11-02", "2026-11-08");
+  const [wk] = E.weeklySummary(rows, st, E.tdee(st.profile));
+  assert.equal(wk.week, "2026-11-02");
+  assert.equal(wk.logged, 5);
+  assert.equal(wk.weightChange, -1);
+});
+
+test("top foods counts repeats; CSV export is spreadsheet-safe", () => {
+  const st = mkState();
+  st.foodLog["2026-11-02"] = { entries: [{ name: "Pret coffee", calories: 200, protein: 10, qty: 1 }, { name: 'Bowl, "double"', calories: 750, protein: 77, qty: 1, detail: "chicken, rice" }], walks: [{ minutes: 30, kcal: 72, applied: "bank" }] };
+  st.foodLog["2026-11-03"] = { entries: [{ name: "Pret coffee", calories: 200, protein: 10, qty: 2 }], walks: [] };
+  st.weighIns = [{ date: "2026-11-03", lb: 159.4 }];
+  const top = E.topFoods(st, "2026-11-01", "2026-11-03");
+  assert.deepEqual(top[0], { name: "Pret coffee", emoji: "🍽", count: 2, calories: 600, protein: 30 });
+  const csv = E.historyCsv(DATA, st, "2026-11-01", "2026-11-03").trim().split("\n");
+  assert.equal(csv[0], "date,source,item,quantity,calories,protein_g,day_budget,note");
+  assert.ok(csv.some((l) => l.startsWith('2026-11-02,count,"Bowl, ""double""",1,750,77,') && l.endsWith('"chicken, rice"')));
+  assert.ok(csv.some((l) => l.startsWith("2026-11-03,count,Pret coffee,2,400,20,")));
+  assert.ok(csv.some((l) => l.startsWith("2026-11-02,walk,Extra walk 30 min,1,-72,")));
+  assert.ok(csv.some((l) => l === "2026-11-03,weigh-in,Weight (lb),1,,,,159.4"));
+});
