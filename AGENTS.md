@@ -23,10 +23,14 @@ Preserve the product's defining advantages:
 - `index.html`: application shell.
 - `css/styles.css`: mobile-first design system.
 - `js/app.js`: UI rendering, interactions, and persistence wiring.
-- `js/engine.js`: pure planning and nutrition logic with no DOM access.
+- `js/engine.js`: pure planning and nutrition logic with no DOM access (includes count-mode math:
+  settlement, payback, walks, goal pacing, week balance, barcode parsing).
+- `js/count.js`: "Just count" mode UI (logging, builder, barcode, AI, payback, goal sheets).
+- `js/ai.js`: Claude API request/response for food estimates; owner's key, stored outside state.
 - `js/persistence.js`: versioned state records, forward migrations, recovery copies, and the backup format. No DOM access.
 - `data/products.json`: product/macronutrient database.
 - `data/templates.json`: meal templates and variants.
+- `data/eats.json`: count-mode catalog — restaurant orders/components, home combos, starter usuals.
 - `sw.js`: PWA cache behavior.
 - `tests/`: engine and data-integrity tests.
 
@@ -65,7 +69,7 @@ For product or template changes:
 
 ## Persistence safety
 
-Persisted records are versioned (`schemaVersion`, currently 2) and migrate forward on load.
+Persisted records are versioned (`schemaVersion`, currently 3) and migrate forward on load.
 Fuel keeps a bounded rolling ring of recovery copies and takes one before any write that
 replaces or deletes the record. All of this lives in `js/persistence.js`, which has no DOM
 access and is covered by `tests/persistence.test.js`.

@@ -2,6 +2,7 @@
 
 import * as E from "./engine.js";
 import * as P from "./persistence.js";
+import * as C from "./count.js";
 import "./release.js";
 import { createReloadGuard } from "./reloadGuard.js";
 
@@ -125,11 +126,17 @@ function mealTitle(m) {
 async function boot() {
   if (window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone)
     document.documentElement.classList.add("standalone");
-  const [p, t] = await Promise.all([
+  const [p, t, eats] = await Promise.all([
     fetch("data/products.json", { cache: "no-cache" }).then((r) => r.json()),
     fetch("data/templates.json", { cache: "no-cache" }).then((r) => r.json()),
+    // The quick-log catalog is optional: count mode still works (usuals, quick add) without it.
+    fetch("data/eats.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
-  DATA = { products: p.products, templates: t.templates };
+  DATA = { products: p.products, templates: t.templates, eats: eats || { places: [], home: [], starterUsuals: [] } };
+  C.initCount({
+    state: () => state, data: () => DATA, save, openSheet, closeSheet, toast, esc, todayKey, renderAll, switchTab,
+    backupReminder,
+  });
   DATA_UPDATED = p.updated || t.updated || "";
   load();
   if (!recovery) {
@@ -220,6 +227,9 @@ function finishOnboarding() {
 // ---------- rendering ----------
 
 function renderAll() {
+  const counting = state.trackMode === "count";
+  document.body.classList.toggle("mode-count", counting);
+  if (counting && (currentTab === "plan" || currentTab === "shop")) switchTab("today", "replace");
   renderToday();
   renderPlan();
   renderShop();
@@ -381,6 +391,12 @@ function renderToday() {
   const day = state.plan.days[key];
   const p = state.profile;
   if (!p) return;
+  if (state.trackMode === "count") {
+    const msg = C.settle();
+    C.renderCountToday(el);
+    if (msg) setTimeout(() => toast(msg), 400);
+    return;
+  }
   const { budget: effBudget, trim, credit } = E.effectiveBudget(state, day);
   const pTarget = E.proteinTarget(p);
   const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -389,7 +405,9 @@ function renderToday() {
     el.innerHTML = `
       <div class="screen-title">Today</div>
       <div class="screen-sub">${dateStr}</div>
+      ${C.modeSwitch()}
       ${backupReminder()}
+      ${C.recoveryCard(key)}
       <div class="card empty">Nothing planned for today yet.<br><br>
         <button class="btn primary" data-action="plan-this-week">Auto-plan this week</button>
       </div>`;
@@ -401,7 +419,7 @@ function renderToday() {
   const remaining = Math.max(0, effBudget - consumed.calories);
   const pct = Math.min(1, consumed.calories / effBudget);
   const over = consumed.calories > effBudget;
-  const R = 52, C = 2 * Math.PI * R;
+  const R = 52, CIRC = 2 * Math.PI * R;
 
   const mealRows = (day.meals || []).map((m, i) => {
     const t = mealTitle(m);
@@ -477,6 +495,7 @@ function renderToday() {
     <div class="list-title-row"><div class="screen-title">Today</div>
       <button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">${dateStr}</div>
+    ${C.modeSwitch()}
 
     ${backupReminder()}
 
@@ -486,7 +505,7 @@ function renderToday() {
           <svg width="118" height="118" viewBox="0 0 118 118">
             <circle cx="59" cy="59" r="${R}" fill="none" stroke="var(--surface-2)" stroke-width="10"/>
             <circle cx="59" cy="59" r="${R}" fill="none" stroke="${over ? "var(--critical)" : "var(--accent)"}" stroke-width="10"
-              stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/>
+              stroke-linecap="round" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - pct)}"/>
           </svg>
           <div class="ring-center">
             <div class="big">${over ? `+${consumed.calories - effBudget}` : remaining}</div>
@@ -521,6 +540,7 @@ function renderToday() {
       ${snackRows || '<div class="small muted">No snacks planned — add one if you\'re hungry, it counts against today\'s budget.</div>'}
     </div>
 
+    ${C.recoveryCard(key)}
     ${defrostNote}
     ${checkinCard}
     ${statusCard}`;
@@ -733,8 +753,8 @@ function renderProgress() {
       <h3>How the binge math works</h3>
       <div class="small muted mt8">
         Log a heavy day on the Today tab (“Went over”). The extra calories go into your overage bank.
-        Fuel trims up to ${E.MAX_DAILY_TRIM} kcal/day off your budget until it's paid back — never more,
-        so you don't starve and rebound. Whatever trimming can't cover just moves your goal date. The math
+        Fuel trims ${E.paybackRate(state)} kcal/day (your chosen payback speed: 150, 250 or 350) off your budget until
+        it's paid back, never below the safety floor, so you don't starve and rebound. An extra walk pays it down too. Whatever trimming can't cover just moves your goal date. The math
         is stark but honest: one big weekend ≈ a few extra days, not a failed plan.
       </div>
     </div>
@@ -818,7 +838,14 @@ function renderMore() {
   el.innerHTML = `
     <div class="list-title-row"><div class="screen-title">Settings</div>
       <button class="btn small ghost" data-action="back-today">← Back</button></div>
-    <div class="screen-sub">Profile, freezer, data.</div>
+    <div class="screen-sub">Profile, goal, freezer, data.</div>
+
+    <div class="card">
+      <h3>How you use Fuel</h3>
+      <div class="small muted" style="margin:4px 0 10px">“Just count” is a fast calorie counter with your usuals, restaurant orders, barcode scan and AI estimates. “Full plan” is the weekly planner with shopping lists. Switch any week — nothing is lost.</div>
+      ${C.modeSwitch()}
+      <button class="btn primary" style="width:100%" data-action="c-sheet-goal">🏁 Set goal weight & date</button>
+    </div>
 
     <div class="card">
       <h3>Your numbers</h3>
@@ -835,7 +862,7 @@ function renderMore() {
         </div>
         <div class="field"><label>Deficit</label>
           <select id="s-deficit">
-            ${[250, 500, 750].map((d) => `<option value="${d}" ${p.deficit === d ? "selected" : ""}>−${d}/day</option>`).join("")}
+            ${[...new Set([250, 500, 750, p.deficit])].sort((a, b) => a - b).map((d) => `<option value="${d}" ${p.deficit === d ? "selected" : ""}>−${d}/day</option>`).join("")}
           </select>
         </div>
       </div>
@@ -865,6 +892,13 @@ function renderMore() {
       </div>
       <div class="small muted" style="margin-bottom:6px">Auto-plan uses these before scheduling new cooking. Batch-cook days add portions automatically when you mark the day done.</div>
       ${freezerRows || '<div class="small muted">Freezer empty.</div>'}
+    </div>
+
+    <div class="card">
+      <h3>✨ AI estimates</h3>
+      <div class="diag-row"><span>Claude API key on this phone</span><span class="${C.hasAiKey() ? "ok" : "warn"}">${C.hasAiKey() ? "saved ✓" : "not set"}</span></div>
+      <div class="small muted mt8">Used only for “Describe / photo” in count mode. The key is stored on this phone alone and is never included in backups or exports.</div>
+      ${C.hasAiKey() ? '<div class="btn-row"><button class="btn ghost danger" data-action="ai-key-remove">Remove key</button></div>' : ""}
     </div>
 
     <div class="card">
@@ -1052,6 +1086,7 @@ function bindSheetDrag(sheet) {
 }
 
 function closeSheet() {
+  C.stopScan();
   $("#sheet").classList.remove("open");
   $("#sheet-backdrop").classList.remove("open");
   sheetCtx = null;
@@ -1167,7 +1202,7 @@ function sheetOver(dateK) {
       <div class="field" style="margin:0"><input id="over-input" type="number" inputmode="numeric" placeholder="Custom kcal over" /></div>
       <button class="btn primary" data-action="log-over" data-date="${dateK}" data-kcal="input">Log</button>
     </div>
-    <div class="small muted mt16">It goes into the overage bank and gets absorbed at ≤${E.MAX_DAILY_TRIM} kcal/day. Stark but fair.</div>
+    <div class="small muted mt16">It goes into the payback plan and gets absorbed at ${E.paybackRate(state)} kcal/day (change the speed on Today). Stark but fair.</div>
   `);
 }
 
@@ -1315,7 +1350,7 @@ function markDone(dateK) {
   (day.snacks || []).forEach((s) => (s.eaten = true));
   E.recordHistory(state, day, dateK);
   // pay down the overage bank with today's trim
-  if (state.overageBank > 0) state.overageBank = Math.max(0, state.overageBank - Math.min(E.MAX_DAILY_TRIM, state.overageBank));
+  if (state.overageBank > 0) state.overageBank = Math.max(0, state.overageBank - E.dailyTrim(state));
   // freezer bookkeeping
   for (const m of day.meals || []) {
     if (m.fromFreezer) {
@@ -1369,6 +1404,12 @@ function logOver(dateK, kcal) {
   save(); closeSheet(); renderAll();
 }
 
+// In count mode the activity credit lives on the food-log day, not a plan day.
+function activityDay(dateK) {
+  if (state.trackMode !== "count") return state.plan.days[dateK];
+  return (state.foodLog[dateK] = state.foodLog[dateK] || { entries: [], walks: [] });
+}
+
 function readKcal(el) {
   const raw = el.dataset.kcal;
   if (raw === "input") {
@@ -1380,6 +1421,7 @@ function readKcal(el) {
 
 function handleAction(el) {
   const a = el.dataset.action;
+  if (C.handleCount(el)) return;
 
   switch (a) {
     case "ob-save": return finishOnboarding();
@@ -1430,13 +1472,13 @@ function handleAction(el) {
     case "log-activity": {
       const raw = el.dataset.kcal === "input" ? +($("#activity-input")?.value || 0) : +el.dataset.kcal;
       if (!raw || raw < 0) return;
-      const day = state.plan.days[el.dataset.date];
+      const day = activityDay(el.dataset.date);
       if (!day) return;
       day.activityCredit = { kcal: E.activityCreditFromTracker(raw), label: el.dataset.label, reported: raw };
       save(); closeSheet(); renderAll(); return;
     }
     case "remove-activity": {
-      const day = state.plan.days[el.dataset.date];
+      const day = activityDay(el.dataset.date);
       if (day) delete day.activityCredit;
       save(); renderAll(); return;
     }
@@ -1643,6 +1685,9 @@ function handleAction(el) {
       applyTheme(); save(); return renderMore();
     }
 
+    case "ai-key-remove": {
+      C.clearAiKey(); renderMore(); toast("API key removed from this phone"); return;
+    }
     case "retry-save": {
       if (save()) toast("Changes saved ✓");
       return;

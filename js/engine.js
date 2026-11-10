@@ -18,6 +18,21 @@ const BUDGET_FLOOR = { male: 1500, female: 1200 };
 const ACTIVITY_DISCOUNT = 0.5;
 const ACTIVITY_CAP = 300;
 
+// Overage payback speeds the owner can choose (kcal trimmed per day). The default
+// stays at MAX_DAILY_TRIM; faster speeds are offered but the trim can never push the
+// budget under the safety floor.
+const PAYBACK_RATES = [150, 250, 350];
+
+// Goal pacing: never plan to lose faster than 1% of bodyweight per week (muscle
+// retention guidance for people who lift). Slower goals are fine.
+const MAX_WEEKLY_LOSS_PCT = 0.01;
+
+// Extra walking, net of the resting burn the TDEE already counts. Net walking cost is
+// roughly 0.3 kcal per lb per mile at an easy 3 mph — deliberately the low end, so a
+// logged walk can't be over-credited the way tracker numbers are.
+const WALK_MPH = 3;
+const WALK_NET_KCAL_PER_LB_MILE = 0.3;
+
 // ---------- dates ----------
 
 function dateKey(d) {
@@ -76,12 +91,76 @@ function proteinTarget(p) {
   return Math.round(ideal * (p.proteinPerLb || 1.0));
 }
 
-// Effective budget today = budget − overage-bank trim + any extra-activity credit for the day
+function paybackRate(state) {
+  const r = Number(state?.paybackPerDay);
+  return PAYBACK_RATES.includes(r) ? r : MAX_DAILY_TRIM;
+}
+
+// Today's trim toward the overage bank: the chosen speed, never more than what's owed,
+// never enough to push the budget under the safety floor.
+function dailyTrim(state) {
+  const p = state.profile;
+  const room = Math.max(0, dailyBudget(p) - (BUDGET_FLOOR[p.sex] || 1200));
+  return Math.min(paybackRate(state), Math.max(0, state.overageBank || 0), room);
+}
+
+// Effective budget today = budget − overage-bank trim + any extra-activity credit for the day.
+// `day` may be a plan day or a count-mode log day; walks that were applied to the day count too.
 function effectiveBudget(state, day) {
   const p = state.profile;
-  const trim = Math.min(MAX_DAILY_TRIM, Math.max(0, state.overageBank || 0));
-  const credit = day?.activityCredit?.kcal || 0;
+  const trim = dailyTrim(state);
+  const walked = (day?.walks || []).filter((w) => w.applied === "today").reduce((n, w) => n + (w.kcal || 0), 0);
+  const credit = Math.min(ACTIVITY_CAP, (day?.activityCredit?.kcal || 0) + walked);
   return { budget: dailyBudget(p) - trim + credit, trim, credit };
+}
+
+// Net kcal for an extra walk beyond the routine the activity multiplier already covers.
+function walkCredit(minutes, weightLb) {
+  const miles = (Math.max(0, minutes) / 60) * WALK_MPH;
+  return Math.min(ACTIVITY_CAP, Math.round(miles * WALK_NET_KCAL_PER_LB_MILE * Math.max(0, weightLb || 0)));
+}
+
+// Minutes of extra walking needed to cancel `kcal` (uncapped, for honest messaging).
+function walkMinutesFor(kcal, weightLb) {
+  const perMin = (WALK_MPH / 60) * WALK_NET_KCAL_PER_LB_MILE * Math.max(1, weightLb || 0);
+  return Math.ceil(Math.max(0, kcal) / perMin);
+}
+
+// How long a given bank takes to clear at each payback speed.
+function paybackOptions(state, bank = state.overageBank || 0) {
+  const p = state.profile;
+  const room = Math.max(0, dailyBudget(p) - (BUDGET_FLOOR[p.sex] || 1200));
+  return PAYBACK_RATES.map((rate) => {
+    const perDay = Math.min(rate, room);
+    return { rate, perDay, days: perDay > 0 ? Math.ceil(bank / perDay) : Infinity, budget: dailyBudget(p) - perDay };
+  });
+}
+
+/**
+ * Goal pacing. Given current weight, goal weight and a target date, work out the daily
+ * deficit that gets there — capped at 1%/week of bodyweight and at the budget floor —
+ * and say honestly when the date isn't reachable at a safe pace.
+ */
+function goalPlan(profile, { currentLb, goalLb, goalDate, today }) {
+  const p = { ...profile, weightLb: currentLb };
+  const maintenance = tdee(p);
+  const floor = BUDGET_FLOOR[p.sex] || 1200;
+  const toLose = Math.max(0, Math.round((currentLb - goalLb) * 10) / 10);
+  const days = Math.max(1, Math.round((parseKey(goalDate) - parseKey(today)) / 86400000));
+  const required = Math.round((toLose * KCAL_PER_LB) / days);
+  const maxSafe = Math.round((currentLb * MAX_WEEKLY_LOSS_PCT * KCAL_PER_LB) / 7);
+  const floorRoom = Math.max(0, maintenance - floor);
+  const rounded = Math.round(required / 25) * 25;
+  const deficit = Math.max(0, Math.min(rounded, maxSafe, floorRoom));
+  const limitedBy = required > maxSafe + 12 && maxSafe <= floorRoom ? "pace" : required > floorRoom + 12 ? "floor" : null;
+  const daysNeeded = deficit > 0 ? Math.ceil((toLose * KCAL_PER_LB) / deficit) : Infinity;
+  return {
+    maintenance, toLose, days, required, maxSafe, deficit, limitedBy,
+    budget: maintenance - deficit,
+    lbPerWeek: Math.round(((deficit * 7) / KCAL_PER_LB) * 10) / 10,
+    daysNeeded,
+    eta: Number.isFinite(daysNeeded) ? dateKey(addDays(parseKey(today), daysNeeded)) : null,
+  };
 }
 
 // Convert a tracker-reported "calories burned" into an edible credit
@@ -467,6 +546,194 @@ function recordHistory(state, day, key) {
   }
 }
 
+// ---------- quick-log catalog (count mode) ----------
+
+// Totals for a build-your-own pick list against a menu of components ({id: qty}).
+function componentTotals(components, picks) {
+  let calories = 0, protein = 0, estimated = false;
+  for (const [id, qty] of Object.entries(picks || {})) {
+    const c = components.find((x) => x.id === id);
+    if (!c || !qty) continue;
+    calories += c.calories * qty;
+    protein += c.protein * qty;
+    if (c.confidence === "estimated") estimated = true;
+  }
+  return { calories: Math.round(calories), protein: Math.round(protein), estimated };
+}
+
+// Same idea for home combos made of products.json items ({product, qty}).
+function productTotals(data, state, items) {
+  let calories = 0, protein = 0, estimated = false;
+  for (const it of items || []) {
+    const prod = productById(data, state, it.product);
+    if (!prod) continue;
+    calories += prod.calories * it.qty;
+    protein += prod.protein * it.qty;
+    if (prod.confidence === "estimated") estimated = true;
+  }
+  return { calories: Math.round(calories), protein: Math.round(protein), estimated };
+}
+
+/**
+ * Flatten restaurants, home combos and Fuel's own meal templates into one list of
+ * loggable things: { id, name, emoji, group, calories, protein, estimated, build? }.
+ * `build` describes how to customize it ({ kind: "components"|"products", place?, picks|items }).
+ */
+function catalogItems(eats, data, state) {
+  const out = [];
+  for (const place of eats?.places || []) {
+    for (const it of place.items || []) {
+      let m;
+      if (it.picks) m = componentTotals(place.components || [], it.picks);
+      else m = { calories: it.calories, protein: it.protein, estimated: it.confidence === "estimated" };
+      out.push({
+        id: it.id, name: it.name, emoji: it.emoji || place.emoji || "🍽", group: place.name, place: place.id,
+        calories: m.calories, protein: m.protein, estimated: m.estimated, note: it.note || "",
+        build: it.picks ? { kind: "components", place: place.id, picks: { ...it.picks } } : null,
+      });
+    }
+  }
+  for (const it of eats?.home || []) {
+    const m = productTotals(data, state, it.items);
+    out.push({
+      id: it.id, name: it.name, emoji: it.emoji || "🏠", group: "Home", calories: m.calories, protein: m.protein,
+      estimated: m.estimated, note: it.note || "", build: { kind: "products", items: it.items.map((x) => ({ ...x })) },
+    });
+  }
+  for (const t of data?.templates || []) {
+    const m = mealMacros(data, state, t.id, "classic");
+    out.push({ id: `meal:${t.id}`, name: t.name, emoji: t.emoji || "🍽", group: "Fuel meals", calories: m.calories, protein: m.protein, estimated: m.estimated, note: "", build: null });
+  }
+  return out;
+}
+
+function logTotals(entries) {
+  let calories = 0, protein = 0;
+  for (const e of entries || []) {
+    const q = Number.isFinite(e.qty) ? e.qty : 1;
+    calories += (e.calories || 0) * q;
+    protein += (e.protein || 0) * q;
+  }
+  return { calories: Math.round(calories), protein: Math.round(protein) };
+}
+
+/**
+ * Close out finished count-mode days, oldest first. A day that ended over its budget
+ * adds the excess to the overage bank; every logged day pays down that day's trim.
+ * Under-eating never earns credit (that's the restrict-then-binge loop). Days with
+ * nothing logged are left alone — no data is not the same as eating zero.
+ * Mutates state; returns the list of days it settled.
+ */
+function settleCountDays(state, todayK) {
+  const settled = [];
+  const keys = Object.keys(state.foodLog || {}).filter((k) => k < todayK).sort();
+  for (const k of keys) {
+    const day = state.foodLog[k];
+    if (!day || day.settled || !(day.entries || []).length) continue;
+    const { budget, trim } = effectiveBudget(state, day);
+    const eaten = logTotals(day.entries).calories;
+    const over = Math.max(0, eaten - budget);
+    state.overageBank = Math.max(0, (state.overageBank || 0) - trim) + over;
+    day.settled = { budget, trim, over, eaten };
+    settled.push({ key: k, ...day.settled });
+  }
+  return settled;
+}
+
+/**
+ * A past day was edited after it was settled (forgot to log dinner, fixed a number).
+ * Keep the day's original budget and trim, and move the bank by exactly the change
+ * in that day's overage — never re-run the whole history.
+ */
+function resettleDay(state, key) {
+  const day = state.foodLog?.[key];
+  if (!day?.settled) return 0;
+  const eaten = logTotals(day.entries).calories;
+  const over = Math.max(0, eaten - day.settled.budget);
+  const delta = over - day.settled.over;
+  state.overageBank = Math.max(0, (state.overageBank || 0) + delta);
+  day.settled = { ...day.settled, over, eaten };
+  return delta;
+}
+
+/**
+ * "What fits right now": things you actually eat that fit the calories left, best
+ * protein-per-calorie first, with a nudge toward closing the protein gap.
+ */
+function suggestFits(items, kcalLeft, proteinLeft, limit = 4) {
+  if (kcalLeft < 80) return [];
+  return items
+    .filter((i) => i.calories > 0 && i.calories <= kcalLeft)
+    .map((i) => {
+      const density = i.protein / Math.max(1, i.calories); // g per kcal
+      const closes = proteinLeft > 0 ? Math.min(1, i.protein / proteinLeft) : 0;
+      const usesRoom = i.calories / kcalLeft; // prefer real meals over a stick of gum when there's room
+      return { ...i, score: density * 100 + closes * 3 + usesRoom * 2 };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+/**
+ * Open Food Facts product JSON → a loggable food. Prefers per-serving numbers and
+ * falls back to per-100 g, so the caller can scale by grams when there's no serving.
+ * Returns null when the product has no calorie data.
+ */
+function parseOpenFoodFacts(json) {
+  const p = json?.product;
+  if (!p || json.status === 0) return null;
+  const n = p.nutriments || {};
+  const num = (v) => (v === undefined || v === null || v === "" ? null : Number(v));
+  const kcal100 = num(n["energy-kcal_100g"]) ?? (num(n["energy_100g"]) !== null ? num(n["energy_100g"]) / 4.184 : null);
+  const prot100 = num(n["proteins_100g"]);
+  const servingG = num(p.serving_quantity);
+  let kcalServ = num(n["energy-kcal_serving"]);
+  let protServ = num(n["proteins_serving"]);
+  if (kcalServ === null && kcal100 !== null && servingG) kcalServ = (kcal100 * servingG) / 100;
+  if (protServ === null && prot100 !== null && servingG) protServ = (prot100 * servingG) / 100;
+  if (kcalServ === null && kcal100 === null) return null;
+  const name = [p.brands?.split(",")[0]?.trim(), p.product_name || p.generic_name].filter(Boolean).join(" ") || "Scanned item";
+  return {
+    name,
+    serving: kcalServ !== null ? (p.serving_size || (servingG ? `${servingG} g` : "1 serving")) : "100 g",
+    servingG: kcalServ !== null ? servingG : 100,
+    calories: Math.round(kcalServ ?? kcal100),
+    protein: Math.round((protServ ?? prot100 ?? 0) * 10) / 10,
+    per100: kcal100 !== null ? { calories: Math.round(kcal100), protein: Math.round((prot100 ?? 0) * 10) / 10 } : null,
+  };
+}
+
+/**
+ * The Mon–Sun deficit picture for count mode: how far under maintenance the logged days
+ * landed, versus what the goal deficit would have banked. One big day shows up here as
+ * exactly what it is — some days of progress erased, not a failed week.
+ */
+function weekBalance(state, todayK) {
+  const p = state.profile;
+  const start = weekStart(parseKey(todayK));
+  const maint = tdee(p);
+  const days = [];
+  let deficit = 0, target = 0, walked = 0;
+  for (let i = 0; i < 7; i++) {
+    const k = dateKey(addDays(start, i));
+    if (k > todayK) break;
+    const d = state.foodLog?.[k];
+    const w = (d?.walks || []).reduce((n, x) => n + (x.kcal || 0), 0);
+    walked += w;
+    if (!d || !(d.entries || []).length) { days.push({ key: k, logged: false, walked: w }); continue; }
+    const eaten = logTotals(d.entries).calories;
+    const { budget } = d.settled ? { budget: d.settled.budget } : effectiveBudget(state, d);
+    const isToday = k === todayK;
+    // Today isn't over yet: assume the rest of today's budget gets eaten (or what's
+    // already eaten, if that's more), so the week number never looks better than it is.
+    const dayDef = isToday ? maint - Math.max(eaten, budget) : maint - eaten;
+    deficit += dayDef + w;
+    target += p.deficit;
+    days.push({ key: k, logged: true, eaten, budget, over: Math.max(0, eaten - budget), walked: w, isToday });
+  }
+  return { days, deficit: Math.round(deficit), target, lb: Math.round((deficit / KCAL_PER_LB) * 10) / 10, maintenance: maint, walked };
+}
+
 // ---------- shopping list ----------
 
 /**
@@ -513,7 +780,9 @@ function shoppingList(data, state, startKey) {
 }
 
 export {
-  ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP,
+  ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP, PAYBACK_RATES, MAX_WEEKLY_LOSS_PCT, BUDGET_FLOOR,
+  paybackRate, dailyTrim, walkCredit, walkMinutesFor, paybackOptions, goalPlan,
+  componentTotals, productTotals, catalogItems, logTotals, settleCountDays, resettleDay, weekBalance, suggestFits, parseOpenFoodFacts,
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
