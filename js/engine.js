@@ -3,6 +3,7 @@
 const ACTIVITY_FACTORS = {
   sedentary: 1.2,
   light: 1.375,
+  walker: 1.45,     // desk job + ~10k steps/day + lifting 3–4×: between light and moderate
   moderate: 1.55,
   very: 1.725,
 };
@@ -73,17 +74,64 @@ function bmr(p) {
   return Math.round(base + (p.sex === "male" ? 5 : -161));
 }
 
-function tdee(p) {
+// Formula estimate only (age/height/weight × activity). What the body actually burns can be
+// several hundred kcal off in either direction; real results override it (see maintenance()).
+function formulaTdee(p) {
   return Math.round(bmr(p) * (ACTIVITY_FACTORS[p.activity] || 1.375));
+}
+
+/**
+ * Maintenance calories. A number calibrated from the owner's real results — what worked before,
+ * or logs + weigh-ins — always beats the formula. Returns the formula when nothing is set.
+ */
+function tdee(p) {
+  return p.maintenanceKcal > 0 ? Math.round(p.maintenanceKcal) : formulaTdee(p);
+}
+
+function maintenanceSource(p) {
+  if (p.budgetKcal > 0) return "budget";
+  if (p.maintenanceKcal > 0) return p.maintenanceFrom || "history";
+  return "formula";
 }
 
 function dailyBudget(p) {
   const floor = BUDGET_FLOOR[p.sex] || 1200;
+  if (p.budgetKcal > 0) return Math.max(floor, Math.round(p.budgetKcal));   // set directly by the owner
   return Math.max(floor, tdee(p) - p.deficit);
 }
 
 function budgetIsFloored(p) {
-  return tdee(p) - p.deficit < (BUDGET_FLOOR[p.sex] || 1200);
+  const floor = BUDGET_FLOOR[p.sex] || 1200;
+  return (p.budgetKcal > 0 ? p.budgetKcal : tdee(p) - p.deficit) < floor;
+}
+
+/** "I ate ~1,800/day and lost ~1 lb/week" → maintenance ≈ 1,800 + 500 = 2,300. */
+function maintenanceFromHistory(kcalPerDay, lbPerWeek) {
+  if (!(kcalPerDay > 0)) return null;
+  return Math.round(kcalPerDay + ((Math.max(0, lbPerWeek || 0) * KCAL_PER_LB) / 7));
+}
+
+/**
+ * What the owner actually burns, from what they logged and what the scale did:
+ * maintenance ≈ average intake + (weight lost × 3,500) / days. Uses a least-squares weight
+ * trend so one salty day doesn't swing it. Needs ≥10 logged days and ≥2 weigh-ins ≥10 days
+ * apart inside the window; otherwise null. Under-logging makes this read low, which errs safe.
+ */
+function adaptiveMaintenance(intakeRows, weighIns, { minDays = 10 } = {}) {
+  const logged = (intakeRows || []).filter((r) => r.source && !r.approx);
+  if (logged.length < minDays) return null;
+  const from = logged[0].key, to = logged[logged.length - 1].key;
+  const ws = (weighIns || []).filter((w) => w.date >= from && w.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+  if (ws.length < 2) return null;
+  const t0 = parseKey(ws[0].date);
+  const xs = ws.map((w) => (parseKey(w.date) - t0) / 86400000), ys = ws.map((w) => w.lb);
+  const span = xs[xs.length - 1];
+  if (span < 10) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const slope = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0) / Math.max(1e-9, xs.reduce((s, x) => s + (x - mx) ** 2, 0)); // lb/day
+  const avgIntake = logged.reduce((s, r) => s + r.calories, 0) / logged.length;
+  const maintenance = Math.round(avgIntake - slope * KCAL_PER_LB);
+  return { maintenance, avgIntake: Math.round(avgIntake), lbPerWeek: Math.round(-slope * 7 * 10) / 10, days: logged.length, span: Math.round(span), weighIns: ws.length };
 }
 
 function proteinTarget(p) {
@@ -519,7 +567,7 @@ function calibration(state) {
   const span = Math.round((parseKey(last.date) - parseKey(first.date)) / 86400000);
   if (span < 10) return null;
   const actual = ((first.lb - last.lb) / span) * 7;
-  const planned = (state.profile.deficit * 7) / KCAL_PER_LB;
+  const planned = (Math.max(0, tdee(state.profile) - dailyBudget(state.profile)) * 7) / KCAL_PER_LB;
   const ratio = planned ? actual / planned : 1;
   let status = "on-track", note = "Your weight trend matches the plan — the math is working. Keep going.";
   if (ratio < 0.5) { status = "behind"; note = `Trend: losing ${actual.toFixed(1)} lb/wk vs ${planned.toFixed(1)} planned over ${span} days. If this holds another week, re-check portions and snacks, or raise the deficit a notch in Settings.`; }
@@ -728,7 +776,7 @@ function weekBalance(state, todayK) {
     // already eaten, if that's more), so the week number never looks better than it is.
     const dayDef = isToday ? maint - Math.max(eaten, budget) : maint - eaten;
     deficit += dayDef + w;
-    target += p.deficit;
+    target += Math.max(0, tdee(p) - dailyBudget(p));
     days.push({ key: k, logged: true, eaten, budget, over: Math.max(0, eaten - budget), walked: w, isToday });
   }
   return { days, deficit: Math.round(deficit), target, lb: Math.round((deficit / KCAL_PER_LB) * 10) / 10, maintenance: maint, walked };
@@ -916,6 +964,7 @@ function shoppingList(data, state, startKey) {
 
 export {
   ACTIVITY_FACTORS, MAX_DAILY_TRIM, KCAL_PER_LB, ACTIVITY_DISCOUNT, ACTIVITY_CAP, PAYBACK_RATES, MAX_WEEKLY_LOSS_PCT, BUDGET_FLOOR,
+  formulaTdee, maintenanceSource, maintenanceFromHistory, adaptiveMaintenance,
   paybackRate, dailyTrim, walkCredit, walkMinutesFor, paybackOptions, goalPlan,
   componentTotals, productTotals, catalogItems, logTotals, settleCountDays, resettleDay, weekBalance, suggestFits, parseOpenFoodFacts,
   dailyHistory, historyStats, weeklySummary, topFoods, historyCsv,

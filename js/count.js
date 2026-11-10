@@ -358,16 +358,46 @@ function weekCard() {
 
 // ---------- goal ----------
 
+const SOURCE_LABEL = { formula: "estimated from age, height & activity", history: "from what's worked for you", "what worked before": "from what's worked for you", "your logs": "measured from your logs + weigh-ins", budget: "you set it" };
+
 function goalCard() {
   const p = st().profile;
   const target = Math.round((p.startWeightLb - p.goalLossLb) * 10) / 10;
   const proj = E.goalProjection(st());
   const eta = proj.eta.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const budget = E.dailyBudget(p), maint = E.tdee(p), def = Math.max(0, maint - budget);
+  const src = E.maintenanceSource(p);
   return `
+    ${calibrationCard()}
     <div class="card" data-action="c-sheet-goal" style="cursor:pointer">
       <div class="list-title-row"><h3>🏁 Goal: ${target} lb</h3><span class="muted">›</span></div>
-      <div class="small muted">${fmt(E.dailyBudget(p))} kcal/day · −${p.deficit}/day ≈ ${Math.round((p.deficit * 7 / E.KCAL_PER_LB) * 10) / 10} lb/week · on pace for <b>${eta}</b>${p.goalDate ? ` (target ${E.parseKey(p.goalDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })})` : ""}. Tap to change.</div>
+      <div class="small"><b>${fmt(budget)} kcal/day</b> = maintenance ≈ ${fmt(maint)} − ${fmt(def)} deficit ≈ ${Math.round((def * 7 / E.KCAL_PER_LB) * 10) / 10} lb/week · on pace for <b>${eta}</b>${p.goalDate ? ` (target ${E.parseKey(p.goalDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })})` : ""}.</div>
+      <div class="small muted mt8">${src === "formula" ? "⚠️ Maintenance is a formula estimate and can be off by 300+ kcal. <b>Tap to calibrate</b> with what's actually worked for you." : `Maintenance ${esc(SOURCE_LABEL[src] || src)}. Tap to change.`}</div>
     </div>`;
+}
+
+/** What the owner's own logs + weigh-ins say they burn, when it disagrees with the current number. */
+export function adaptiveSuggestion() {
+  const s = st();
+  if (!s.profile) return null;
+  const today = ctx.todayKey();
+  const rows = E.dailyHistory(ctx.data(), s, E.dateKey(E.addDays(E.parseKey(today), -28)), E.dateKey(E.addDays(E.parseKey(today), -1)));
+  const res = E.adaptiveMaintenance(rows, s.weighIns);
+  if (!res) return null;
+  const current = E.tdee(s.profile);
+  if (Math.abs(res.maintenance - current) < 150 || s.profile.adaptiveDismissed === res.maintenance) return null;
+  return { ...res, current };
+}
+
+export function calibrationCard() {
+  const a = adaptiveSuggestion();
+  if (!a) return "";
+  return `<div class="card recovery">
+    <h3>📏 Your real maintenance</h3>
+    <div class="small mt8">Over ${a.days} logged days you averaged <b>${fmt(a.avgIntake)} kcal</b> and the scale ${a.lbPerWeek >= 0 ? `dropped ${a.lbPerWeek}` : `rose ${-a.lbPerWeek}`} lb/week. That means you burn about <b>${fmt(a.maintenance)} kcal/day</b> — Fuel is using ${fmt(a.current)}.</div>
+    <div class="btn-row"><button class="btn primary" data-action="c-use-adaptive" data-kcal="${a.maintenance}">Use ${fmt(a.maintenance)}</button><button class="btn ghost" data-action="c-dismiss-adaptive" data-kcal="${a.maintenance}">Not now</button></div>
+    <div class="small muted mt8">If you sometimes skip logging, this reads a little low — which errs on the safe side.</div>
+  </div>`;
 }
 
 function goalDefaults() {
@@ -378,11 +408,22 @@ function goalDefaults() {
   return { current, goal, date };
 }
 
+const ACTIVITY_CHOICES = [
+  ["sedentary", "Mostly sitting, little walking"],
+  ["light", "Desk job, some walking, gym 1–3×/week"],
+  ["walker", "Desk job + ~10k steps/day + lifting 3–4×"],
+  ["moderate", "On your feet a lot, or training 4–5×/week"],
+  ["very", "Physical job or hard training 6–7×/week"],
+];
+
 export function sheetGoal() {
   const d = goalDefaults();
+  const p = st().profile;
+  const mode = p.budgetKcal > 0 ? "budget" : p.maintenanceKcal > 0 ? "history" : "history";
+  const a = adaptiveSuggestion();
   ctx.openSheet(`
-    <h3>🏁 Set your goal</h3>
-    <div class="sub">Fuel works out the daily budget from your goal, then caps it at a pace that protects muscle.</div>
+    <h3>🏁 Goal & daily budget</h3>
+    <div class="sub">Budget = what you burn (maintenance) − a deficit sized to your goal, capped at a pace that protects muscle.</div>
     <div class="field-row">
       <div class="field"><label for="g-current">Weight now (lb)</label><input id="g-current" type="number" inputmode="decimal" value="${d.current}" /></div>
       <div class="field"><label for="g-goal">Goal weight (lb)</label><input id="g-goal" type="number" inputmode="decimal" value="${d.goal}" /></div>
@@ -391,11 +432,49 @@ export function sheetGoal() {
     <div class="chips" style="margin-top:-4px">
       ${[8, 12, 16].map((w) => `<button class="chip" data-action="c-goal-weeks" data-weeks="${w}">${w} weeks</button>`).join("")}
     </div>
+    <div class="ob-section">What you burn</div>
+    <div class="seg" id="g-mode-seg">
+      ${[["history", "What's worked"], ["estimate", "Estimate"], ["budget", "Set budget"]].map(([v, l]) => `<button class="${mode === v ? "on" : ""}" data-action="c-goal-mode" data-mode="${v}" aria-pressed="${mode === v}">${l}</button>`).join("")}
+    </div>
+    <input type="hidden" id="g-mode" value="${mode}" />
+    ${a ? `<div class="trim-note" style="margin:0 0 10px">📏 Your logs + weigh-ins say you burn ≈ <b>${fmt(a.maintenance)}</b>/day. <button class="link" data-action="c-goal-adaptive" data-kcal="${a.maintenance}">Use it</button></div>` : ""}
+    <div class="g-pane" data-pane="history" ${mode === "history" ? "" : "hidden"}>
+      <div class="small muted" style="margin-bottom:6px">The most reliable number is your own. When you've lost weight before:</div>
+      <div class="field-row">
+        <div class="field"><label for="g-hist-kcal">I ate about (kcal/day)</label><input id="g-hist-kcal" type="number" inputmode="numeric" placeholder="e.g. 1800" value="${p.maintenanceFrom === "what worked before" && p.histKcal ? p.histKcal : ""}" /></div>
+        <div class="field"><label for="g-hist-rate">and lost about</label>
+          <select id="g-hist-rate">${[[0.5, "½ lb/week"], [1, "1 lb/week"], [1.5, "1½ lb/week"], [2, "2 lb/week"], [0, "nothing (held steady)"]].map(([v, l]) => `<option value="${v}" ${(p.histRate ?? 1) === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      </div>
+    </div>
+    <div class="g-pane" data-pane="estimate" ${mode === "estimate" ? "" : "hidden"}>
+      <div class="field"><label for="g-activity">Your typical week</label>
+        <select id="g-activity">${ACTIVITY_CHOICES.map(([v, l]) => `<option value="${v}" ${(p.activity || "walker") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div class="small muted">Formula estimate (Mifflin-St Jeor). It can be off by 300+ kcal either way — your weigh-ins will tell.</div>
+    </div>
+    <div class="g-pane" data-pane="budget" ${mode === "budget" ? "" : "hidden"}>
+      <div class="field"><label for="g-budget">Daily budget (kcal)</label><input id="g-budget" type="number" inputmode="numeric" placeholder="e.g. 1800" value="${p.budgetKcal || ""}" /></div>
+    </div>
     <div id="goal-preview" class="budget-preview"></div>
     <button class="btn primary" style="width:100%" data-action="c-goal-save">Use this plan</button>
-    <div class="small muted mt8">Your weekly weigh-in is the referee: if the scale moves slower than planned for two weeks, Fuel's Trend check on Progress will say so and you can tighten up.</div>
+    <div class="small muted mt8">Your weekly weigh-in is the referee. Once you have ~2 weeks of logs and a couple of weigh-ins, Fuel measures what you actually burn and offers to switch to it.</div>
   `);
   updateGoalPreview();
+}
+
+// the profile the form describes, without saving it
+function goalProfile() {
+  const p = { ...st().profile };
+  const mode = $("#g-mode")?.value || "estimate";
+  const histKcal = +($("#g-hist-kcal")?.value || 0), histRate = +($("#g-hist-rate")?.value ?? 1);
+  if (mode === "estimate") { p.activity = $("#g-activity")?.value || p.activity; delete p.maintenanceKcal; delete p.budgetKcal; }
+  if (mode === "history") {
+    delete p.budgetKcal;
+    const m = E.maintenanceFromHistory(histKcal, histRate);
+    if (m) { p.maintenanceKcal = m; p.maintenanceFrom = "what worked before"; p.histKcal = histKcal; p.histRate = histRate; }
+    else if (!(p.maintenanceKcal > 0)) { /* nothing entered yet: falls back to the estimate */ }
+  }
+  if (mode === "budget") { const b = +($("#g-budget")?.value || 0); if (b > 0) p.budgetKcal = b; else delete p.budgetKcal; }
+  return { p, mode, histKcal };
 }
 
 function readGoal() {
@@ -414,21 +493,40 @@ function updateGoalPreview() {
     box.innerHTML = g.goalLb >= g.currentLb && g.goalLb ? "Goal weight should be below your current weight." : "Fill in all three to see your numbers.";
     return;
   }
-  const plan = E.goalPlan(st().profile, { ...g, today: ctx.todayKey() });
+  const { p: gp, mode, histKcal } = goalProfile();
+  if (mode === "budget" && gp.budgetKcal > 0) {
+    const maint = E.tdee({ ...gp, weightLb: g.currentLb, budgetKcal: 0 });
+    const budget = E.dailyBudget(gp), def = maint - budget, toLose = g.currentLb - g.goalLb;
+    const days = def > 0 ? Math.ceil((toLose * E.KCAL_PER_LB) / def) : Infinity;
+    const when = Number.isFinite(days) ? E.addDays(new Date(), days).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+    const tooFast = def > (g.currentLb * E.MAX_WEEKLY_LOSS_PCT * E.KCAL_PER_LB) / 7 + 25;
+    box.innerHTML = `Daily budget: <b>${fmt(budget)} kcal</b>${budget > gp.budgetKcal ? ` (raised to the ${fmt(budget)} safety floor)` : ""}<br>
+      <span class="small">With maintenance ≈ ${fmt(maint)} (${esc(SOURCE_LABEL[E.maintenanceSource({ ...gp, budgetKcal: 0 })] || "estimate")}), that's −${fmt(Math.max(0, def))}/day ≈ ${Math.round((Math.max(0, def) * 7 / E.KCAL_PER_LB) * 10) / 10} lb/week → ${def > 0 ? `around <b>${when}</b>` : "<b>no loss</b> — the budget is at or above maintenance"}.</span>
+      ${tooFast ? `<br><span class="small">⚠️ Faster than 1% of bodyweight a week — fine short term, but watch your lifts and energy.</span>` : ""}`;
+    return;
+  }
+  const uncalibrated = mode === "history" && !histKcal && !(gp.maintenanceKcal > 0);
+  const plan = E.goalPlan(gp, { ...g, today: ctx.todayKey() });
   const eta = plan.eta ? E.parseKey(plan.eta).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
   const warn = plan.limitedBy === "pace"
     ? `<br><span class="small">⚠️ That date needs −${fmt(plan.required)} kcal/day (${Math.round(plan.required * 7 / E.KCAL_PER_LB * 10) / 10} lb/week). Fuel caps you at 1% of bodyweight per week (−${fmt(plan.maxSafe)}/day) to keep muscle and avoid the crash-and-binge cycle. Realistic date: <b>${eta}</b>.</span>`
     : plan.limitedBy === "floor"
       ? `<br><span class="small">⚠️ That pace would put you under the ${E.BUDGET_FLOOR[st().profile.sex] || 1200} kcal floor. Realistic date: <b>${eta}</b>.</span>`
       : `<br><span class="small">On pace to land around <b>${eta}</b>.</span>`;
-  box.innerHTML = `Daily budget: <b>${fmt(plan.budget)} kcal</b> · protein <b>${E.proteinTarget({ ...st().profile, startWeightLb: g.currentLb, goalLossLb: g.currentLb - g.goalLb })}g</b><br>
-    <span class="small">Maintenance ≈ ${fmt(plan.maintenance)} kcal (your stats + daily walking and lifting). Deficit −${fmt(plan.deficit)}/day ≈ ${plan.lbPerWeek} lb/week to lose ${plan.toLose} lb.</span>${warn}`;
+  box.innerHTML = `${uncalibrated ? `<span class="small">👆 Enter what you ate when you were losing (for example <b>1800</b>) and Fuel works backward to what you really burn. Until then this uses the formula estimate:</span><br>` : ""}Daily budget: <b>${fmt(plan.budget)} kcal</b> · protein <b>${E.proteinTarget({ ...st().profile, startWeightLb: g.currentLb, goalLossLb: g.currentLb - g.goalLb })}g</b><br>
+    <span class="small">Maintenance ≈ ${fmt(plan.maintenance)} kcal (${esc(SOURCE_LABEL[E.maintenanceSource(gp)] || "estimate")}). Deficit −${fmt(plan.deficit)}/day ≈ ${plan.lbPerWeek} lb/week to lose ${plan.toLose} lb.</span>${warn}`;
 }
 
 function saveGoal() {
   const g = readGoal();
   if (!g.currentLb || !g.goalLb || !g.goalDate || g.goalLb >= g.currentLb) return ctx.toast("Check the three goal fields first");
   const s = st();
+  const { p: gp, mode } = goalProfile();
+  if (mode === "budget" && !(gp.budgetKcal > 0)) return ctx.toast("Enter a daily budget");
+  // "What's worked" left blank → keep the formula estimate rather than block the goal
+  for (const k of ["activity", "maintenanceKcal", "maintenanceFrom", "budgetKcal", "histKcal", "histRate"]) {
+    if (gp[k] === undefined) delete s.profile[k]; else s.profile[k] = gp[k];
+  }
   const plan = E.goalPlan(s.profile, { ...g, today: ctx.todayKey() });
   const p = s.profile;
   p.weightLb = g.currentLb;
@@ -436,11 +534,11 @@ function saveGoal() {
   p.startDate = ctx.todayKey();
   p.goalLossLb = Math.round((g.currentLb - g.goalLb) * 10) / 10;
   p.goalDate = g.goalDate;
-  p.deficit = plan.deficit;
+  p.deficit = p.budgetKcal > 0 ? Math.max(0, E.tdee({ ...p, budgetKcal: 0 }) - E.dailyBudget(p)) : plan.deficit;
   s.weighIns = s.weighIns.filter((w) => w.date !== ctx.todayKey());
   s.weighIns.push({ date: ctx.todayKey(), lb: g.currentLb });
   ctx.save(); ctx.closeSheet(); ctx.renderAll();
-  ctx.toast(`🏁 Budget set: ${fmt(plan.budget)} kcal/day`);
+  ctx.toast(`🏁 Budget set: ${fmt(E.dailyBudget(p))} kcal/day`);
 }
 
 // ---------- log sheet ----------
@@ -1220,7 +1318,7 @@ function onInput(e) {
   else if (e.target.id === "qa-name") e.target.dataset.touched = "1";
   else if (e.target.id === "b-search") renderBuildSearch(e.target.value);
   else if (e.target.id === "b-name" && build) build.name = e.target.value;
-  else if (["g-current", "g-goal", "g-date"].includes(e.target.id)) updateGoalPreview();
+  else if (["g-current", "g-goal", "g-date", "g-hist-kcal", "g-budget"].includes(e.target.id)) updateGoalPreview();
 }
 
 // Update the footer without re-rendering the inputs the owner is typing into.
@@ -1237,6 +1335,7 @@ async function onChange(e) {
   if (typed && e.target.dataset.typeRemember !== undefined) { (typed.edits[e.target.dataset.typeRemember] ||= {}).remember = e.target.checked; return; }
   if (typed && e.target.dataset.recipeSave !== undefined) { (typed.edits[e.target.dataset.recipeSave] ||= {}).saveRecipe = e.target.checked; return; }
   if (e.target.id === "amt-unit") { updateAmount(); return; }
+  if (["g-hist-rate", "g-activity"].includes(e.target.id)) { updateGoalPreview(); return; }
   if (e.target.id !== "ai-photo" || !e.target.files?.[0]) return;
   try {
     aiImage = await readPhoto(e.target.files[0]);
@@ -1422,6 +1521,27 @@ export function handleCount(el) {
       return true;
     }
     case "c-goal-save": return saveGoal(), true;
+    case "c-goal-mode": {
+      const m = $("#g-mode"); if (m) m.value = el.dataset.mode;
+      document.querySelectorAll("#g-mode-seg button").forEach((b) => { const on = b === el; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+      document.querySelectorAll(".g-pane").forEach((pn) => { pn.hidden = pn.dataset.pane !== el.dataset.mode; });
+      updateGoalPreview(); return true;
+    }
+    case "c-goal-adaptive": {
+      // measured maintenance: set it, keep the goal fields, re-preview in "What's worked" mode
+      s.profile.maintenanceKcal = +el.dataset.kcal; s.profile.maintenanceFrom = "your logs";
+      delete s.profile.histKcal; ctx.save(); sheetGoal(); return true;
+    }
+    case "c-use-adaptive": {
+      const p = s.profile, kcal = +el.dataset.kcal;
+      const def = p.budgetKcal > 0 ? null : Math.max(0, E.tdee(p) - E.dailyBudget(p));
+      p.maintenanceKcal = kcal; p.maintenanceFrom = "your logs"; delete p.histKcal;
+      if (def !== null) p.deficit = def;      // keep the same pace, on the corrected maintenance
+      ctx.save(); ctx.renderAll();
+      ctx.toast(`📏 Maintenance set to ${fmt(kcal)} — budget now ${fmt(E.dailyBudget(p))}/day`);
+      return true;
+    }
+    case "c-dismiss-adaptive": { s.profile.adaptiveDismissed = +el.dataset.kcal; ctx.save(); ctx.renderAll(); return true; }
     case "c-ai-key": {
       const k = $("#ai-key")?.value.trim();
       if (!k || k.length < 20) { ctx.toast("That doesn't look like an API key"); return true; }

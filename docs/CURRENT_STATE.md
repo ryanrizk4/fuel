@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v19`.
+Current visible version: `fuel-v20`.
 
 ## Core behavior
 
@@ -71,6 +71,15 @@ how much (servings, grams/oz, cups/tbsp). "My foods" (v4) are added from a label
 barcode; a scan checks My foods first and an unknown barcode goes straight to the label form. A 🎤
 button uses the browser's speech recognition (Chrome sends audio to Google to transcribe) alongside
 the keyboard's own dictation.
+
+## Daily budget calibration
+
+Budget = maintenance − deficit (capped at 1%/week, floored at 1,500 for men). Maintenance comes from, in
+order: a budget the owner sets directly; his own results ("I ate ~1,800 and lost ~1 lb/week" → 2,300);
+measured maintenance from ≥10 logged days and ≥2 weigh-ins ≥10 days apart (least-squares trend,
+offered as a one-tap card on Today/Progress when it differs by ≥150 kcal); and only then the
+Mifflin-St Jeor formula. The goal card shows the breakdown and flags formula estimates. A new
+`walker` activity level (×1.45) covers desk job + ~10k steps + lifting and is the onboarding default.
 
 ## History & stats (Progress tab, both modes)
 
