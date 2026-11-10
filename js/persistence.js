@@ -11,7 +11,7 @@ export const BACKUP_FORMAT = "fuel-backup.v1";
 
 // Bump when the persisted shape changes, and add a migration below. Records
 // written before versioning existed have no schemaVersion and are treated as 1.
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const LEGACY_VERSION = 1;
 export const MAX_RECOVERY_SNAPSHOTS = 5;
 
@@ -43,6 +43,8 @@ function defaultState() {
     usualsSeeded: false,
     paybackPerDay: 150,  // kcal/day trimmed while an overage is being paid back
     barcodes: {},        // barcode -> food looked up once, so scanning works offline after
+    // v4: foods the owner adds from a label (often Trader Joe's), usable everywhere by amount
+    myFoods: [],         // { id, name, emoji, unit, grams?, ml?, calories, protein, barcode?, aliases? }
   };
 }
 
@@ -52,7 +54,7 @@ const nowIso = () => new Date().toISOString();
 
 // Object-shaped fields (maps keyed by product/template id) and list-shaped fields.
 const MAP_FIELDS = ["history", "productOverrides", "shopChecks", "pantry", "favorites", "opened", "foodLog", "barcodes"];
-const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox", "usuals"];
+const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox", "usuals", "myFoods"];
 
 /**
  * Repair a record's shape without discarding anything readable. Unknown fields are
@@ -125,6 +127,13 @@ const MIGRATIONS = [
       // Purely additive: every existing field is kept exactly as it was, and the owner
       // stays in full planning mode until they choose to switch.
       return normalizeState(state);
+    },
+  },
+  {
+    to: 4,
+    describe: "add 'my foods' — products added from a label or a barcode",
+    migrate(state) {
+      return normalizeState(state); // additive: myFoods starts empty
     },
   },
 ];

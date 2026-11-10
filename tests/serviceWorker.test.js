@@ -36,7 +36,7 @@ function harness() {
 }
 test("a freshly installed app serves every imported module and data file offline", async () => {
   const h = harness(); await h.install(); h.network(async () => { throw new Error("offline"); });
-  for (const path of ["index.html", "js/app.js", "js/release.js", "js/reloadGuard.js", "js/engine.js", "js/count.js", "js/ai.js", "js/history.js", "js/parse.js", "js/persistence.js", "data/products.json", "data/templates.json", "data/eats.json", "data/foods.json"]) {
+  for (const path of ["index.html", "js/app.js", "js/release.js", "js/reloadGuard.js", "js/engine.js", "js/count.js", "js/ai.js", "js/history.js", "js/parse.js", "js/units.js", "js/persistence.js", "data/products.json", "data/templates.json", "data/eats.json", "data/foods.json"]) {
     const res = await h.fetch(path); assert.equal(res.status, 200, path); assert.match(await res.text(), /asset:/);
   }
   assert.equal((await h.fetch("not-cached")).status, 503);

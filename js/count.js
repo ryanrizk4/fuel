@@ -5,6 +5,7 @@
 import * as E from "./engine.js";
 import * as AI from "./ai.js";
 import * as PZ from "./parse.js";
+import * as U from "./units.js";
 
 let ctx = null;
 let viewOffset = 0;          // 0 = today, -1 = yesterday … up to a year back
@@ -42,7 +43,7 @@ function catalog() { return E.catalogItems(eats(), ctx.data(), st()); }
 function productItems() {
   return ctx.data().products.map((p) => {
     const eff = E.productById(ctx.data(), st(), p.id);
-    return { id: `p:${p.id}`, name: eff.name, emoji: "🛒", group: "Single items", calories: eff.calories, protein: eff.protein, estimated: eff.confidence === "estimated", note: eff.unit };
+    return { id: `p:${p.id}`, name: eff.name, emoji: "🛒", group: "Trader Joe's " + (p.aliases || []).join(" "), calories: eff.calories, protein: eff.protein, estimated: eff.confidence === "estimated", note: eff.unit };
   });
 }
 
@@ -447,7 +448,7 @@ function saveGoal() {
 function row(item, key, left, { removable = false, editable = false } = {}) {
   return `
     <div class="log-row" data-search="${esc((item.name + " " + item.group).toLowerCase())}">
-      <button class="option-row" data-action="c-log" data-item="${esc(item.id)}" data-date="${key}">
+      <button class="option-row" data-action="${/^(p|f|m|bc):/.test(item.id) ? "c-amount" : "c-log"}" data-item="${esc(item.id)}" data-date="${key}">
         <div class="meal-emoji" style="width:34px;height:34px;font-size:1.2rem">${esc(item.emoji)}</div>
         <div class="o-main"><div class="o-name">${esc(item.name)}${item.estimated ? ' <span class="badge est">est.</span>' : ""}</div>
           ${item.note ? `<div class="o-sub">${esc(item.note)}</div>` : ""}</div>
@@ -458,8 +459,16 @@ function row(item, key, left, { removable = false, editable = false } = {}) {
     </div>`;
 }
 
-function section(title, html, extra = "") {
-  return html ? `<div class="log-section"><div class="ob-section">${title}${extra}</div>${html}</div>` : "";
+function section(title, html, extra = "", searchOnly = false) {
+  return html ? `<div class="log-section${searchOnly ? " search-only" : ""}"${searchOnly ? " hidden" : ""}><div class="ob-section">${title}${extra}</div>${html}</div>` : "";
+}
+
+function myFoodItems() {
+  return (st().myFoods || []).map((m) => ({ id: `m:${m.id}`, name: m.name, emoji: m.emoji || "🏷", group: "My foods", calories: m.calories, protein: m.protein, note: m.unit }));
+}
+
+function commonFoodItems() {
+  return (ctx.data().foods || []).filter((f) => !f.addon).map((f) => ({ id: `f:${f.id}`, name: f.name, emoji: f.emoji, group: "Common foods", calories: f.calories, protein: f.protein, note: f.unit, estimated: true }));
 }
 
 export function sheetLog(key) {
@@ -507,8 +516,10 @@ export function sheetLog(key) {
       ${places}
       ${section("🏠 Home combos", home.map((i) => row(i, key, left, { editable: true })).join(""), ' <button class="btn small ghost" style="float:right;margin-top:-6px" data-action="c-build-new" data-place="home" data-date="' + key + '">＋ Build</button>')}
       ${section("🍽 Fuel meals (1 serving)", meals.map((i) => row(i, key, left)).join(""))}
+      ${section("🏷 My foods", myFoodItems().map((i) => row(i, key, left)).join(""))}
       ${section("▦ Scanned", scanned.map((i) => row(i, key, left)).join(""))}
-      ${section("🛒 Single ingredients", singles.map((i) => row(i, key, left)).join(""))}
+      ${section("🛒 Trader Joe's", singles.map((i) => row(i, key, left)).join(""), ' <button class="btn small ghost" style="float:right;margin-top:-6px" data-action="c-myfood-new" data-date="' + key + '">＋ From a label</button>')}
+      ${section("🥗 Common foods", commonFoodItems().map((i) => row(i, key, left)).join(""), "", true)}
       <div class="empty" id="log-empty" hidden>Nothing matches by name.<br><button class="btn primary mt8" data-action="c-type-from-search" data-date="${key}">✍️ Understand what I typed</button></div>
     </div>
   `);
@@ -519,6 +530,7 @@ function filterLog(q) {
   const words = term.split(/\s+/).filter(Boolean);
   let any = false;
   document.querySelectorAll("#log-results .log-section").forEach((sec) => {
+    if (sec.classList.contains("search-only") && !words.length) { sec.hidden = true; return; }
     let shown = 0;
     sec.querySelectorAll(".log-row").forEach((r) => {
       const hit = !words.length || words.every((w) => r.dataset.search.includes(w));
@@ -742,13 +754,20 @@ function lexicon() {
   return PZ.buildLexicon({ eats: eats(), data: ctx.data(), state: st(), foods: ctx.data().foods || [] });
 }
 
+const Speech = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+let listening = null;
+
 export function sheetType(key, prefill = "") {
-  typed = { key, text: prefill, items: [], edits: {} };
+  typed = { key, text: prefill, items: [], edits: {}, dayOffset: 0, dayOverride: false };
   ctx.openSheet(`
     <h3>✍️ What did you eat?</h3>
-    <div class="sub">Type it or dictate it (🎤 on your keyboard). Separate foods with commas or “and”; change things with <b>no</b>, <b>extra</b>, <b>double</b>, <b>light</b>, <b>add</b>. Runs on your phone, no AI.</div>
-    <textarea id="type-text" class="io type-box" placeholder="e.g. chipotle bowl double chicken no rice extra guac, and a pret coffee" aria-label="What you ate">${esc(prefill)}</textarea>
-    <div class="type-examples small muted">Try: <button class="link" data-action="c-type-example">2 eggs, toast and a latte</button> · <button class="link" data-action="c-type-example">caesar salad no croutons add avocado</button> · <button class="link" data-action="c-type-example">half a pulled pork quesadilla</button></div>
+    <div class="sub">Say it however you'd say it: amounts (“8 oz pasta”, “a cup and a half of rice”), changes (<b>no</b>, <b>extra</b>, <b>double</b>, <b>light</b>, “2 pumps of vanilla”), sizes (tall, grande, venti), calories you know (“a 250 calorie bar”), or a recipe (“…makes 4, I had 1”). Runs on your phone, no AI.</div>
+    <div class="type-wrap">
+      <textarea id="type-text" class="io type-box" placeholder="e.g. chipotle bowl double chicken no rice extra guac, and a grande oat latte with an extra pump of vanilla" aria-label="What you ate">${esc(prefill)}</textarea>
+      ${Speech ? `<button class="mic-btn" data-action="c-type-mic" aria-label="Speak what you ate">🎤</button>` : ""}
+    </div>
+    <div id="type-day"></div>
+    <div class="type-examples small muted">Try: <button class="link" data-action="c-type-example">2 eggs, toast and a latte</button> · <button class="link" data-action="c-type-example">grande oat latte with 2 pumps of caramel</button> · <button class="link" data-action="c-type-example">turkey chili: 1 lb ground turkey, 1 can black beans, 2 cups marinara, makes 4, I had 1</button></div>
     <div class="small muted" style="margin-top:6px">📷 Photo or a tricky meal? <button class="link" data-action="c-type-ai" data-date="${key}">✨ AI estimate</button></div>
     <div id="type-out"></div>
   `);
@@ -761,8 +780,33 @@ function runType() {
   const text = $("#type-text")?.value || "";
   if (text !== typed.text) typed.edits = {};
   typed.text = text;
-  typed.items = text.trim() ? PZ.parseMeal(text, lexicon()).items : [];
+  const r = text.trim() ? PZ.parseMeal(text, lexicon()) : { items: [], dayOffset: 0 };
+  typed.items = r.items;
+  if (!typed.dayOverride) typed.dayOffset = r.dayOffset;
   renderType();
+}
+
+function typedKey() {
+  return typed.dayOffset ? E.dateKey(E.addDays(E.parseKey(typed.key), typed.dayOffset)) : typed.key;
+}
+
+function startListening() {
+  if (!Speech) return;
+  if (listening) { listening.stop(); return; }
+  const rec = new Speech();
+  rec.lang = "en-US"; rec.interimResults = true; rec.continuous = false;
+  const box = $("#type-text");
+  const before = box?.value ? box.value.replace(/\s*$/, ", ") : "";
+  const btn = document.querySelector(".mic-btn");
+  rec.onresult = (e) => {
+    const said = [...e.results].map((r) => r[0].transcript).join(" ");
+    if (box) box.value = before + said;
+  };
+  rec.onend = () => { listening = null; btn?.classList.remove("on"); runType(); };
+  rec.onerror = (e) => { listening = null; btn?.classList.remove("on"); if (e.error === "not-allowed") ctx.toast("Microphone blocked — allow it for Fuel, or use the 🎤 on your keyboard"); };
+  listening = rec;
+  btn?.classList.add("on");
+  try { rec.start(); } catch { listening = null; btn?.classList.remove("on"); }
 }
 
 function typedTotals(it, i) {
@@ -778,8 +822,10 @@ function typedTotals(it, i) {
 function renderType() {
   const out = $("#type-out");
   if (!out || !typed) return;
+  const dayBox = $("#type-day");
+  if (dayBox) dayBox.innerHTML = typed.dayOffset ? `<div class="trim-note" style="margin:8px 0">📅 Logging to <b>${E.fmtDay(E.parseKey(typedKey()))}</b>${typed.dayOverride ? "" : " — you said “yesterday”"}. <button class="link" data-action="c-type-day" data-offset="0">Log to ${E.fmtDay(E.parseKey(typed.key))} instead</button></div>` : "";
   if (!typed.items.length) { out.innerHTML = ""; return; }
-  const left = dayStatus(typed.key).left;
+  const left = dayStatus(typedKey()).left;
   let total = 0, missing = 0, count = 0;
   const rows = typed.items.map((it, i) => {
     const ed = typed.edits[i] || {};
@@ -788,8 +834,10 @@ function renderType() {
     const t = typedTotals(it, i);
     if (t.calories === null || t.calories === "" || Number.isNaN(+t.calories)) missing++; else total += +t.calories;
     const unknown = it.status === "unknown";
+    const recipe = it.kind === "recipe";
+    const sized = it.notes?.[0] && /\d/.test(it.notes[0]);
     const chips = [
-      ...(it.qty !== 1 ? [`×${it.qty === 0.5 ? "½" : it.qty}`] : []),
+      ...(it.qty !== 1 && !sized && !recipe ? [`×${U.fmtAmount(it.qty, null)}`] : []),
       ...it.notes,
       ...it.changes.map((c) => `${c.label}${c.kcal ? ` (${c.kcal > 0 ? "+" : ""}${c.kcal})` : ""}`),
     ].map((c) => `<span class="ti-chip">${esc(c)}</span>`).join("");
@@ -809,9 +857,10 @@ function renderType() {
         <div class="ti-nums">
           <label><span>kcal</span><input type="number" inputmode="numeric" data-type-cal="${i}" value="${t.calories ?? ""}" placeholder="?" /></label>
           <label><span>protein g</span><input type="number" inputmode="decimal" data-type-pro="${i}" value="${t.protein ?? ""}" placeholder="0" /></label>
-          ${!unknown ? `<div class="ti-qty">${[0.5, 1, 1.5, 2].map((q) => `<button class="${(it.qty || 1) === q ? "on" : ""}" data-action="c-type-qty" data-idx="${i}" data-qty="${q}">${q === 0.5 ? "½" : q === 1.5 ? "1½" : q}×</button>`).join("")}</div>` : ""}
+          ${!unknown && !recipe ? `<div class="ti-qty">${[0.5, 1, 1.5, 2].map((q) => `<button class="${(it.qty || 1) === q ? "on" : ""}" data-action="c-type-qty" data-idx="${i}" data-qty="${q}">${q === 0.5 ? "½" : q === 1.5 ? "1½" : q}×</button>`).join("")}</div>` : ""}
         </div>
         ${unknown ? `<label class="ti-remember"><input type="checkbox" data-type-remember="${i}" ${ed.remember === false ? "" : "checked"} /> Remember “${esc(it.text)}” as a usual</label>` : ""}
+        ${recipe ? recipeBlock(it, i, ed) : ""}
         ${!unknown && it.alts?.length ? `<div class="ti-alts"><span class="small muted">${it.status === "check" ? "Did you mean" : "Or"}:</span> ${it.alts.map((a, k) => `<button class="ti-alt" data-action="c-type-swap" data-idx="${i}" data-alt="${k}">${esc(a.emoji)} ${esc(a.name)} · ${fmt(a.calories)}</button>`).join("")}</div>` : ""}
       </div>`;
   }).join("");
@@ -825,6 +874,139 @@ function renderType() {
         <button class="btn ghost" data-action="c-type-log" data-save="1" ${!count || missing ? "disabled" : ""}>Log + ⭐ as one usual</button>
       </div>
       ${hasAiKey() ? `<button class="btn ghost small mt8" style="width:100%" data-action="c-type-ai">✨ Not right? Let AI estimate it instead</button>` : ""}
+    </div>`;
+}
+
+// "2 cups" of rice re-sized when swapping dry rice for cooked rice
+function reSize(g, alt) {
+  const m = g.notes[0].match(/^([\d.¼½¾⅓⅔]+)\s*(.*)$/);
+  if (!m || !alt.serving) return g.qty;
+  const amount = parseFloat(m[1].replace("½", ".5").replace("¼", ".25").replace("¾", ".75").replace("⅓", ".33").replace("⅔", ".67"));
+  const unit = U.canonUnit(m[2].replace("fl oz", "floz").split(" ")[0]);
+  return U.toServings(alt.serving, amount, unit, { liquid: alt.liquid }).servings;
+}
+
+// ---------- how much? (Trader Joe's items, common foods, my foods, scanned) ----------
+
+let amountItem = null;
+
+function lexItem(id) { return lexicon().items.find((x) => x.id === id) || null; }
+
+function unitOptions(item) {
+  const sv = item.serving || {};
+  const opts = [["serving", `serving${sv.unit && sv.unit !== "serving" ? ` (${item.unit})` : item.unit ? ` (${item.unit})` : ""}`]];
+  if (sv.g) opts.push(["g", "grams"], ["oz", "oz"]);
+  if (sv.ml) { opts.push(["cup", "cups"], ["tbsp", "tbsp"], ["tsp", "tsp"]); if (item.liquid) opts.push(["floz", "fl oz"], ["ml", "ml"]); }
+  for (const k of Object.keys(sv.per || {})) opts.push([k, k]);
+  return opts;
+}
+
+function sheetAmount(key, id) {
+  const item = lexItem(id);
+  if (!item) return;
+  amountItem = { ...item, key };
+  const mine = id.startsWith("m:");
+  ctx.openSheet(`
+    <div class="recipe-head"><div class="r-emoji">${esc(item.emoji || "🛒")}</div>
+      <div><h3>${esc(item.name)}</h3><div class="small muted">${esc(item.unit || "1 serving")} · ${fmt(item.calories)} kcal · ${Math.round(item.protein)}g protein</div></div></div>
+    <div class="ob-section" style="margin-top:4px">How much?</div>
+    <div class="seg">${[0.5, 1, 1.5, 2, 3].map((q) => `<button data-action="c-amt-q" data-q="${q}" class="${q === 1 ? "on" : ""}">${q === 0.5 ? "½" : q === 1.5 ? "1½" : q}</button>`).join("")}</div>
+    <div class="field-row">
+      <div class="field" style="margin:0"><label for="amt-n">Amount</label><input id="amt-n" type="number" inputmode="decimal" value="1" /></div>
+      <div class="field" style="margin:0"><label for="amt-unit">Unit</label><select id="amt-unit">${unitOptions(item).map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("")}</select></div>
+    </div>
+    <div class="build-total" id="amt-total"></div>
+    ${mine ? `<div class="btn-row"><button class="btn ghost danger" data-action="c-myfood-del" data-item="${esc(id)}">Remove from My foods</button></div>` : ""}
+  `);
+  updateAmount();
+}
+
+function amountServings() {
+  const n = +($("#amt-n")?.value || 0), u = $("#amt-unit")?.value || "serving";
+  if (!amountItem || !(n > 0)) return 0;
+  if (u === "serving") return n;
+  return U.toServings(amountItem.serving, n, u, { liquid: amountItem.liquid }).servings;
+}
+
+function updateAmount() {
+  const box = $("#amt-total");
+  if (!box || !amountItem) return;
+  const sv = amountServings();
+  document.querySelectorAll('[data-action="c-amt-q"]').forEach((b) => b.classList.toggle("on", $("#amt-unit")?.value === "serving" && +b.dataset.q === +($("#amt-n")?.value || 0)));
+  const cal = Math.round(amountItem.calories * sv), pro = Math.round(amountItem.protein * sv);
+  const left = dayStatus(amountItem.key).left;
+  box.innerHTML = `<div><b>${fmt(cal)} kcal</b> · ${pro}g protein <span class="muted">(${U.fmtAmount(Math.round(sv * 100) / 100, null)} serving${sv === 1 ? "" : "s"})</span><br>
+    <span class="small">${cal > left ? `<span style="color:var(--critical)">${fmt(cal - Math.max(0, left))} over budget</span>` : `${fmt(left - cal)} kcal left after this`}</span></div>
+    <div class="btn-row" style="margin-top:8px"><button class="btn primary" data-action="c-amt-log" data-item="${esc(amountItem.id)}" ${sv > 0 ? "" : "disabled"}>Log it</button>
+      <button class="btn ghost" data-action="c-amt-log" data-item="${esc(amountItem.id)}" data-save="1" ${sv > 0 ? "" : "disabled"}>Log + ⭐ usual</button></div>`;
+}
+
+function logAmount(key, id, save) {
+  const sv = amountServings();
+  if (!amountItem || !(sv > 0)) return;
+  const n = +($("#amt-n")?.value || 0), u = $("#amt-unit")?.value || "serving";
+  const detail = u === "serving" ? `${U.fmtAmount(n, null)} × ${amountItem.unit || "serving"}` : U.fmtAmount(n, u);
+  addEntry(amountItem.key, { id, name: amountItem.name, emoji: amountItem.emoji || "🛒", calories: Math.round(amountItem.calories * sv), protein: Math.round(amountItem.protein * sv * 10) / 10, group: amountItem.group }, 1, { detail });
+  if (save) saveUsual({ name: `${amountItem.name} (${detail})`, emoji: amountItem.emoji || "🛒", calories: Math.round(amountItem.calories * sv), protein: Math.round(amountItem.protein * sv * 10) / 10, detail });
+  amountItem = null;
+  ctx.closeSheet();
+}
+
+// ---------- My foods: anything from a label (Trader Joe's or not), optionally with its barcode ----------
+
+function sheetMyFood(key, { barcode = "", name = "" } = {}) {
+  ctx.openSheet(`
+    <h3>🏷 Add from the label</h3>
+    <div class="sub">${barcode ? `Barcode ${esc(barcode)} isn't in the database yet. Add it once from the Nutrition Facts — the next scan is instant.` : "Add any product from its Nutrition Facts panel. It becomes searchable, typeable (“6 oz of …”) and scannable."}</div>
+    <div class="field"><label for="mf-name">Name</label><input id="mf-name" value="${esc(name)}" placeholder="e.g. TJ's Chicken Shawarma Wrap" /></div>
+    <div class="field-row">
+      <div class="field"><label for="mf-unit">Serving size (as printed)</label><input id="mf-unit" placeholder="e.g. 1/2 cup (30g), 1 bar, 4 oz" /></div>
+      <div class="field"><label for="mf-g">Grams per serving</label><input id="mf-g" type="number" inputmode="decimal" placeholder="optional" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="mf-cal">Calories</label><input id="mf-cal" type="number" inputmode="numeric" /></div>
+      <div class="field"><label for="mf-pro">Protein (g)</label><input id="mf-pro" type="number" inputmode="decimal" /></div>
+    </div>
+    <div class="field"><label for="mf-pack">Servings per container</label><input id="mf-pack" type="number" inputmode="decimal" placeholder="optional — lets you log “half the bag”" /></div>
+    <input id="mf-code" type="hidden" value="${esc(barcode)}" />
+    <button class="btn primary" style="width:100%" data-action="c-myfood-save" data-date="${key}">Save to My foods</button>
+  `);
+}
+
+function saveMyFood(key) {
+  const name = $("#mf-name")?.value.trim(), unit = $("#mf-unit")?.value.trim() || "1 serving";
+  const calories = +($("#mf-cal")?.value || NaN), protein = +($("#mf-pro")?.value || 0);
+  if (!name || !Number.isFinite(calories)) { ctx.toast("Add a name and calories"); return; }
+  const grams = +($("#mf-g")?.value || 0) || null, pack = +($("#mf-pack")?.value || 0) || null, barcode = $("#mf-code")?.value || "";
+  const s = st();
+  const food = { id: uid(), name, emoji: "🏷", unit, calories, protein, ...(grams ? { grams } : {}), ...(barcode ? { barcode } : {}), ...(pack ? { per: Object.fromEntries(["bag", "box", "container", "package", "pack", "jar", "tub", "can", "bottle"].map((k) => [k, pack])) } : {}) };
+  s.myFoods = [...(s.myFoods || []), food];
+  ctx.save();
+  ctx.toast(`🏷 ${name} saved — search, type or scan it any time`);
+  sheetAmount(key, `m:${food.id}`);
+}
+
+function recipeBlock(it, i, ed) {
+  const ings = it.ingredients.map((g, k) => {
+    const unknown = g.status === "unknown";
+    const totalCal = g.calories == null ? "" : Math.round(g.calories * g.qty);
+    const amount = g.notes?.[0] && /\d/.test(g.notes[0]) ? g.notes[0] : g.qty !== 1 ? `×${U.fmtAmount(g.qty, null)}` : "";
+    return `<div class="ing-line ${unknown ? "unknown" : ""}">
+      <div class="ing-name">${esc(g.emoji)} ${esc(unknown ? g.text : g.name)}${amount ? ` <span class="muted">· ${esc(amount)}</span>` : ""}${g.alts?.length ? ` <button class="link small" data-action="c-ing-swap" data-idx="${i}" data-ing="${k}">swap</button>` : ""}</div>
+      <input type="number" inputmode="numeric" data-ing-cal="${i}:${k}" value="${totalCal}" placeholder="kcal?" aria-label="${esc(g.name)} calories" />
+    </div>`;
+  }).join("");
+  return `
+    <div class="recipe-box">
+      <div class="small" style="font-weight:700;margin-bottom:4px">Ingredients (whole batch: ${fmt(it.totalCalories)} kcal · ${it.totalProtein}g)</div>
+      ${ings}
+      <div class="recipe-steppers">
+        <span>Makes</span>
+        <div class="stepper"><button data-action="c-recipe-serv" data-idx="${i}" data-step="-1" aria-label="fewer servings">−</button><span>${U.fmtAmount(it.servings, null)}</span><button data-action="c-recipe-serv" data-idx="${i}" data-step="1" aria-label="more servings">+</button></div>
+        <span>· I ate</span>
+        <div class="ti-qty" style="flex:0 1 180px">${[0.5, 1, 1.5, 2].map((q) => `<button class="${it.qty === q ? "on" : ""}" data-action="c-recipe-ate" data-idx="${i}" data-qty="${q}">${q === 0.5 ? "½" : q === 1.5 ? "1½" : q}</button>`).join("")}</div>
+      </div>
+      <label class="ti-remember"><input type="checkbox" data-recipe-save="${i}" ${ed.saveRecipe === false ? "" : "checked"} /> Save “${esc(it.name)}” — next time just say its name</label>
     </div>`;
 }
 
@@ -844,7 +1026,7 @@ function recordMisses(text, items) {
 }
 
 function typeLog(saveAsOne) {
-  const key = typed.key;
+  const key = typedKey();
   recordMisses(typed.text, typed.items.map((it, i) => ({ ...it, edited: typed.edits[i]?.calories != null && it.status !== "unknown" && +typed.edits[i].calories !== Math.round(it.calories * (it.qty || 1)) })).filter((_, i) => !typed.edits[i]?.removed));
   const day = logDay(key);
   const picked = [];
@@ -855,7 +1037,9 @@ function typeLog(saveAsOne) {
     const cal = Math.max(0, Math.round(+t.calories || 0)), pro = Math.max(0, Math.round((+t.protein || 0) * 10) / 10);
     const q = it.status === "unknown" ? 1 : it.qty || 1;
     const name = (t.name || it.text).trim();
-    day.entries.push({ id: uid(), name, emoji: it.emoji === "❓" ? "✏️" : it.emoji, calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, qty: q, ref: it.id || null, detail: it.status === "unknown" ? "" : PZ.describe(it), source: "Typed", at: new Date().toISOString() });
+    day.entries.push({ id: uid(), name, emoji: it.emoji === "❓" ? "✏️" : it.emoji, calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, qty: q, ref: it.id || null, detail: it.status === "unknown" ? "" : PZ.describe(it), source: it.kind === "recipe" ? "Recipe" : "Typed", at: new Date().toISOString() });
+    // a recipe is remembered per serving: "turkey chili" or "2 bowls of turkey chili" next time
+    if (it.kind === "recipe" && ed.saveRecipe !== false) saveUsual({ name, emoji: "🍲", calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, detail: `${U.fmtAmount(it.servings, null)} servings: ${PZ.describe(it)}`, aliases: [name.toLowerCase()] });
     picked.push({ name, emoji: it.emoji, calories: cal, protein: pro });
     // teach the parser: next time this phrase is recognized with these numbers
     if (it.status === "unknown" && ed.remember !== false) saveUsual({ name, emoji: "✏️", calories: cal, protein: pro, aliases: [it.text] });
@@ -974,20 +1158,21 @@ async function sheetScan(key) {
 async function lookupCode(key, code) {
   code = String(code).replace(/\D/g, "");
   if (code.length < 8) return ctx.toast("That barcode looks too short");
+  const mine = (st().myFoods || []).find((m) => m.barcode === code);
+  if (mine) return sheetAmount(key, `m:${mine.id}`);
   const cached = st().barcodes?.[code];
-  if (cached) return sheetScanResult(key, code, cached);
+  if (cached) return sheetAmount(key, `bc:${code}`);
   ctx.openSheet(`<h3>▦ ${esc(code)}</h3><div class="empty">Looking it up…</div>`);
   try {
     const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,generic_name,brands,nutriments,serving_size,serving_quantity`);
     const food = res.ok ? E.parseOpenFoodFacts(await res.json()) : null;
-    if (!food) {
-      ctx.openSheet(`<h3>▦ ${esc(code)}</h3><div class="trim-note">Not in Open Food Facts (or no calorie data). Use Quick add with the label numbers — save it as a usual and you'll never type it again.</div>
-        <div class="btn-row"><button class="btn primary" data-action="c-sheet-log" data-date="${key}">Quick add</button></div>`);
-      return;
-    }
-    sheetScanResult(key, code, food);
+    if (!food) return sheetMyFood(key, { barcode: code });
+    st().barcodes[code] = food;
+    ctx.save();
+    sheetAmount(key, `bc:${code}`);
   } catch {
-    ctx.openSheet(`<h3>▦ ${esc(code)}</h3><div class="trim-note">Couldn't reach the barcode database — check your connection, or use Quick add.</div>`);
+    ctx.openSheet(`<h3>▦ ${esc(code)}</h3><div class="trim-note">Couldn't reach the barcode database — check your connection. You can also add it from the label now; the barcode is remembered.</div>
+      <div class="btn-row"><button class="btn primary" data-action="c-myfood-new" data-date="${key}" data-code="${esc(code)}">🏷 Add from the label</button></div>`);
   }
 }
 
@@ -1018,6 +1203,20 @@ function onInput(e) {
   else if (typed && e.target.dataset.typeCal !== undefined) { (typed.edits[e.target.dataset.typeCal] ||= {}).calories = e.target.value === "" ? null : +e.target.value; refreshTypeTotal(); }
   else if (typed && e.target.dataset.typePro !== undefined) { (typed.edits[e.target.dataset.typePro] ||= {}).protein = e.target.value === "" ? null : +e.target.value; }
   else if (typed && e.target.dataset.typeName !== undefined) { (typed.edits[e.target.dataset.typeName] ||= {}).name = e.target.value; }
+  else if (typed && e.target.dataset.ingCal !== undefined) {
+    const [i, k] = e.target.dataset.ingCal.split(":").map(Number);
+    const it = typed.items[i], g = it?.ingredients?.[k];
+    if (!g) return;
+    const v = e.target.value === "" ? null : +e.target.value;
+    g.calories = v == null ? null : v / Math.max(0.01, g.qty);
+    if (g.protein == null) g.protein = 0;
+    g.status = v == null ? "unknown" : g.status === "unknown" ? "ok" : g.status;
+    typed.items[i] = PZ.recomputeRecipe(it);
+    delete typed.edits[i]?.calories; delete typed.edits[i]?.protein;
+    refreshTypeTotal(`[data-ing-cal="${i}:${k}"]`);
+  }
+  else if (e.target.id === "amt-n" || e.target.id === "amt-unit") updateAmount();
+  else if (e.target.id === "mf-unit" || e.target.id === "mf-cal") { /* preview not needed */ }
   else if (e.target.id === "qa-name") e.target.dataset.touched = "1";
   else if (e.target.id === "b-search") renderBuildSearch(e.target.value);
   else if (e.target.id === "b-name" && build) build.name = e.target.value;
@@ -1025,17 +1224,19 @@ function onInput(e) {
 }
 
 // Update the footer without re-rendering the inputs the owner is typing into.
-function refreshTypeTotal() {
+function refreshTypeTotal(selector = null) {
   const out = $("#type-out .build-total");
   if (!out || !typed) return;
   const active = document.activeElement?.dataset;
-  const focus = active?.typeCal ?? null;
+  const sel = selector || (active?.typeCal != null ? `[data-type-cal="${active.typeCal}"]` : null);
   renderType();
-  if (focus !== null) { const el = document.querySelector(`[data-type-cal="${focus}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
+  if (sel) { const el = document.querySelector(sel); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
 }
 
 async function onChange(e) {
   if (typed && e.target.dataset.typeRemember !== undefined) { (typed.edits[e.target.dataset.typeRemember] ||= {}).remember = e.target.checked; return; }
+  if (typed && e.target.dataset.recipeSave !== undefined) { (typed.edits[e.target.dataset.recipeSave] ||= {}).saveRecipe = e.target.checked; return; }
+  if (e.target.id === "amt-unit") { updateAmount(); return; }
   if (e.target.id !== "ai-photo" || !e.target.files?.[0]) return;
   try {
     aiImage = await readPhoto(e.target.files[0]);
@@ -1080,6 +1281,41 @@ export function handleCount(el) {
       renderType(); return true;
     }
     case "c-type-log": typeLog(!!el.dataset.save); return true;
+    case "c-type-mic": startListening(); return true;
+    case "c-type-day": typed.dayOffset = +el.dataset.offset; typed.dayOverride = true; renderType(); return true;
+    case "c-recipe-serv": {
+      const i = +el.dataset.idx, it = typed.items[i];
+      if (!it) return true;
+      it.servings = Math.max(1, Math.min(24, it.servings + +el.dataset.step));
+      typed.items[i] = PZ.recomputeRecipe(it); delete typed.edits[i]?.calories; delete typed.edits[i]?.protein;
+      renderType(); return true;
+    }
+    case "c-recipe-ate": {
+      const i = +el.dataset.idx, it = typed.items[i];
+      if (!it) return true;
+      it.qty = +el.dataset.qty;
+      typed.items[i] = PZ.recomputeRecipe(it); delete typed.edits[i]?.calories; delete typed.edits[i]?.protein;
+      renderType(); return true;
+    }
+    case "c-ing-swap": {
+      const i = +el.dataset.idx, k = +el.dataset.ing, it = typed.items[i], g = it?.ingredients?.[k];
+      const alt = g?.alts?.[0];
+      if (!alt) return true;
+      // keep the amount the owner said; re-size it against the other food's serving
+      const conv = g.notes?.[0] && /\d/.test(g.notes[0]) ? reSize(g, alt) : g.qty;
+      it.ingredients[k] = { ...g, id: alt.id, name: alt.name, emoji: alt.emoji, calories: alt.calories, protein: alt.protein, serving: alt.serving, qty: conv, alts: [{ id: g.id, name: g.name, emoji: g.emoji, calories: g.calories, protein: g.protein, serving: g.serving, liquid: g.liquid }, ...g.alts.slice(1)], status: "ok" };
+      typed.items[i] = PZ.recomputeRecipe(it); delete typed.edits[i]?.calories;
+      renderType(); return true;
+    }
+    case "c-amount": return sheetAmount(key, el.dataset.item), true;
+    case "c-amt-q": { const n = $("#amt-n"), u = $("#amt-unit"); if (n) n.value = el.dataset.q; if (u) u.value = "serving"; updateAmount(); return true; }
+    case "c-amt-log": return logAmount(key, el.dataset.item, !!el.dataset.save), true;
+    case "c-myfood-new": return sheetMyFood(key, { barcode: el.dataset.code || "", name: el.dataset.name || "" }), true;
+    case "c-myfood-save": return saveMyFood(key), true;
+    case "c-myfood-del": {
+      s.myFoods = (s.myFoods || []).filter((m) => `m:${m.id}` !== el.dataset.item);
+      ctx.save(); ctx.closeSheet(); ctx.toast("Removed from My foods"); return true;
+    }
     case "c-type-ai": { const text = typed?.text || $("#type-text")?.value || ""; sheetAI(typed?.key || key, text); return true; }
     case "c-sheet-scan": return sheetScan(key), true;
     case "c-sheet-walk": return sheetWalk(key), true;

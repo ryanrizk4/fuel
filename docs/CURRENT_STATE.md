@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v18`.
+Current visible version: `fuel-v19`.
 
 ## Core behavior
 
@@ -55,6 +55,23 @@ phrases ask for numbers once and are remembered as usuals with that phrase as an
 and corrections are noted in `fuel.typemisses.v1` (outside state) for Settings → "Copy for tuning".
 AI estimates remain available from the same sheet for photos and anything the parser can't place.
 
+Measurements (`js/units.js`): every food carries a serving parsed from its label text plus known
+grams/ml, so amounts convert — g/kg/oz/lb, ml/l/tsp/tbsp/cups/fl oz/pints, counts (slices, scoops,
+pumps, shots, links…), whole things (a can, a jar, "half the bag" via pack servings, an onion, a
+chicken breast). Spoken numbers ("one and a half cups", "twenty five grams", "a quarter cup") become
+digits. Drinks: tall/grande/venti sizes, milk swaps ("latte with oat milk"), pumps, shots, sugar,
+cream — add-ons count once per drink. Numbers said outright win ("a 250 calorie bar", "30g protein",
+"each"). Portions: shared/split, bites, most of, seconds. "Fried" adds oil; "air fried" doesn't.
+"Yesterday"/"last night" logs to that day (one tap to undo). An amount never multiplies something
+without a known size. Recipes ("…makes 4, I had 1", or "name: ingredients…") combine into one entry
+per serving with an editable ingredient breakdown, use raw/dry weights, and are saved by name.
+Trader Joe's: ~130 products with short spoken names (a product wins on its own name, e.g. "orange
+chicken"; generic words need "TJ's"); tapping any product, common food, My food or scanned item asks
+how much (servings, grams/oz, cups/tbsp). "My foods" (v4) are added from a label, optionally with a
+barcode; a scan checks My foods first and an unknown barcode goes straight to the label form. A 🎤
+button uses the browser's speech recognition (Chrome sends audio to Google to transcribe) alongside
+the keyboard's own dictation.
+
 ## History & stats (Progress tab, both modes)
 
 `js/history.js` renders every logged day from both modes (count logs win; logged plan days are
@@ -69,7 +86,7 @@ Switching modes never removes data. Settings shows browser storage used (localSt
 - Shared product and recipe data live in `data/products.json` and `data/templates.json`.
 - Personal state lives only in browser localStorage under `fuel.state.v1`.
 - The repository does not contain the owner's personal logs.
-- The record carries an explicit `schemaVersion` (currently 3; v3 added `trackMode`, `foodLog`, `usuals`, `paybackPerDay`, `barcodes`) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
+- The record carries an explicit `schemaVersion` (currently 4; v3 added `trackMode`, `foodLog`, `usuals`, `paybackPerDay`, `barcodes`; v4 added `myFoods`) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
 - A migration that fails leaves the stored record untouched, keeps a recovery copy, and lets the app run on the last good state.
 - Fuel keeps a rolling ring of up to five recovery copies, taken before any write that replaces or deletes the record: upgrades, restores, imports, and resets. The ring shrinks rather than failing when phone storage is full.
 - An unreadable record no longer falls back to blank state. It is quarantined intact and a full-screen recovery path offers the copies, a pasted backup, or an explicit start-fresh.

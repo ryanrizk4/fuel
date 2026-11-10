@@ -47,7 +47,7 @@ test("an unversioned v1 record migrates forward instead of being discarded", () 
   const result = P.loadState(storage);
 
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [2, 3]);
+  assert.deepEqual(result.migrated, [2, 3, 4]);
   assert.equal(result.state.schemaVersion, P.SCHEMA_VERSION);
   // every field the owner cared about survived the upgrade
   assert.equal(Object.keys(result.state.plan.days).length, 1);
@@ -228,7 +228,7 @@ test("an export taken before the archive format still restores", () => {
   const { state, source, migrated } = P.importArchive(JSON.parse(JSON.stringify(legacy)));
 
   assert.equal(source, "legacy");
-  assert.deepEqual(migrated, [2, 3]);
+  assert.deepEqual(migrated, [2, 3, 4]);
   assert.equal(state.schemaVersion, P.SCHEMA_VERSION);
   assert.equal(state.weighIns[0].lb, 184.2);
   assert.equal(state.profile.proteinPerLb, 1.0);
@@ -265,7 +265,7 @@ test("a v2 record upgrades to v3 with every field intact and count mode off", ()
   const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(v2) });
   const result = P.loadState(storage);
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [3]);
+  assert.deepEqual(result.migrated, [3, 4]);
   assert.equal(result.state.trackMode, "plan", "the owner stays in planning mode until they choose to switch");
   assert.deepEqual(result.state.foodLog, {});
   assert.deepEqual(result.state.usuals, []);
@@ -274,7 +274,7 @@ test("a v2 record upgrades to v3 with every field intact and count mode off", ()
   assert.equal(result.state.overageBank, 120);
   assert.equal(result.state.weighIns[0].lb, 184.2);
   assert.equal(result.state.customFutureField, "keep me");
-  assert.equal(P.describeRecoverySnapshots(storage)[0].reason, "before upgrade to v3");
+  assert.equal(P.describeRecoverySnapshots(storage)[0].reason, "before upgrade to v4");
 });
 
 test("count-mode logs survive a backup round trip and show in recovery summaries", () => {
@@ -295,4 +295,16 @@ test("a malformed count-mode field is repaired, not trusted", () => {
   assert.deepEqual(s.usuals, []);
   assert.equal(s.paybackPerDay, 150);
   assert.deepEqual(s.barcodes, {});
+});
+
+test("a v3 record upgrades to v4 with an empty 'my foods' list and nothing else touched", () => {
+  const v3 = { ...P.normalizeState(legacyRecord()), schemaVersion: 3, trackMode: "count", foodLog: { "2026-11-09": { entries: [{ id: "a", name: "x", calories: 1, protein: 0, qty: 1 }], walks: [] } } };
+  delete v3.myFoods;
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(v3) });
+  const result = P.loadState(storage);
+  assert.equal(result.status, "migrated");
+  assert.deepEqual(result.migrated, [4]);
+  assert.deepEqual(result.state.myFoods, []);
+  assert.equal(result.state.trackMode, "count");
+  assert.deepEqual(result.state.foodLog, v3.foodLog);
 });

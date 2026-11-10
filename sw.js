@@ -11,6 +11,7 @@ const SHELL = [
   "js/ai.js",
   "js/history.js",
   "js/parse.js",
+  "js/units.js",
   "js/persistence.js",
   "js/release.js",
   "js/reloadGuard.js",
