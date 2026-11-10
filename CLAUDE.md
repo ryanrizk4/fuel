@@ -92,7 +92,12 @@ Before ANY commit/push:
 
 ## Exercise calories (research-backed policy — don't "improve" it casually)
 
-The owner walks ~10k steps/day and lifts; his TDEE multiplier (moderate, 1.55) already includes that.
+The owner walks ~10k steps/day and lifts; the activity multiplier already includes that. NOTE (Nov 2026):
+the owner reported the formula budget (~2,300 at "moderate" ×1.55) is far above what has actually worked
+for him (~1,800). Maintenance is therefore calibrated, in priority order: a budget he sets directly
+(`profile.budgetKcal`), maintenance from his results (`profile.maintenanceKcal`, from "what's worked"
+or measured from logs + weigh-ins via `adaptiveMaintenance`), then the formula with the `walker` (×1.45)
+factor as the default for desk job + daily walking + lifting. Never silently revert to the formula.
 Trackers overestimate burn 27–93% (Stanford 2017; 2025 Apple Watch meta-analysis ~28% MAPE), and a
 lifting session really costs ~150–300 kcal. So the app NEVER treats tracker "calories burned" as
 edible budget. Only user-flagged unusual days (long hike, ~2× normal steps) earn a credit:

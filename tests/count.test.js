@@ -309,3 +309,58 @@ test("top foods counts repeats; CSV export is spreadsheet-safe", () => {
   assert.ok(csv.some((l) => l.startsWith("2026-11-02,walk,Extra walk 30 min,1,-72,")));
   assert.ok(csv.some((l) => l === "2026-11-03,weigh-in,Weight (lb),1,,,,159.4"));
 });
+
+// ---------- maintenance calibration: real results beat the formula ----------
+
+test("'what worked before' sets maintenance: 1,800/day losing 1 lb/week → 2,300", () => {
+  assert.equal(E.maintenanceFromHistory(1800, 1), 2300);
+  assert.equal(E.maintenanceFromHistory(1800, 0), 1800);
+  assert.equal(E.maintenanceFromHistory(0, 1), null);
+  const p = { ...profile, maintenanceKcal: 2300, maintenanceFrom: "what worked before", deficit: 500 };
+  assert.equal(E.tdee(p), 2300, "a calibrated number beats the formula");
+  assert.equal(E.dailyBudget(p), 1800);
+  assert.equal(E.maintenanceSource(p), "what worked before");
+  assert.equal(E.maintenanceSource(profile), "formula");
+  assert.ok(E.formulaTdee(p) > 2300, "the formula alone would have said more");
+});
+
+test("a budget set directly wins, but never under the safety floor", () => {
+  assert.equal(E.dailyBudget({ ...profile, budgetKcal: 1800 }), 1800);
+  assert.equal(E.dailyBudget({ ...profile, budgetKcal: 1100 }), E.BUDGET_FLOOR.male);
+  assert.equal(E.maintenanceSource({ ...profile, budgetKcal: 1800 }), "budget");
+  assert.equal(E.budgetIsFloored({ ...profile, budgetKcal: 1100 }), true);
+});
+
+test("the desk-job + daily walking + lifting factor sits between light and moderate", () => {
+  const w = E.formulaTdee({ ...profile, activity: "walker" });
+  assert.ok(w > E.formulaTdee({ ...profile, activity: "light" }) && w < E.formulaTdee({ ...profile, activity: "moderate" }));
+});
+
+test("goal pacing runs on the calibrated maintenance", () => {
+  const p = { ...profile, maintenanceKcal: 2300 };
+  const g = E.goalPlan(p, { currentLb: 160, goalLb: 150, goalDate: "2027-02-02", today: "2026-11-10" });
+  assert.equal(g.maintenance, 2300);
+  assert.equal(g.budget, 2300 - 425);
+});
+
+test("measured maintenance from logs + weigh-ins", () => {
+  // 21 days eating 1,900 while losing 0.75 lb/week → burns ≈ 1,900 + 375 = 2,275
+  const rows = Array.from({ length: 21 }, (_, i) => ({ key: E.dateKey(E.addDays(E.parseKey("2026-10-01"), i)), source: "count", calories: 1900, approx: false }));
+  const weighIns = [0, 7, 14, 20].map((d) => ({ date: E.dateKey(E.addDays(E.parseKey("2026-10-01"), d)), lb: Math.round((165 - (0.75 / 7) * d) * 10) / 10 }));
+  const a = E.adaptiveMaintenance(rows, weighIns);
+  assert.ok(Math.abs(a.maintenance - 2275) <= 30, `got ${a.maintenance}`);
+  assert.equal(a.avgIntake, 1900);
+  assert.ok(Math.abs(a.lbPerWeek - 0.75) <= 0.1);
+  // not enough to go on → no guess
+  assert.equal(E.adaptiveMaintenance(rows.slice(0, 6), weighIns), null, "too few logged days");
+  assert.equal(E.adaptiveMaintenance(rows, weighIns.slice(0, 1)), null, "one weigh-in");
+  assert.equal(E.adaptiveMaintenance(rows, [weighIns[0], { date: "2026-10-05", lb: 164.5 }]), null, "weigh-ins too close together");
+});
+
+test("the trend check compares against the calibrated plan, not the old deficit field", () => {
+  const st = mkState({ profile: { ...profile, budgetKcal: 1800, maintenanceKcal: 2300, deficit: 0 } });
+  st.weighIns = [{ date: "2026-10-01", lb: 165 }, { date: "2026-10-08", lb: 164 }, { date: "2026-10-15", lb: 163 }];
+  const c = E.calibration(st);
+  assert.equal(c.plannedPerWeek, 1, "planned pace = (2300 − 1800) × 7 / 3500");
+  assert.equal(c.status, "on-track");
+});

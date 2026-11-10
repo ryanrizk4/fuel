@@ -743,6 +743,7 @@ function renderProgress() {
       <div class="tile"><div class="t-label">Overage bank</div><div class="t-value ${bank > 0 ? "bad" : "good"}">${bank}</div><div class="t-sub">${bank > 0 ? `kcal to absorb · pushes goal ~${Math.ceil(proj.bankDays)} day${Math.ceil(proj.bankDays) !== 1 ? "s" : ""}` : "kcal — all clear ✓"}</div></div>
     </div>
 
+    ${C.calibrationCard()}
     ${H.historySection()}
 
     ${(() => {
@@ -870,7 +871,8 @@ function renderMore() {
 
     <div class="card">
       <h3>Your numbers</h3>
-      <div class="small muted" style="margin-bottom:12px">Maintenance ≈ ${E.tdee(p)} kcal · budget <b>${budget}</b> kcal · protein ${E.proteinTarget(p)}g</div>
+      <div class="small muted" style="margin-bottom:12px">Maintenance ≈ ${E.tdee(p)} kcal (${{ formula: "formula estimate", budget: "you set the budget", "your logs": "measured from your logs", "what worked before": "from what's worked for you", history: "from what's worked for you" }[E.maintenanceSource(p)] || "estimate"}) · budget <b>${budget}</b> kcal · protein ${E.proteinTarget(p)}g</div>
+      <button class="btn small" style="margin-bottom:12px" data-action="c-sheet-goal">Calibrate goal & budget</button>
       <div class="field-row">
         <div class="field"><label>Weight (lb)</label><input id="s-weight" type="number" inputmode="decimal" value="${p.weightLb}" /></div>
         <div class="field"><label>Age</label><input id="s-age" type="number" inputmode="numeric" value="${p.age}" /></div>
@@ -878,7 +880,7 @@ function renderMore() {
       <div class="field-row">
         <div class="field"><label>Activity</label>
           <select id="s-activity">
-            ${["sedentary", "light", "moderate", "very"].map((a) => `<option value="${a}" ${p.activity === a ? "selected" : ""}>${a}</option>`).join("")}
+            ${[["sedentary", "sedentary"], ["light", "light"], ["walker", "desk + 10k steps + lifting"], ["moderate", "moderate"], ["very", "very active"]].map(([a, l]) => `<option value="${a}" ${p.activity === a ? "selected" : ""}>${l}</option>`).join("")}
           </select>
         </div>
         <div class="field"><label>Deficit</label>
