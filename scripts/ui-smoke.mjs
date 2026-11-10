@@ -25,11 +25,7 @@ try {
       assert.ok((await page.locator(`#view-${tab.toLowerCase()}`).innerText()).length > 30);
     }
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-<<<<<<< HEAD
     assert.ok(await page.getByText("fuel-v18 ✓", { exact: true }).isVisible());
-=======
-    assert.ok(await page.getByText("fuel-v17 ✓", { exact: true }).isVisible());
->>>>>>> origin/main
     await page.screenshot({ path: join(out, `settings-${width}.png`) });
     await page.getByRole("button", { name: "Today", exact: true }).click();
     await page.screenshot({ path: join(out, `today-${width}.png`) });

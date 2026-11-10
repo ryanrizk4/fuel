@@ -10,10 +10,7 @@ const SHELL = [
   "js/count.js",
   "js/ai.js",
   "js/history.js",
-<<<<<<< HEAD
   "js/parse.js",
-=======
->>>>>>> origin/main
   "js/persistence.js",
   "js/release.js",
   "js/reloadGuard.js",

@@ -444,7 +444,6 @@ textarea.io { width: 100%; min-height: 110px; border-radius: 12px; border: 1px s
 .good-text { color: var(--good-text); font-weight: 650; }
 .bad-text { color: var(--critical); font-weight: 650; }
 [data-hist-day] { cursor: pointer; }
-<<<<<<< HEAD
 
 /* ---------- type it ---------- */
 textarea.type-box { font-family: inherit; font-size: 1rem; min-height: 78px; }
@@ -473,5 +472,3 @@ button.link { color: var(--accent); font-weight: 650; text-decoration: underline
 .ti-alts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
 .ti-alt { font-size: .76rem; padding: 4px 9px; border-radius: 14px; border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink-2); }
 .btn:disabled { opacity: .5; }
-=======
->>>>>>> origin/main
