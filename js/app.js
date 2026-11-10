@@ -135,13 +135,15 @@ function mealTitle(m) {
 async function boot() {
   if (window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone)
     document.documentElement.classList.add("standalone");
-  const [p, t, eats] = await Promise.all([
+  const [p, t, eats, foods] = await Promise.all([
     fetch("data/products.json", { cache: "no-cache" }).then((r) => r.json()),
     fetch("data/templates.json", { cache: "no-cache" }).then((r) => r.json()),
     // The quick-log catalog is optional: count mode still works (usuals, quick add) without it.
     fetch("data/eats.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    // Common foods for "Type it" — optional like the catalog.
+    fetch("data/foods.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
-  DATA = { products: p.products, templates: t.templates, eats: eats || { places: [], home: [], starterUsuals: [] } };
+  DATA = { products: p.products, templates: t.templates, eats: eats || { places: [], home: [], starterUsuals: [] }, foods: foods?.foods || [] };
   C.initCount({
     state: () => state, data: () => DATA, save, openSheet, closeSheet, toast, esc, todayKey, renderAll, switchTab,
     backupReminder,
@@ -916,8 +918,19 @@ function renderMore() {
     <div class="card">
       <h3>✨ AI estimates</h3>
       <div class="diag-row"><span>Claude API key on this phone</span><span class="${C.hasAiKey() ? "ok" : "warn"}">${C.hasAiKey() ? "saved ✓" : "not set"}</span></div>
-      <div class="small muted mt8">Used only for “Describe / photo” in count mode. The key is stored on this phone alone and is never included in backups or exports.</div>
-      ${C.hasAiKey() ? '<div class="btn-row"><button class="btn ghost danger" data-action="ai-key-remove">Remove key</button></div>' : ""}
+      <div class="small muted mt8">Optional. “✍️ Type it” works without it; the key is only for photos and meals typing can't place. The key is stored on this phone alone and is never included in backups or exports.</div>
+      ${C.hasAiKey() ? '<div class="btn-row"><button class="btn ghost danger" data-action="ai-key-remove">Remove key</button></div>' : `<div class="btn-row"><button class="btn ghost" data-action="c-sheet-ai" data-date="${todayKey()}">Set up AI estimates</button></div>`}
+    </div>
+
+    <div class="card">
+      <h3>✍️ Typing misses</h3>
+      ${(() => {
+        const m = C.typeMisses();
+        if (!m.length) return '<div class="small muted mt8">Nothing yet. When “Type it” doesn\'t recognize something, or you swap or correct what it picked, it\'s noted here so it can be taught.</div>';
+        return `<div class="small muted mt8">${m.length} logged meal${m.length === 1 ? "" : "s"} with something “Type it” got wrong or didn't know. Copy and paste them into an AI coding session for Fuel and say “tune Type it with these”.</div>
+          ${m.slice(0, 5).map((x) => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--hairline)">“${esc(x.text)}” <span class="muted">· ${x.misses.map((y) => esc(y.got)).join("; ")}</span></div>`).join("")}
+          <div class="btn-row"><button class="btn" data-action="copy-misses">Copy for tuning</button><button class="btn ghost" data-action="clear-misses">Clear</button></div>`;
+      })()}
     </div>
 
     <div class="card">
@@ -1710,6 +1723,12 @@ function handleAction(el) {
       applyTheme(); save(); return renderMore();
     }
 
+    case "copy-misses": {
+      const text = "Fuel Type-it misses (tune the parser with these):\n" + C.typeMisses().map((x) => `- "${x.text}" → ${x.misses.map((y) => `"${y.phrase}": ${y.got}`).join("; ")}`).join("\n");
+      (navigator.clipboard?.writeText(text) || Promise.reject()).then(() => toast("Copied — paste it into a Fuel session")).catch(() => { prompt("Copy this:", text); });
+      return;
+    }
+    case "clear-misses": { C.clearTypeMisses(); renderMore(); return; }
     case "ai-key-remove": {
       C.clearAiKey(); renderMore(); toast("API key removed from this phone"); return;
     }

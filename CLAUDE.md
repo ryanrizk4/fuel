@@ -14,6 +14,14 @@ around Trader Joe's shopping. Deployed via GitHub Pages; used entirely from the 
   When the owner says "add my usual X order", add it here (not to templates.json); `tests/count.test.js`
   checks every reference resolves.
 - `js/count.js` + `js/ai.js` — count-mode UI and the Claude API food estimator (owner's own key, kept out of state)
+- `js/parse.js` + `data/foods.json` — "✍️ Type it": on-phone parser for typed/dictated meals (no AI). `js/history.js` — History & stats.
+
+## Tuning "Type it" (owner will paste "Fuel Type-it misses" from Settings)
+
+For each miss: add a case to `tests/parse.test.js` first (the exact phrase and what it should become),
+then fix in this order — (1) an alias in `data/eats.json` / `data/foods.json`, (2) a new food in
+`foods.json`, (3) parser logic in `js/parse.js` only if data can't express it. Keep every existing
+parse test passing; they encode phrasings that already work.
 - `sw.js` — cache-first shell, network-first for `data/*.json` (content updates land on next visit)
 - User's personal logs (plan, weigh-ins, overage bank, freezer, product verifications) live in
   **localStorage on the phone** (`fuel.state.v1`), NOT in the repo. Never commit personal data.

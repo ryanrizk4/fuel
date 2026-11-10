@@ -12,7 +12,8 @@ alternate origins have separate browser storage and do not automatically share p
 
 - **Full plan** — the weekly planner: meals, shopping list, freezer, check-ins.
 - **Just count** — a fast calorie counter for weeks you don't want to plan: one-tap usuals,
-  restaurant orders (Chipotle builder included), barcode scan, describe-or-photo AI estimates,
+  restaurant orders (Chipotle builder included), "Type it" (type or dictate a meal, understood on
+  the phone without AI), barcode scan, optional photo AI estimates, History & stats with charts,
   "what still fits", goal pacing with safety caps, and a payback plan that cancels out big days.
 
 ## Why it exists

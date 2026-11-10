@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v16`.
+Current visible version: `fuel-v18`.
 
 ## Core behavior
 
@@ -41,6 +41,28 @@ Shop tabs hide while it's on, and nothing in the planner is lost.
   the plan. Under-eating never earns credit. Unlogged days are not settled. Editing a settled day
   moves the bank by exactly the change.
 - Week balance: Mon–Sun deficit vs maintenance, counting today as eaten-to-budget.
+
+## ✍️ Type it (count mode, no AI)
+
+`js/parse.js` turns typed or dictated text into items entirely on the phone: splits on commas, "and"
+(unless the joined phrase is one dish), "then", "plus a…"; reads quantities (2, two, half, 6 oz, 200 g,
+large); applies no / without / extra / double / light / add / with / on the side to Chipotle-style
+ingredient builds, home-combo products, or add-on portions for fixed items; attaches trailing add-ons
+("…and honey") to the previous item; tolerates small typos; and ranks personal usuals and recents above
+generic foods. Matches come from the catalog, Fuel meals, Trader Joe's products, scanned barcodes, and
+`data/foods.json` (~120 common foods + add-ons). Ambiguous words offer one-tap alternatives; unknown
+phrases ask for numbers once and are remembered as usuals with that phrase as an alias. Misses, swaps
+and corrections are noted in `fuel.typemisses.v1` (outside state) for Settings → "Copy for tuning".
+AI estimates remain available from the same sheet for photos and anything the parser can't place.
+
+## History & stats (Progress tab, both modes)
+
+`js/history.js` renders every logged day from both modes (count logs win; logged plan days are
+converted to calories, "ate out" days marked estimated) over 7/30/90/365 days: average calories and
+protein, on-budget rate and streaks, estimated fat lost vs maintenance, calories chart (weekly bars
+past 60 days), protein line, week-by-week table next to actual scale change, most-eaten foods, a
+tappable list of every day (edit opens it in Today), and CSV export (share sheet or download).
+Switching modes never removes data. Settings shows browser storage used (localStorage is ~5 MB).
 
 ## Data and persistence
 
