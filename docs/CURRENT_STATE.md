@@ -1,6 +1,6 @@
 # Fuel current state
 
-Updated: 2026-09-06
+Updated: 2026-11-10
 
 ## Product status
 
@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v15`.
+Current visible version: `fuel-v16`.
 
 ## Core behavior
 
@@ -19,12 +19,35 @@ Current visible version: `fuel-v15`.
 - Tracks meals eaten, snacks, weight, overage recovery, freezer inventory, pantry state, favorites, and product-label overrides.
 - Generates a shopping list from the remaining planned week.
 
+## Count mode ("Just count")
+
+A second way to use Fuel for weeks without planning. Toggle on Today or in Settings; Plan and
+Shop tabs hide while it's on, and nothing in the planner is lost.
+
+- One-tap usuals (seeded from `data/eats.json` → `starterUsuals`, editable), recents, and a
+  searchable catalog: restaurant orders (Pret, Just Salad, Chipotle with a per-ingredient
+  builder), home combos built from `products.json`, every Fuel meal, and single ingredients.
+- Quick add with "save as usual"; any entry can be re-sized (½–2×), corrected, or re-logged.
+- Barcode scan (Chrome `BarcodeDetector` + Open Food Facts, manual number fallback); results are
+  cached on the phone so repeat scans work offline.
+- "Describe / photo" AI estimates via the Claude API using the owner's own key, stored in its own
+  localStorage slot (`fuel.aikey.v1`) and never in state, backups, or recovery copies.
+- "What still fits": ranks known foods by protein density within the calories left.
+- Goal pacing: goal weight + date → deficit, capped at 1% bodyweight/week and the budget floor,
+  with a realistic date when the requested one is too aggressive.
+- Binge recovery: a finished day over budget moves its excess into the payback plan (the same
+  overage bank as planning mode). Payback speed 150/250/350 kcal/day, never below the floor.
+  Extra walks (conservative net estimate, capped at 300/day) cancel today's overage or pay down
+  the plan. Under-eating never earns credit. Unlogged days are not settled. Editing a settled day
+  moves the bank by exactly the change.
+- Week balance: Mon–Sun deficit vs maintenance, counting today as eaten-to-budget.
+
 ## Data and persistence
 
 - Shared product and recipe data live in `data/products.json` and `data/templates.json`.
 - Personal state lives only in browser localStorage under `fuel.state.v1`.
 - The repository does not contain the owner's personal logs.
-- The record carries an explicit `schemaVersion` (currently 2) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
+- The record carries an explicit `schemaVersion` (currently 3; v3 added `trackMode`, `foodLog`, `usuals`, `paybackPerDay`, `barcodes`) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
 - A migration that fails leaves the stored record untouched, keeps a recovery copy, and lets the app run on the last good state.
 - Fuel keeps a rolling ring of up to five recovery copies, taken before any write that replaces or deletes the record: upgrades, restores, imports, and resets. The ring shrinks rather than failing when phone storage is full.
 - An unreadable record no longer falls back to blank state. It is quarantined intact and a full-screen recovery path offers the copies, a pasted backup, or an explicit start-fresh.

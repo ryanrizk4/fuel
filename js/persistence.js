@@ -11,7 +11,7 @@ export const BACKUP_FORMAT = "fuel-backup.v1";
 
 // Bump when the persisted shape changes, and add a migration below. Records
 // written before versioning existed have no schemaVersion and are treated as 1.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const LEGACY_VERSION = 1;
 export const MAX_RECOVERY_SNAPSHOTS = 5;
 
@@ -36,6 +36,13 @@ function defaultState() {
     overageBank: 0,
     planMode: "auto",
     theme: "auto",
+    // v3: simple calorie counting
+    trackMode: "plan",   // "plan" (full weekly planner) | "count" (just log what you eat)
+    foodLog: {},         // dateKey -> { entries: [...], walks: [...], activityCredit?, settled? }
+    usuals: [],          // one-tap foods: { id, ref } or { id, name, emoji, calories, protein, detail }
+    usualsSeeded: false,
+    paybackPerDay: 150,  // kcal/day trimmed while an overage is being paid back
+    barcodes: {},        // barcode -> food looked up once, so scanning works offline after
   };
 }
 
@@ -44,8 +51,8 @@ const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
 const nowIso = () => new Date().toISOString();
 
 // Object-shaped fields (maps keyed by product/template id) and list-shaped fields.
-const MAP_FIELDS = ["history", "productOverrides", "shopChecks", "pantry", "favorites", "opened"];
-const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox"];
+const MAP_FIELDS = ["history", "productOverrides", "shopChecks", "pantry", "favorites", "opened", "foodLog", "barcodes"];
+const LIST_FIELDS = ["weighIns", "freezer", "recipeInbox", "usuals"];
 
 /**
  * Repair a record's shape without discarding anything readable. Unknown fields are
@@ -65,6 +72,9 @@ function normalizeState(raw) {
   if (!Number.isFinite(out.planSeed)) out.planSeed = 1;
   if (typeof out.planMode !== "string") out.planMode = "auto";
   if (typeof out.theme !== "string") out.theme = "auto";
+  if (out.trackMode !== "plan" && out.trackMode !== "count") out.trackMode = "plan";
+  if (!Number.isFinite(out.paybackPerDay)) out.paybackPerDay = 150;
+  if (typeof out.usualsSeeded !== "boolean") out.usualsSeeded = false;
   return out;
 }
 
@@ -82,6 +92,7 @@ function summarizeState(state) {
   const days = isObj(s.plan) && isObj(s.plan.days) ? Object.keys(s.plan.days).length : 0;
   return {
     days,
+    loggedDays: isObj(s.foodLog) ? Object.values(s.foodLog).filter((d) => Array.isArray(d?.entries) && d.entries.length).length : 0,
     weighIns: Array.isArray(s.weighIns) ? s.weighIns.length : 0,
     freezer: Array.isArray(s.freezer) ? s.freezer.reduce((n, f) => n + (Number(f?.portions) || 0), 0) : 0,
     favorites: isObj(s.favorites) ? Object.keys(s.favorites).length : 0,
@@ -105,6 +116,15 @@ const MIGRATIONS = [
       // old load() patched this on every boot, which is exactly what a migration is for.
       if (out.profile && out.profile.proteinPerLb === 0.8) out.profile = { ...out.profile, proteinPerLb: 1.0 };
       return out;
+    },
+  },
+  {
+    to: 3,
+    describe: "add the simple calorie-count log, usuals and payback speed",
+    migrate(state) {
+      // Purely additive: every existing field is kept exactly as it was, and the owner
+      // stays in full planning mode until they choose to switch.
+      return normalizeState(state);
     },
   },
 ];

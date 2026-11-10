@@ -8,6 +8,13 @@ GitHub Pages has also hosted Fuel at https://ryanrizk4.github.io/fuel/. Keep usi
 installed on your phone. Moving to another address requires exporting and importing your history:
 alternate origins have separate browser storage and do not automatically share personal data.
 
+## Two ways to use it
+
+- **Full plan** — the weekly planner: meals, shopping list, freezer, check-ins.
+- **Just count** — a fast calorie counter for weeks you don't want to plan: one-tap usuals,
+  restaurant orders (Chipotle builder included), barcode scan, describe-or-photo AI estimates,
+  "what still fits", goal pacing with safety caps, and a payback plan that cancels out big days.
+
 ## Why it exists
 
 Fuel is not a generic recipe app. It reduces the weekly decisions around:

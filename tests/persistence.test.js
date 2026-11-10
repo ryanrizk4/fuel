@@ -47,7 +47,7 @@ test("an unversioned v1 record migrates forward instead of being discarded", () 
   const result = P.loadState(storage);
 
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [2]);
+  assert.deepEqual(result.migrated, [2, 3]);
   assert.equal(result.state.schemaVersion, P.SCHEMA_VERSION);
   // every field the owner cared about survived the upgrade
   assert.equal(Object.keys(result.state.plan.days).length, 1);
@@ -228,7 +228,7 @@ test("an export taken before the archive format still restores", () => {
   const { state, source, migrated } = P.importArchive(JSON.parse(JSON.stringify(legacy)));
 
   assert.equal(source, "legacy");
-  assert.deepEqual(migrated, [2]);
+  assert.deepEqual(migrated, [2, 3]);
   assert.equal(state.schemaVersion, P.SCHEMA_VERSION);
   assert.equal(state.weighIns[0].lb, 184.2);
   assert.equal(state.profile.proteinPerLb, 1.0);
@@ -256,4 +256,43 @@ test("junk files are rejected without touching the stored record", () => {
     assert.throws(() => P.importArchiveInto(storage, junk), /Fuel|backup|state/i);
   }
   assert.deepEqual(parseStored(storage, P.STORE_KEY), good);
+});
+
+test("a v2 record upgrades to v3 with every field intact and count mode off", () => {
+  const v2 = { ...P.normalizeState(legacyRecord()), schemaVersion: 2 };
+  for (const k of ["trackMode", "foodLog", "usuals", "usualsSeeded", "paybackPerDay", "barcodes"]) delete v2[k];
+  v2.customFutureField = "keep me";
+  const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(v2) });
+  const result = P.loadState(storage);
+  assert.equal(result.status, "migrated");
+  assert.deepEqual(result.migrated, [3]);
+  assert.equal(result.state.trackMode, "plan", "the owner stays in planning mode until they choose to switch");
+  assert.deepEqual(result.state.foodLog, {});
+  assert.deepEqual(result.state.usuals, []);
+  assert.deepEqual(result.state.barcodes, {});
+  assert.equal(result.state.paybackPerDay, 150);
+  assert.equal(result.state.overageBank, 120);
+  assert.equal(result.state.weighIns[0].lb, 184.2);
+  assert.equal(result.state.customFutureField, "keep me");
+  assert.equal(P.describeRecoverySnapshots(storage)[0].reason, "before upgrade to v3");
+});
+
+test("count-mode logs survive a backup round trip and show in recovery summaries", () => {
+  const state = P.normalizeState(legacyRecord());
+  state.trackMode = "count";
+  state.foodLog = { "2026-11-09": { entries: [{ id: "a", name: "Pret coffee", calories: 200, protein: 10, qty: 1 }], walks: [] } };
+  state.usuals = [{ id: "u1", ref: "pret-usual-coffee" }];
+  const { state: back } = P.importArchive(JSON.parse(JSON.stringify(P.exportArchive(state))));
+  assert.deepEqual(back.foodLog, state.foodLog);
+  assert.deepEqual(back.usuals, state.usuals);
+  assert.equal(P.summarizeState(state).loggedDays, 1);
+});
+
+test("a malformed count-mode field is repaired, not trusted", () => {
+  const s = P.normalizeState({ trackMode: "weird", foodLog: [], usuals: "x", paybackPerDay: "fast", barcodes: null });
+  assert.equal(s.trackMode, "plan");
+  assert.deepEqual(s.foodLog, {});
+  assert.deepEqual(s.usuals, []);
+  assert.equal(s.paybackPerDay, 150);
+  assert.deepEqual(s.barcodes, {});
 });

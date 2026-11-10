@@ -1132,6 +1132,58 @@
       "packServings": 16,
       "packLabel": "1 loaf (~16 slices)",
       "note": "Buy the loaf, slice it, freeze what you won't use in a few days. Loaves rotate at TJ's — tap Check label for the one you actually bought."
+    },
+    {
+      "id": "tj-black-forest-ham",
+      "name": "Uncured Black Forest Ham (sliced)",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "2 oz",
+      "calories": 60,
+      "protein": 10,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "6 oz pack",
+      "note": "Typical deli ham label — confirm from the package"
+    },
+    {
+      "id": "tj-sliced-swiss",
+      "name": "Sliced Swiss Cheese",
+      "brand": "Trader Joe's",
+      "section": "Dairy & Eggs",
+      "unit": "1 slice",
+      "calories": 80,
+      "protein": 6,
+      "confidence": "estimated",
+      "packServings": 10,
+      "packLabel": "8 oz pack",
+      "note": "Swap for any sliced cheese — confirm from the package"
+    },
+    {
+      "id": "tj-pulled-pork-bbq",
+      "name": "Pulled Pork in Smoky BBQ Sauce",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "1/3 package (151 g)",
+      "calories": 240,
+      "protein": 14,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "16 oz tub",
+      "note": "Third-party label data (FatSecret/MyFoodDiary)"
+    },
+    {
+      "id": "tj-pulled-chicken-bbq",
+      "name": "Smoke House Pulled Chicken in BBQ Sauce",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "1/3 package (151 g)",
+      "calories": 140,
+      "protein": 18,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "16 oz tub",
+      "note": "Third-party data (Eat This Much); protein derived from macro split"
     }
   ]
 }

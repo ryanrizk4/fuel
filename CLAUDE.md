@@ -9,6 +9,11 @@ around Trader Joe's shopping. Deployed via GitHub Pages; used entirely from the 
   + `js/persistence.js` (versioned state records, migrations, recovery copies; no DOM)
 - `data/products.json` — TJ's product database (calories/protein per serving, `confidence: verified|estimated`, pack sizes)
 - `data/templates.json` — meal templates: base ingredients + variants that keep the same cooking motions
+- `data/eats.json` — "Just count" catalog: restaurant orders (fixed numbers, or `picks` against a place's
+  `components` for build-your-own like Chipotle), home combos made of products.json items, and `starterUsuals`.
+  When the owner says "add my usual X order", add it here (not to templates.json); `tests/count.test.js`
+  checks every reference resolves.
+- `js/count.js` + `js/ai.js` — count-mode UI and the Claude API food estimator (owner's own key, kept out of state)
 - `sw.js` — cache-first shell, network-first for `data/*.json` (content updates land on next visit)
 - User's personal logs (plan, weigh-ins, overage bank, freezer, product verifications) live in
   **localStorage on the phone** (`fuel.state.v1`), NOT in the repo. Never commit personal data.
