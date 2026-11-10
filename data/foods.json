@@ -19,7 +19,8 @@
     "scrambled eggs",
     "poached egg",
     "omelet egg"
-   ]
+   ],
+   "g": 50
   },
   {
    "id": "egg-white",
@@ -31,7 +32,9 @@
    "aliases": [
     "egg white",
     "egg whites"
-   ]
+   ],
+   "ml": 59,
+   "g": 61
   },
   {
    "id": "omelet",
@@ -61,7 +64,8 @@
     "sourdough",
     "sourdough toast",
     "whole wheat toast"
-   ]
+   ],
+   "g": 32
   },
   {
    "id": "butter",
@@ -71,9 +75,12 @@
    "calories": 100,
    "protein": 0,
    "aliases": [
-    "butter"
+    "butter",
+    "pat of butter"
    ],
-   "addon": true
+   "addon": true,
+   "g": 14,
+   "ml": 15
   },
   {
    "id": "bagel",
@@ -87,7 +94,8 @@
     "plain bagel",
     "everything bagel",
     "sesame bagel"
-   ]
+   ],
+   "g": 105
   },
   {
    "id": "bagel-cream-cheese",
@@ -129,10 +137,13 @@
    "protein": 6,
    "aliases": [
     "oatmeal",
-    "oats",
     "porridge",
-    "overnight oats"
-   ]
+    "cooked oatmeal",
+    "bowl of oatmeal"
+   ],
+   "ml": 237,
+   "g": 234,
+   "prep": "cooked"
   },
   {
    "id": "granola",
@@ -143,7 +154,9 @@
    "protein": 5,
    "aliases": [
     "granola"
-   ]
+   ],
+   "g": 55,
+   "ml": 118
   },
   {
    "id": "cereal",
@@ -185,7 +198,13 @@
     "plain yogurt",
     "skyr",
     "yoghurt"
-   ]
+   ],
+   "g": 227,
+   "ml": 237,
+   "per": {
+    "tub": 3,
+    "container": 3
+   }
   },
   {
    "id": "cottage-cheese",
@@ -196,7 +215,9 @@
    "protein": 12,
    "aliases": [
     "cottage cheese"
-   ]
+   ],
+   "g": 113,
+   "ml": 118
   },
   {
    "id": "protein-shake",
@@ -212,7 +233,8 @@
     "whey",
     "scoop of protein",
     "protein smoothie"
-   ]
+   ],
+   "liquid": true
   },
   {
    "id": "protein-bar",
@@ -226,7 +248,8 @@
     "quest bar",
     "rxbar",
     "barebells"
-   ]
+   ],
+   "g": 60
   },
   {
    "id": "smoothie",
@@ -238,7 +261,9 @@
    "aliases": [
     "smoothie",
     "fruit smoothie"
-   ]
+   ],
+   "ml": 473,
+   "liquid": true
   },
   {
    "id": "turkey-bacon",
@@ -250,7 +275,8 @@
    "aliases": [
     "turkey bacon"
    ],
-   "addon": true
+   "addon": true,
+   "g": 15
   },
   {
    "id": "bacon",
@@ -264,7 +290,8 @@
     "bacon strip",
     "bacon strips"
    ],
-   "addon": true
+   "addon": true,
+   "g": 8
   },
   {
    "id": "sausage",
@@ -278,7 +305,8 @@
     "sausages",
     "breakfast sausage",
     "sausage links"
-   ]
+   ],
+   "g": 48
   },
   {
    "id": "avocado-toast",
@@ -338,12 +366,13 @@
    "aliases": [
     "coffee",
     "black coffee",
-    "americano",
-    "cold brew",
     "drip coffee",
-    "iced coffee",
-    "espresso"
-   ]
+    "cup of coffee",
+    "iced coffee"
+   ],
+   "ml": 237,
+   "liquid": true,
+   "drink": "coffee"
   },
   {
    "id": "latte",
@@ -358,7 +387,10 @@
     "flat white",
     "cortado",
     "iced latte"
-   ]
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
   },
   {
    "id": "latte-oat",
@@ -371,7 +403,10 @@
     "oat latte",
     "oat milk latte",
     "oatmilk latte"
-   ]
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
   },
   {
    "id": "latte-skim",
@@ -384,7 +419,10 @@
     "skim latte",
     "nonfat latte",
     "skinny latte"
-   ]
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
   },
   {
    "id": "mocha",
@@ -398,7 +436,10 @@
     "caramel macchiato",
     "frappuccino",
     "flavored latte"
-   ]
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
   },
   {
    "id": "tea",
@@ -412,7 +453,10 @@
     "green tea",
     "black tea",
     "herbal tea"
-   ]
+   ],
+   "ml": 237,
+   "liquid": true,
+   "drink": "coffee"
   },
   {
    "id": "matcha-latte",
@@ -424,7 +468,10 @@
    "aliases": [
     "matcha latte",
     "matcha"
-   ]
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
   },
   {
    "id": "soda",
@@ -440,7 +487,9 @@
     "sprite",
     "ginger ale",
     "soft drink"
-   ]
+   ],
+   "ml": 355,
+   "liquid": true
   },
   {
    "id": "diet-soda",
@@ -458,7 +507,9 @@
     "sparkling water",
     "la croix",
     "water"
-   ]
+   ],
+   "ml": 355,
+   "liquid": true
   },
   {
    "id": "juice",
@@ -472,7 +523,9 @@
     "orange juice",
     "oj",
     "apple juice"
-   ]
+   ],
+   "ml": 355,
+   "liquid": true
   },
   {
    "id": "beer",
@@ -487,7 +540,9 @@
     "lager",
     "ipa",
     "pint"
-   ]
+   ],
+   "ml": 355,
+   "liquid": true
   },
   {
    "id": "light-beer",
@@ -501,7 +556,9 @@
     "michelob ultra",
     "bud light",
     "coors light"
-   ]
+   ],
+   "ml": 355,
+   "liquid": true
   },
   {
    "id": "wine",
@@ -518,7 +575,9 @@
     "rose",
     "prosecco",
     "champagne"
-   ]
+   ],
+   "ml": 148,
+   "liquid": true
   },
   {
    "id": "cocktail",
@@ -556,16 +615,24 @@
   },
   {
    "id": "milk",
-   "name": "Milk (2%)",
+   "name": "2% milk",
    "emoji": "🥛",
    "unit": "1 cup",
    "calories": 130,
    "protein": 8,
    "aliases": [
     "milk",
+    "2pct milk",
     "glass of milk",
-    "2 percent milk"
-   ]
+    "2 percent milk",
+    "reduced fat milk"
+   ],
+   "ml": 240,
+   "liquid": true,
+   "per": {
+    "gallon": 16,
+    "quart": 4
+   }
   },
   {
    "id": "chocolate-milk",
@@ -576,7 +643,9 @@
    "protein": 8,
    "aliases": [
     "chocolate milk"
-   ]
+   ],
+   "ml": 240,
+   "liquid": true
   },
   {
    "id": "banana",
@@ -588,7 +657,8 @@
    "aliases": [
     "banana",
     "bananas"
-   ]
+   ],
+   "g": 118
   },
   {
    "id": "apple",
@@ -600,7 +670,8 @@
    "aliases": [
     "apple",
     "apples"
-   ]
+   ],
+   "g": 182
   },
   {
    "id": "orange",
@@ -615,7 +686,8 @@
     "clementine",
     "clementines",
     "mandarin"
-   ]
+   ],
+   "g": 131
   },
   {
    "id": "berries",
@@ -630,7 +702,9 @@
     "strawberries",
     "raspberries",
     "blackberries"
-   ]
+   ],
+   "g": 148,
+   "ml": 237
   },
   {
    "id": "grapes",
@@ -641,7 +715,9 @@
    "protein": 1,
    "aliases": [
     "grapes"
-   ]
+   ],
+   "g": 151,
+   "ml": 237
   },
   {
    "id": "fruit",
@@ -657,7 +733,9 @@
     "watermelon",
     "pineapple",
     "mango"
-   ]
+   ],
+   "g": 160,
+   "ml": 237
   },
   {
    "id": "salad-side",
@@ -683,16 +761,19 @@
    "aliases": [
     "veggies",
     "vegetables",
-    "broccoli",
+    "roasted vegetables",
+    "mixed vegetables",
+    "stir fry vegetables",
     "green beans",
-    "spinach",
     "asparagus",
     "zucchini",
     "carrots",
     "cucumber",
-    "peppers",
-    "roasted vegetables"
-   ]
+    "mushrooms",
+    "side of vegetables"
+   ],
+   "g": 90,
+   "ml": 237
   },
   {
    "id": "potato",
@@ -707,7 +788,8 @@
     "sweet potato",
     "potatoes",
     "mashed potatoes"
-   ]
+   ],
+   "g": 173
   },
   {
    "id": "chicken-breast",
@@ -723,7 +805,12 @@
     "baked chicken",
     "rotisserie chicken"
    ],
-   "oz": 4
+   "oz": 4,
+   "g": 113,
+   "prep": "cooked",
+   "per": {
+    "breast": 1.5
+   }
   },
   {
    "id": "chicken-thigh",
@@ -737,7 +824,9 @@
     "chicken thighs",
     "dark meat chicken"
    ],
-   "oz": 4
+   "oz": 4,
+   "g": 113,
+   "prep": "cooked"
   },
   {
    "id": "wings",
@@ -781,7 +870,9 @@
     "strip steak",
     "flank steak"
    ],
-   "oz": 6
+   "oz": 6,
+   "g": 170,
+   "prep": "cooked"
   },
   {
    "id": "ground-beef",
@@ -795,7 +886,9 @@
     "beef",
     "taco meat"
    ],
-   "oz": 4
+   "oz": 4,
+   "g": 113,
+   "prep": "cooked"
   },
   {
    "id": "salmon",
@@ -809,7 +902,12 @@
     "salmon fillet",
     "grilled salmon"
    ],
-   "oz": 5
+   "oz": 5,
+   "g": 142,
+   "prep": "cooked",
+   "per": {
+    "fillet": 1
+   }
   },
   {
    "id": "tuna",
@@ -822,7 +920,8 @@
     "tuna",
     "tuna can",
     "can of tuna"
-   ]
+   ],
+   "g": 142
   },
   {
    "id": "shrimp",
@@ -835,7 +934,8 @@
     "shrimp",
     "prawns"
    ],
-   "oz": 4
+   "oz": 4,
+   "g": 113
   },
   {
    "id": "white-fish",
@@ -851,7 +951,9 @@
     "mahi",
     "halibut"
    ],
-   "oz": 5
+   "oz": 5,
+   "g": 142,
+   "prep": "cooked"
   },
   {
    "id": "turkey-slices",
@@ -866,7 +968,8 @@
     "sliced turkey",
     "turkey slices"
    ],
-   "oz": 3
+   "oz": 3,
+   "g": 85
   },
   {
    "id": "ham",
@@ -879,7 +982,8 @@
     "ham",
     "deli ham"
    ],
-   "oz": 3
+   "oz": 3,
+   "g": 85
   },
   {
    "id": "tofu",
@@ -890,7 +994,8 @@
    "protein": 20,
    "aliases": [
     "tofu"
-   ]
+   ],
+   "g": 200
   },
   {
    "id": "pork",
@@ -904,7 +1009,9 @@
     "pork chop",
     "pork tenderloin"
    ],
-   "oz": 5
+   "oz": 5,
+   "g": 142,
+   "prep": "cooked"
   },
   {
    "id": "burger-patty",
@@ -930,7 +1037,8 @@
     "jerky",
     "beef jerky",
     "turkey jerky"
-   ]
+   ],
+   "g": 28
   },
   {
    "id": "string-cheese",
@@ -953,7 +1061,9 @@
    "protein": 4,
    "aliases": [
     "hummus"
-   ]
+   ],
+   "g": 62,
+   "ml": 59
   },
   {
    "id": "nuts",
@@ -971,7 +1081,8 @@
     "pistachios",
     "handful of nuts",
     "trail mix"
-   ]
+   ],
+   "g": 28
   },
   {
    "id": "peanut-butter",
@@ -984,7 +1095,9 @@
     "peanut butter",
     "almond butter",
     "pb"
-   ]
+   ],
+   "g": 32,
+   "ml": 30
   },
   {
    "id": "rice",
@@ -997,9 +1110,11 @@
     "rice",
     "white rice",
     "brown rice",
-    "jasmine rice",
-    "fried rice"
-   ]
+    "jasmine rice"
+   ],
+   "g": 158,
+   "ml": 237,
+   "prep": "cooked"
   },
   {
    "id": "pasta",
@@ -1014,7 +1129,10 @@
     "penne",
     "noodles",
     "mac and cheese"
-   ]
+   ],
+   "g": 280,
+   "ml": 473,
+   "prep": "cooked"
   },
   {
    "id": "fries",
@@ -1028,7 +1146,8 @@
     "french fries",
     "chips side",
     "sweet potato fries"
-   ]
+   ],
+   "g": 117
   },
   {
    "id": "chips",
@@ -1043,7 +1162,8 @@
     "crisps",
     "doritos",
     "tortilla chips"
-   ]
+   ],
+   "g": 28
   },
   {
    "id": "tortilla",
@@ -1056,7 +1176,8 @@
     "tortilla",
     "wrap tortilla",
     "flour tortilla"
-   ]
+   ],
+   "g": 70
   },
   {
    "id": "pita",
@@ -1070,7 +1191,8 @@
     "pita bread",
     "naan",
     "flatbread"
-   ]
+   ],
+   "g": 60
   },
   {
    "id": "crackers",
@@ -1094,7 +1216,9 @@
    "protein": 3,
    "aliases": [
     "popcorn"
-   ]
+   ],
+   "g": 24,
+   "ml": 710
   },
   {
    "id": "pizza-slice",
@@ -1110,7 +1234,11 @@
     "slices of pizza",
     "pepperoni pizza",
     "cheese pizza"
-   ]
+   ],
+   "per": {
+    "pizza": 8,
+    "pie": 8
+   }
   },
   {
    "id": "burger",
@@ -1302,10 +1430,11 @@
    "aliases": [
     "chinese food",
     "general tso",
-    "orange chicken",
+    "takeout orange chicken",
     "lo mein",
     "sesame chicken",
-    "chinese takeout"
+    "chinese takeout",
+    "takeout"
    ]
   },
   {
@@ -1333,8 +1462,8 @@
    "protein": 16,
    "aliases": [
     "dumplings",
-    "gyoza",
-    "potstickers"
+    "restaurant dumplings",
+    "takeout dumplings"
    ]
   },
   {
@@ -1370,7 +1499,9 @@
    "aliases": [
     "mac n cheese",
     "macaroni"
-   ]
+   ],
+   "g": 200,
+   "ml": 237
   },
   {
    "id": "cookie",
@@ -1398,7 +1529,8 @@
     "candy bar",
     "snickers",
     "dark chocolate"
-   ]
+   ],
+   "g": 28
   },
   {
    "id": "ice-cream",
@@ -1412,7 +1544,9 @@
     "gelato",
     "froyo",
     "frozen yogurt"
-   ]
+   ],
+   "g": 132,
+   "ml": 237
   },
   {
    "id": "cake",
@@ -1459,7 +1593,9 @@
     "mayo",
     "aioli"
    ],
-   "addon": true
+   "addon": true,
+   "ml": 30,
+   "g": 30
   },
   {
    "id": "croutons",
@@ -1472,7 +1608,9 @@
     "croutons",
     "crouton"
    ],
-   "addon": true
+   "addon": true,
+   "g": 14,
+   "ml": 59
   },
   {
    "id": "cheese",
@@ -1489,7 +1627,8 @@
     "mozzarella",
     "american cheese"
    ],
-   "addon": true
+   "addon": true,
+   "g": 28
   },
   {
    "id": "parmesan",
@@ -1502,7 +1641,9 @@
     "parmesan",
     "parm"
    ],
-   "addon": true
+   "addon": true,
+   "g": 10,
+   "ml": 30
   },
   {
    "id": "feta",
@@ -1515,7 +1656,9 @@
     "feta",
     "goat cheese"
    ],
-   "addon": true
+   "addon": true,
+   "g": 38,
+   "ml": 59
   },
   {
    "id": "avocado",
@@ -1530,7 +1673,11 @@
     "guac",
     "guacamole"
    ],
-   "addon": true
+   "addon": true,
+   "g": 100,
+   "per": {
+    "avocado": 2
+   }
   },
   {
    "id": "chicken-addon",
@@ -1544,7 +1691,8 @@
     "extra chicken",
     "grilled chicken"
    ],
-   "addon": true
+   "addon": true,
+   "g": 85
   },
   {
    "id": "egg-addon",
@@ -1569,7 +1717,9 @@
    "aliases": [
     "sour cream"
    ],
-   "addon": true
+   "addon": true,
+   "g": 30,
+   "ml": 30
   },
   {
    "id": "olive-oil",
@@ -1580,9 +1730,15 @@
    "protein": 0,
    "aliases": [
     "oil",
-    "olive oil"
+    "olive oil",
+    "cooking oil",
+    "avocado oil",
+    "vegetable oil",
+    "canola oil"
    ],
-   "addon": true
+   "addon": true,
+   "ml": 15,
+   "g": 14
   },
   {
    "id": "cream-sugar",
@@ -1592,8 +1748,6 @@
    "calories": 50,
    "protein": 0,
    "aliases": [
-    "cream",
-    "sugar",
     "cream and sugar",
     "milk and sugar"
    ],
@@ -1603,17 +1757,26 @@
    "id": "syrup",
    "name": "Sweetener / syrup",
    "emoji": "🍯",
-   "unit": "1 pump / 1 tbsp",
-   "calories": 30,
+   "unit": "1 pump",
+   "calories": 20,
    "protein": 0,
    "aliases": [
     "syrup",
     "pump",
+    "pumps",
     "vanilla",
     "caramel",
-    "sweetener"
+    "hazelnut",
+    "mocha sauce",
+    "sweetener",
+    "flavor shot",
+    "vanilla syrup",
+    "caramel syrup",
+    "hazelnut syrup",
+    "sugar free syrup"
    ],
-   "addon": true
+   "addon": true,
+   "ml": 10
   },
   {
    "id": "tortilla-addon",
@@ -1638,7 +1801,9 @@
    "aliases": [
     "rice"
    ],
-   "addon": true
+   "addon": true,
+   "g": 79,
+   "ml": 118
   },
   {
    "id": "bread-addon",
@@ -1652,7 +1817,8 @@
     "bun",
     "roll"
    ],
-   "addon": true
+   "addon": true,
+   "g": 32
   },
   {
    "id": "bacon-addon",
@@ -1711,7 +1877,9 @@
     "honey",
     "drizzle of honey"
    ],
-   "addon": true
+   "addon": true,
+   "ml": 15,
+   "g": 21
   },
   {
    "id": "jam",
@@ -1724,7 +1892,1311 @@
     "jam",
     "jelly"
    ],
+   "addon": true,
+   "ml": 15,
+   "g": 20
+  },
+  {
+   "id": "espresso-shot",
+   "name": "Espresso shot",
+   "emoji": "☕",
+   "unit": "1 shot",
+   "calories": 5,
+   "protein": 0,
+   "aliases": [
+    "shot",
+    "espresso",
+    "espresso shot",
+    "shot of espresso",
+    "shots of espresso"
+   ],
+   "addon": true,
+   "ml": 30
+  },
+  {
+   "id": "splash-milk",
+   "name": "Splash of milk",
+   "emoji": "🥛",
+   "unit": "2 tbsp",
+   "calories": 20,
+   "protein": 1,
+   "aliases": [
+    "milk",
+    "splash of milk",
+    "splash",
+    "dash of milk",
+    "whole milk"
+   ],
+   "addon": true,
+   "ml": 30,
+   "liquid": true
+  },
+  {
+   "id": "half-and-half",
+   "name": "Half & half / cream",
+   "emoji": "🥛",
+   "unit": "2 tbsp",
+   "calories": 40,
+   "protein": 1,
+   "aliases": [
+    "cream",
+    "half and half",
+    "creamer",
+    "coffee creamer",
+    "light cream"
+   ],
+   "addon": true,
+   "ml": 30,
+   "liquid": true
+  },
+  {
+   "id": "heavy-cream",
+   "name": "Heavy cream",
+   "emoji": "🥛",
+   "unit": "1 tbsp",
+   "calories": 50,
+   "protein": 0,
+   "aliases": [
+    "heavy cream",
+    "heavy whipping cream"
+   ],
+   "addon": true,
+   "ml": 15,
+   "liquid": true
+  },
+  {
+   "id": "sugar",
+   "name": "Sugar",
+   "emoji": "🍬",
+   "unit": "1 packet (1 tsp)",
+   "calories": 16,
+   "protein": 0,
+   "aliases": [
+    "sugar",
+    "sugars",
+    "sugar packet",
+    "raw sugar",
+    "brown sugar"
+   ],
+   "addon": true,
+   "ml": 5,
+   "g": 4
+  },
+  {
+   "id": "whipped-cream",
+   "name": "Whipped cream",
+   "emoji": "🍦",
+   "unit": "1 topping",
+   "calories": 80,
+   "protein": 0,
+   "aliases": [
+    "whipped cream",
+    "whip"
+   ],
    "addon": true
+  },
+  {
+   "id": "cold-foam",
+   "name": "Sweet cream cold foam",
+   "emoji": "🥛",
+   "unit": "1 topping",
+   "calories": 70,
+   "protein": 1,
+   "aliases": [
+    "cold foam",
+    "sweet cream cold foam",
+    "foam"
+   ],
+   "addon": true
+  },
+  {
+   "id": "protein-scoop",
+   "name": "Protein powder",
+   "emoji": "💪",
+   "unit": "1 scoop",
+   "calories": 120,
+   "protein": 24,
+   "aliases": [
+    "protein powder",
+    "scoop of protein",
+    "whey protein",
+    "protein scoop"
+   ],
+   "addon": true,
+   "g": 32
+  },
+  {
+   "id": "latte-almond",
+   "name": "Almond milk latte (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 100,
+   "protein": 2,
+   "aliases": [
+    "almond latte",
+    "almond milk latte"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
+  },
+  {
+   "id": "latte-soy",
+   "name": "Soy latte (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 170,
+   "protein": 10,
+   "aliases": [
+    "soy latte",
+    "soy milk latte"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
+  },
+  {
+   "id": "latte-2pct",
+   "name": "2% latte (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 190,
+   "protein": 12,
+   "aliases": [
+    "2pct latte",
+    "2pct milk latte",
+    "two percent latte"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
+  },
+  {
+   "id": "cappuccino",
+   "name": "Cappuccino (16 oz, whole)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 140,
+   "protein": 8,
+   "aliases": [
+    "cappuccino"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
+  },
+  {
+   "id": "americano",
+   "name": "Americano",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 15,
+   "protein": 1,
+   "aliases": [
+    "americano",
+    "long black"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "coffee"
+  },
+  {
+   "id": "cold-brew",
+   "name": "Cold brew",
+   "emoji": "🧊",
+   "unit": "16 oz",
+   "calories": 5,
+   "protein": 0,
+   "aliases": [
+    "cold brew",
+    "iced coffee"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "coffee"
+  },
+  {
+   "id": "chai-latte",
+   "name": "Chai latte (16 oz)",
+   "emoji": "🍵",
+   "unit": "16 oz",
+   "calories": 240,
+   "protein": 8,
+   "aliases": [
+    "chai",
+    "chai latte",
+    "dirty chai"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
+  },
+  {
+   "id": "hot-chocolate",
+   "name": "Hot chocolate (16 oz)",
+   "emoji": "☕",
+   "unit": "16 oz",
+   "calories": 370,
+   "protein": 14,
+   "aliases": [
+    "hot chocolate",
+    "hot cocoa"
+   ],
+   "ml": 473,
+   "liquid": true,
+   "drink": "espresso"
+  },
+  {
+   "id": "milk-whole",
+   "name": "Whole milk",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 150,
+   "protein": 8,
+   "aliases": [
+    "whole milk"
+   ],
+   "ml": 240,
+   "liquid": true,
+   "per": {
+    "gallon": 16,
+    "quart": 4
+   }
+  },
+  {
+   "id": "milk-skim",
+   "name": "Skim milk",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 90,
+   "protein": 8,
+   "aliases": [
+    "skim milk",
+    "nonfat milk",
+    "fat free milk"
+   ],
+   "ml": 240,
+   "liquid": true
+  },
+  {
+   "id": "milk-oat",
+   "name": "Oat milk",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 120,
+   "protein": 3,
+   "aliases": [
+    "oat milk",
+    "oatly"
+   ],
+   "ml": 240,
+   "liquid": true
+  },
+  {
+   "id": "milk-almond",
+   "name": "Almond milk (unsweetened)",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 35,
+   "protein": 1,
+   "aliases": [
+    "almond milk"
+   ],
+   "ml": 240,
+   "liquid": true
+  },
+  {
+   "id": "milk-soy",
+   "name": "Soy milk",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 100,
+   "protein": 7,
+   "aliases": [
+    "soy milk"
+   ],
+   "ml": 240,
+   "liquid": true
+  },
+  {
+   "id": "fairlife",
+   "name": "Fairlife milk (2%)",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 120,
+   "protein": 13,
+   "aliases": [
+    "fairlife",
+    "fairlife milk",
+    "ultrafiltered milk"
+   ],
+   "ml": 240,
+   "liquid": true
+  },
+  {
+   "id": "protein-shake-rtd",
+   "name": "Protein shake (ready to drink)",
+   "emoji": "🥤",
+   "unit": "1 bottle (11.5 oz)",
+   "calories": 160,
+   "protein": 30,
+   "aliases": [
+    "premier protein",
+    "fairlife shake",
+    "core power",
+    "ready to drink protein shake",
+    "protein drink"
+   ],
+   "ml": 340,
+   "liquid": true
+  },
+  {
+   "id": "chicken-breast-raw",
+   "name": "Chicken breast (raw)",
+   "emoji": "🍗",
+   "unit": "4 oz raw",
+   "calories": 120,
+   "protein": 26,
+   "aliases": [
+    "chicken breast",
+    "chicken",
+    "chicken breasts",
+    "raw chicken"
+   ],
+   "g": 113,
+   "prep": "raw",
+   "per": {
+    "breast": 1.75
+   }
+  },
+  {
+   "id": "chicken-thigh-raw",
+   "name": "Chicken thighs (raw, boneless)",
+   "emoji": "🍗",
+   "unit": "4 oz raw",
+   "calories": 150,
+   "protein": 21,
+   "aliases": [
+    "chicken thigh",
+    "chicken thighs"
+   ],
+   "g": 113,
+   "prep": "raw",
+   "per": {
+    "thigh": 1
+   }
+  },
+  {
+   "id": "ground-turkey-raw",
+   "name": "Ground turkey 93/7 (raw)",
+   "emoji": "🦃",
+   "unit": "4 oz raw",
+   "calories": 170,
+   "protein": 21,
+   "aliases": [
+    "ground turkey",
+    "turkey mince"
+   ],
+   "g": 113,
+   "prep": "raw",
+   "per": {
+    "pack": 4,
+    "package": 4
+   }
+  },
+  {
+   "id": "ground-beef-raw",
+   "name": "Ground beef 90/10 (raw)",
+   "emoji": "🥩",
+   "unit": "4 oz raw",
+   "calories": 200,
+   "protein": 23,
+   "aliases": [
+    "ground beef",
+    "beef mince",
+    "hamburger meat",
+    "lean90 ground beef"
+   ],
+   "g": 113,
+   "prep": "raw",
+   "per": {
+    "pack": 4,
+    "package": 4
+   }
+  },
+  {
+   "id": "ground-beef-raw-85",
+   "name": "Ground beef 85/15 (raw)",
+   "emoji": "🥩",
+   "unit": "4 oz raw",
+   "calories": 240,
+   "protein": 21,
+   "aliases": [
+    "lean85 ground beef",
+    "85 percent ground beef"
+   ],
+   "g": 113,
+   "prep": "raw"
+  },
+  {
+   "id": "steak-raw",
+   "name": "Steak (raw)",
+   "emoji": "🥩",
+   "unit": "4 oz raw",
+   "calories": 180,
+   "protein": 23,
+   "aliases": [
+    "steak",
+    "sirloin",
+    "flank steak",
+    "ribeye"
+   ],
+   "g": 113,
+   "prep": "raw"
+  },
+  {
+   "id": "salmon-raw",
+   "name": "Salmon (raw)",
+   "emoji": "🐟",
+   "unit": "4 oz raw",
+   "calories": 230,
+   "protein": 23,
+   "aliases": [
+    "salmon",
+    "salmon fillet"
+   ],
+   "g": 113,
+   "prep": "raw",
+   "per": {
+    "fillet": 1.5
+   }
+  },
+  {
+   "id": "shrimp-raw",
+   "name": "Shrimp (raw)",
+   "emoji": "🍤",
+   "unit": "4 oz raw",
+   "calories": 95,
+   "protein": 23,
+   "aliases": [
+    "shrimp"
+   ],
+   "g": 113,
+   "prep": "raw"
+  },
+  {
+   "id": "pork-tenderloin-raw",
+   "name": "Pork tenderloin (raw)",
+   "emoji": "🍖",
+   "unit": "4 oz raw",
+   "calories": 135,
+   "protein": 24,
+   "aliases": [
+    "pork tenderloin",
+    "pork loin",
+    "pork"
+   ],
+   "g": 113,
+   "prep": "raw"
+  },
+  {
+   "id": "pasta-dry",
+   "name": "Pasta (dry)",
+   "emoji": "🍝",
+   "unit": "2 oz dry",
+   "calories": 200,
+   "protein": 7,
+   "aliases": [
+    "pasta",
+    "spaghetti",
+    "penne",
+    "rigatoni",
+    "noodles",
+    "dry pasta",
+    "macaroni",
+    "linguine",
+    "fettuccine",
+    "orzo"
+   ],
+   "g": 56,
+   "prep": "dry",
+   "per": {
+    "box": 8,
+    "bag": 8,
+    "package": 8
+   }
+  },
+  {
+   "id": "rice-dry",
+   "name": "Rice (dry)",
+   "emoji": "🍚",
+   "unit": "1/4 cup dry",
+   "calories": 170,
+   "protein": 3,
+   "aliases": [
+    "rice",
+    "white rice",
+    "jasmine rice",
+    "basmati rice",
+    "brown rice"
+   ],
+   "g": 45,
+   "ml": 59,
+   "prep": "dry",
+   "per": {
+    "bag": 10
+   }
+  },
+  {
+   "id": "oats-dry",
+   "name": "Rolled oats (dry)",
+   "emoji": "🥣",
+   "unit": "1/2 cup dry",
+   "calories": 150,
+   "protein": 5,
+   "aliases": [
+    "oats",
+    "rolled oats",
+    "oatmeal",
+    "old fashioned oats"
+   ],
+   "g": 40,
+   "ml": 118,
+   "prep": "dry",
+   "per": {
+    "container": 15
+   }
+  },
+  {
+   "id": "quinoa-dry",
+   "name": "Quinoa (dry)",
+   "emoji": "🍚",
+   "unit": "1/4 cup dry",
+   "calories": 170,
+   "protein": 6,
+   "aliases": [
+    "quinoa"
+   ],
+   "g": 45,
+   "ml": 59,
+   "prep": "dry",
+   "per": {
+    "bag": 10
+   }
+  },
+  {
+   "id": "quinoa",
+   "name": "Quinoa (cooked)",
+   "emoji": "🍚",
+   "unit": "1 cup cooked",
+   "calories": 220,
+   "protein": 8,
+   "aliases": [
+    "quinoa"
+   ],
+   "g": 185,
+   "ml": 237,
+   "prep": "cooked"
+  },
+  {
+   "id": "lentils-dry",
+   "name": "Lentils (dry)",
+   "emoji": "🫘",
+   "unit": "1/4 cup dry",
+   "calories": 170,
+   "protein": 12,
+   "aliases": [
+    "lentils",
+    "red lentils"
+   ],
+   "g": 48,
+   "ml": 59,
+   "prep": "dry",
+   "per": {
+    "bag": 9
+   }
+  },
+  {
+   "id": "flour",
+   "name": "Flour",
+   "emoji": "🌾",
+   "unit": "1/4 cup",
+   "calories": 110,
+   "protein": 3,
+   "aliases": [
+    "flour",
+    "all purpose flour"
+   ],
+   "g": 31,
+   "ml": 59
+  },
+  {
+   "id": "beans",
+   "name": "Beans (canned, drained)",
+   "emoji": "🫘",
+   "unit": "1/2 cup",
+   "calories": 110,
+   "protein": 7,
+   "aliases": [
+    "beans",
+    "black beans",
+    "chickpeas",
+    "garbanzo beans",
+    "kidney beans",
+    "pinto beans",
+    "cannellini beans"
+   ],
+   "g": 130,
+   "ml": 118,
+   "per": {
+    "can": 3.5
+   }
+  },
+  {
+   "id": "lentils",
+   "name": "Lentils (cooked)",
+   "emoji": "🫘",
+   "unit": "1/2 cup",
+   "calories": 115,
+   "protein": 9,
+   "aliases": [
+    "lentils",
+    "cooked lentils"
+   ],
+   "g": 99,
+   "ml": 118,
+   "prep": "cooked"
+  },
+  {
+   "id": "marinara",
+   "name": "Marinara / tomato sauce",
+   "emoji": "🍅",
+   "unit": "1/2 cup",
+   "calories": 80,
+   "protein": 2,
+   "aliases": [
+    "marinara",
+    "tomato sauce",
+    "pasta sauce",
+    "red sauce",
+    "crushed tomatoes"
+   ],
+   "ml": 118,
+   "g": 125,
+   "per": {
+    "jar": 5.4,
+    "can": 3.5
+   }
+  },
+  {
+   "id": "pesto",
+   "name": "Pesto",
+   "emoji": "🌿",
+   "unit": "1/4 cup",
+   "calories": 280,
+   "protein": 4,
+   "aliases": [
+    "pesto"
+   ],
+   "ml": 59,
+   "g": 60
+  },
+  {
+   "id": "alfredo",
+   "name": "Alfredo sauce",
+   "emoji": "🧀",
+   "unit": "1/4 cup",
+   "calories": 110,
+   "protein": 2,
+   "aliases": [
+    "alfredo",
+    "alfredo sauce",
+    "cream sauce"
+   ],
+   "ml": 59
+  },
+  {
+   "id": "bbq-sauce",
+   "name": "BBQ sauce",
+   "emoji": "🍖",
+   "unit": "2 tbsp",
+   "calories": 70,
+   "protein": 0,
+   "aliases": [
+    "bbq sauce",
+    "barbecue sauce"
+   ],
+   "ml": 30
+  },
+  {
+   "id": "soy-sauce",
+   "name": "Soy sauce",
+   "emoji": "🥢",
+   "unit": "1 tbsp",
+   "calories": 10,
+   "protein": 1,
+   "aliases": [
+    "soy sauce",
+    "tamari",
+    "coconut aminos"
+   ],
+   "ml": 15
+  },
+  {
+   "id": "ketchup",
+   "name": "Ketchup",
+   "emoji": "🍅",
+   "unit": "1 tbsp",
+   "calories": 20,
+   "protein": 0,
+   "aliases": [
+    "ketchup"
+   ],
+   "ml": 15,
+   "addon": true
+  },
+  {
+   "id": "mayo",
+   "name": "Mayonnaise",
+   "emoji": "🥚",
+   "unit": "1 tbsp",
+   "calories": 90,
+   "protein": 0,
+   "aliases": [
+    "mayo",
+    "mayonnaise",
+    "aioli"
+   ],
+   "ml": 15,
+   "addon": true
+  },
+  {
+   "id": "ranch",
+   "name": "Ranch",
+   "emoji": "🥗",
+   "unit": "2 tbsp",
+   "calories": 130,
+   "protein": 0,
+   "aliases": [
+    "ranch",
+    "ranch dressing",
+    "blue cheese dressing"
+   ],
+   "ml": 30,
+   "addon": true
+  },
+  {
+   "id": "hot-sauce",
+   "name": "Hot sauce / mustard",
+   "emoji": "🌶️",
+   "unit": "1 tsp",
+   "calories": 0,
+   "protein": 0,
+   "aliases": [
+    "hot sauce",
+    "mustard",
+    "sriracha",
+    "salsa",
+    "pico"
+   ],
+   "ml": 5,
+   "addon": true
+  },
+  {
+   "id": "butter-food",
+   "name": "Butter",
+   "emoji": "🧈",
+   "unit": "1 tbsp",
+   "calories": 100,
+   "protein": 0,
+   "aliases": [
+    "butter",
+    "ghee"
+   ],
+   "ml": 15,
+   "g": 14,
+   "per": {
+    "stick": 8
+   }
+  },
+  {
+   "id": "olive-oil-food",
+   "name": "Olive oil",
+   "emoji": "🫒",
+   "unit": "1 tbsp",
+   "calories": 120,
+   "protein": 0,
+   "aliases": [
+    "olive oil",
+    "oil",
+    "avocado oil",
+    "vegetable oil",
+    "canola oil",
+    "cooking spray"
+   ],
+   "ml": 15,
+   "g": 14
+  },
+  {
+   "id": "shredded-cheese",
+   "name": "Shredded cheese",
+   "emoji": "🧀",
+   "unit": "1/4 cup",
+   "calories": 110,
+   "protein": 7,
+   "aliases": [
+    "shredded cheese",
+    "mozzarella",
+    "cheddar",
+    "shredded mozzarella",
+    "shredded cheddar",
+    "mexican cheese"
+   ],
+   "ml": 59,
+   "g": 28,
+   "per": {
+    "bag": 8
+   }
+  },
+  {
+   "id": "cheese-slice",
+   "name": "Cheese slice",
+   "emoji": "🧀",
+   "unit": "1 slice",
+   "calories": 80,
+   "protein": 5,
+   "aliases": [
+    "slice of cheese",
+    "cheese slice",
+    "american cheese",
+    "swiss",
+    "provolone"
+   ],
+   "g": 21
+  },
+  {
+   "id": "cream-cheese",
+   "name": "Cream cheese",
+   "emoji": "🧀",
+   "unit": "2 tbsp",
+   "calories": 100,
+   "protein": 2,
+   "aliases": [
+    "cream cheese",
+    "schmear"
+   ],
+   "ml": 30,
+   "g": 29
+  },
+  {
+   "id": "onion",
+   "name": "Onion",
+   "emoji": "🧅",
+   "unit": "1/2 cup chopped",
+   "calories": 32,
+   "protein": 1,
+   "aliases": [
+    "onion",
+    "onions",
+    "red onion",
+    "shallot"
+   ],
+   "g": 80,
+   "ml": 118,
+   "per": {
+    "onion": 2
+   }
+  },
+  {
+   "id": "garlic",
+   "name": "Garlic",
+   "emoji": "🧄",
+   "unit": "1 clove",
+   "calories": 5,
+   "protein": 0,
+   "aliases": [
+    "garlic",
+    "garlic clove",
+    "cloves of garlic"
+   ],
+   "g": 3,
+   "per": {
+    "head": 10
+   }
+  },
+  {
+   "id": "spinach",
+   "name": "Spinach",
+   "emoji": "🥬",
+   "unit": "1 cup raw",
+   "calories": 7,
+   "protein": 1,
+   "aliases": [
+    "spinach",
+    "baby spinach",
+    "kale",
+    "arugula",
+    "lettuce",
+    "greens",
+    "mixed greens"
+   ],
+   "g": 30,
+   "ml": 237,
+   "per": {
+    "bag": 5,
+    "box": 5,
+    "container": 5
+   }
+  },
+  {
+   "id": "broccoli",
+   "name": "Broccoli",
+   "emoji": "🥦",
+   "unit": "1 cup",
+   "calories": 30,
+   "protein": 2,
+   "aliases": [
+    "broccoli",
+    "cauliflower",
+    "brussels sprouts"
+   ],
+   "g": 90,
+   "ml": 237,
+   "per": {
+    "head": 4,
+    "bag": 4
+   }
+  },
+  {
+   "id": "bell-pepper",
+   "name": "Bell pepper",
+   "emoji": "🫑",
+   "unit": "1 pepper",
+   "calories": 30,
+   "protein": 1,
+   "aliases": [
+    "bell pepper",
+    "bell peppers",
+    "peppers",
+    "red pepper",
+    "green pepper"
+   ],
+   "g": 120
+  },
+  {
+   "id": "tomato",
+   "name": "Tomato",
+   "emoji": "🍅",
+   "unit": "1 medium",
+   "calories": 22,
+   "protein": 1,
+   "aliases": [
+    "tomato",
+    "tomatoes",
+    "cherry tomatoes"
+   ],
+   "g": 123
+  },
+  {
+   "id": "sweet-potato",
+   "name": "Sweet potato",
+   "emoji": "🍠",
+   "unit": "1 medium",
+   "calories": 115,
+   "protein": 2,
+   "aliases": [
+    "sweet potato",
+    "sweet potatoes",
+    "yam"
+   ],
+   "g": 130
+  },
+  {
+   "id": "corn",
+   "name": "Corn",
+   "emoji": "🌽",
+   "unit": "1/2 cup",
+   "calories": 70,
+   "protein": 2,
+   "aliases": [
+    "corn"
+   ],
+   "ml": 118,
+   "g": 82
+  },
+  {
+   "id": "bread-slice",
+   "name": "Bread",
+   "emoji": "🍞",
+   "unit": "1 slice",
+   "calories": 90,
+   "protein": 4,
+   "aliases": [
+    "bread",
+    "slice of bread",
+    "sourdough bread",
+    "whole wheat bread",
+    "bun",
+    "hamburger bun",
+    "roll"
+   ],
+   "g": 32
+  },
+  {
+   "id": "egg-raw",
+   "name": "Eggs (in a recipe)",
+   "emoji": "🥚",
+   "unit": "1 large egg",
+   "calories": 72,
+   "protein": 6,
+   "aliases": [
+    "egg",
+    "eggs",
+    "large egg"
+   ],
+   "g": 50,
+   "prep": "raw"
+  },
+  {
+   "id": "greek-yogurt-full",
+   "name": "Greek yogurt (whole milk)",
+   "emoji": "🥛",
+   "unit": "1 cup",
+   "calories": 220,
+   "protein": 20,
+   "aliases": [
+    "full fat greek yogurt",
+    "whole milk greek yogurt",
+    "labneh"
+   ],
+   "g": 227,
+   "ml": 237
+  },
+  {
+   "id": "overnight-oats",
+   "name": "Overnight oats",
+   "emoji": "🥣",
+   "unit": "1 jar",
+   "calories": 350,
+   "protein": 15,
+   "aliases": [
+    "overnight oats"
+   ],
+   "ml": 300
+  },
+  {
+   "id": "rice-cake",
+   "name": "Rice cake",
+   "emoji": "🍘",
+   "unit": "1 cake",
+   "calories": 35,
+   "protein": 1,
+   "aliases": [
+    "rice cake",
+    "rice cakes"
+   ],
+   "g": 9
+  },
+  {
+   "id": "bagel-thin",
+   "name": "Bagel thin",
+   "emoji": "🥯",
+   "unit": "1 thin",
+   "calories": 110,
+   "protein": 5,
+   "aliases": [
+    "bagel thin",
+    "bagel thins"
+   ],
+   "g": 43
+  },
+  {
+   "id": "english-muffin",
+   "name": "English muffin",
+   "emoji": "🥯",
+   "unit": "1 muffin",
+   "calories": 130,
+   "protein": 5,
+   "aliases": [
+    "english muffin"
+   ],
+   "g": 57
+  },
+  {
+   "id": "granola-bar",
+   "name": "Granola bar",
+   "emoji": "🍫",
+   "unit": "1 bar",
+   "calories": 190,
+   "protein": 4,
+   "aliases": [
+    "granola bar",
+    "kind bar",
+    "nature valley"
+   ],
+   "g": 40
+  },
+  {
+   "id": "kombucha",
+   "name": "Kombucha",
+   "emoji": "🍹",
+   "unit": "16 oz bottle",
+   "calories": 60,
+   "protein": 0,
+   "aliases": [
+    "kombucha"
+   ],
+   "ml": 473,
+   "liquid": true
+  },
+  {
+   "id": "energy-drink",
+   "name": "Energy drink",
+   "emoji": "⚡",
+   "unit": "1 can",
+   "calories": 10,
+   "protein": 0,
+   "aliases": [
+    "celsius",
+    "energy drink",
+    "red bull sugar free",
+    "monster zero",
+    "ghost energy"
+   ],
+   "ml": 355,
+   "liquid": true
+  },
+  {
+   "id": "red-bull",
+   "name": "Red Bull (regular)",
+   "emoji": "⚡",
+   "unit": "8.4 oz can",
+   "calories": 110,
+   "protein": 0,
+   "aliases": [
+    "red bull",
+    "monster"
+   ],
+   "ml": 250,
+   "liquid": true
+  },
+  {
+   "id": "sports-drink",
+   "name": "Sports drink",
+   "emoji": "🥤",
+   "unit": "20 oz bottle",
+   "calories": 140,
+   "protein": 0,
+   "aliases": [
+    "gatorade",
+    "powerade",
+    "sports drink"
+   ],
+   "ml": 591,
+   "liquid": true
+  },
+  {
+   "id": "seltzer-hard",
+   "name": "Hard seltzer",
+   "emoji": "🍹",
+   "unit": "12 oz can",
+   "calories": 100,
+   "protein": 0,
+   "aliases": [
+    "white claw",
+    "hard seltzer",
+    "truly"
+   ],
+   "ml": 355,
+   "liquid": true
+  },
+  {
+   "id": "spirit-shot",
+   "name": "Shot of liquor",
+   "emoji": "🥃",
+   "unit": "1.5 oz shot",
+   "calories": 100,
+   "protein": 0,
+   "aliases": [
+    "shot of vodka",
+    "shot of tequila",
+    "shot of whiskey",
+    "vodka shot",
+    "tequila shot",
+    "liquor"
+   ],
+   "ml": 44,
+   "liquid": true
+  },
+  {
+   "id": "chicken-nuggets",
+   "name": "Chicken nuggets",
+   "emoji": "🍗",
+   "unit": "6 nuggets",
+   "calories": 270,
+   "protein": 15,
+   "aliases": [
+    "nuggets",
+    "chicken nuggets",
+    "mcnuggets"
+   ],
+   "g": 96
+  },
+  {
+   "id": "bowl-generic",
+   "name": "Grain bowl (restaurant)",
+   "emoji": "🥙",
+   "unit": "1 bowl",
+   "calories": 650,
+   "protein": 35,
+   "aliases": [
+    "grain bowl",
+    "cava bowl",
+    "sweetgreen bowl",
+    "warm bowl",
+    "protein bowl"
+   ]
+  },
+  {
+   "id": "acai",
+   "name": "Açaí bowl",
+   "emoji": "🫐",
+   "unit": "1 bowl",
+   "calories": 500,
+   "protein": 8,
+   "aliases": [
+    "acai",
+    "acai bowl"
+   ]
+  },
+  {
+   "id": "bodega-egg",
+   "name": "Egg & cheese on a roll",
+   "emoji": "🥚",
+   "unit": "1 sandwich",
+   "calories": 420,
+   "protein": 20,
+   "aliases": [
+    "egg and cheese on a roll",
+    "bacon egg and cheese on a roll",
+    "bec on a roll"
+   ]
+  },
+  {
+   "id": "fried-rice",
+   "name": "Fried rice",
+   "emoji": "🍚",
+   "unit": "1 cup",
+   "calories": 340,
+   "protein": 9,
+   "aliases": [
+    "fried rice",
+    "chicken fried rice",
+    "shrimp fried rice",
+    "egg fried rice"
+   ],
+   "g": 160,
+   "ml": 237
   }
  ]
 }

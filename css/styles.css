@@ -472,3 +472,18 @@ button.link { color: var(--accent); font-weight: 650; text-decoration: underline
 .ti-alts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
 .ti-alt { font-size: .76rem; padding: 4px 9px; border-radius: 14px; border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink-2); }
 .btn:disabled { opacity: .5; }
+
+/* ---------- type it: mic, recipes ---------- */
+.type-wrap { position: relative; }
+.type-wrap textarea.type-box { padding-right: 52px; }
+.mic-btn { position: absolute; right: 8px; bottom: 10px; width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); font-size: 1.15rem; }
+.mic-btn.on { background: var(--critical); animation: mic-pulse 1s ease-in-out infinite; }
+@keyframes mic-pulse { 50% { transform: scale(1.08); } }
+.recipe-box { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--hairline); }
+.ing-line { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--hairline); }
+.ing-line:last-of-type { border-bottom: none; }
+.ing-line.unknown .ing-name { color: var(--critical); }
+.ing-name { flex: 1; min-width: 0; font-size: .82rem; overflow-wrap: anywhere; }
+.ing-line input { width: 84px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink); font-variant-numeric: tabular-nums; }
+.recipe-steppers { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: .84rem; }
+.log-section.search-only[hidden] { display: none; }

@@ -13,7 +13,12 @@
       "confidence": "verified",
       "packServings": 8,
       "packLabel": "8-ct pack",
-      "note": "Not at TJ's — grab at any grocery store"
+      "note": "Not at TJ's — grab at any grocery store",
+      "aliases": [
+        "carb balance tortilla",
+        "low carb tortilla",
+        "mission tortilla"
+      ]
     },
     {
       "id": "tj-large-egg",
@@ -39,7 +44,10 @@
       "confidence": "verified",
       "packServings": 4,
       "packLabel": "16 oz tub",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "lowfat cottage cheese"
+      ]
     },
     {
       "id": "tj-cottage-cheese-whole",
@@ -65,7 +73,12 @@
       "confidence": "verified",
       "packServings": 4,
       "packLabel": "4-patty box",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "turkey burger",
+        "turkey patty",
+        "turkey burger patty"
+      ]
     },
     {
       "id": "tj-shredded-cabbage-carrots",
@@ -120,7 +133,11 @@
       "packServings": 4,
       "packLabel": "bag",
       "note": "",
-      "staple": true
+      "staple": true,
+      "aliases": [
+        "red lentil pasta",
+        "lentil pasta"
+      ]
     },
     {
       "id": "tj-ground-beef-90",
@@ -189,7 +206,11 @@
       "confidence": "verified",
       "packServings": 4,
       "packLabel": "bag",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "grilled chicken strips",
+        "just grilled chicken"
+      ]
     },
     {
       "id": "tj-shawarma-thighs",
@@ -203,7 +224,12 @@
       "packServings": 6,
       "packLabel": "~1.5 lb pack",
       "note": "",
-      "perishDays": 3
+      "perishDays": 3,
+      "aliases": [
+        "shawarma chicken",
+        "shawarma chicken thighs",
+        "shawarma thighs"
+      ]
     },
     {
       "id": "tj-turkey-breast-sliced",
@@ -217,7 +243,11 @@
       "packServings": 3,
       "packLabel": "pack",
       "note": "",
-      "perishDays": 5
+      "perishDays": 5,
+      "aliases": [
+        "oven roasted turkey",
+        "sliced turkey breast"
+      ]
     },
     {
       "id": "tj-salmon-fillet",
@@ -257,7 +287,11 @@
       "confidence": "verified",
       "packServings": 8,
       "packLabel": "carton",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "liquid egg whites",
+        "egg whites carton"
+      ]
     },
     {
       "id": "tj-marinara",
@@ -348,7 +382,10 @@
       "confidence": "verified",
       "packServings": 6,
       "packLabel": "6-ct bag",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "tj bagel"
+      ]
     },
     {
       "id": "tj-cream-cheese-light",
@@ -376,7 +413,12 @@
       "packLabel": "box",
       "note": "Not at TJ's — order online. Calories vary by flavor (~180–250), check your box",
       "snack": true,
-      "treat": true
+      "treat": true,
+      "aliases": [
+        "protein brownie",
+        "prime bites",
+        "prime bite"
+      ]
     },
     {
       "id": "tj-whole-milk",
@@ -716,7 +758,8 @@
       "confidence": "verified",
       "packServings": 3,
       "packLabel": "can",
-      "note": ""
+      "note": "",
+      "aliases": []
     },
     {
       "id": "garlic",
@@ -854,7 +897,11 @@
       "confidence": "verified",
       "packServings": 6,
       "packLabel": "3-pouch box",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "frozen brown rice",
+        "brown rice pouch"
+      ]
     },
     {
       "id": "tj-frozen-jasmine-rice",
@@ -867,7 +914,12 @@
       "confidence": "verified",
       "packServings": 4,
       "packLabel": "3-pouch box",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "frozen jasmine rice",
+        "jasmine rice pouch",
+        "rice pouch"
+      ]
     },
     {
       "id": "tj-riced-cauliflower",
@@ -880,7 +932,12 @@
       "confidence": "verified",
       "packServings": 3,
       "packLabel": "bag",
-      "note": ""
+      "note": "",
+      "aliases": [
+        "riced cauliflower",
+        "cauliflower rice",
+        "cauli rice"
+      ]
     },
     {
       "id": "tj-frozen-broccoli",
@@ -933,7 +990,10 @@
       "packServings": 4,
       "packLabel": "bag",
       "note": "",
-      "snack": true
+      "snack": true,
+      "aliases": [
+        "turkey jerky"
+      ]
     },
     {
       "id": "tj-string-cheese",
@@ -947,7 +1007,10 @@
       "packServings": 12,
       "packLabel": "12-ct bag",
       "note": "",
-      "snack": true
+      "snack": true,
+      "aliases": [
+        "light string cheese"
+      ]
     },
     {
       "id": "tj-greek-yogurt-cup",
@@ -961,7 +1024,11 @@
       "packServings": 1,
       "packLabel": "single cup",
       "note": "",
-      "snack": true
+      "snack": true,
+      "aliases": [
+        "greek yogurt cup",
+        "single cup yogurt"
+      ]
     },
     {
       "id": "tj-egyptian-flatbread",
@@ -974,7 +1041,10 @@
       "confidence": "verified",
       "packServings": 4,
       "packLabel": "pack",
-      "note": "Owner spotted it — macros need a label check"
+      "note": "Owner spotted it — macros need a label check",
+      "aliases": [
+        "egyptian flatbread"
+      ]
     },
     {
       "id": "chile-lime-chicken-burgers",
@@ -987,7 +1057,11 @@
       "confidence": "verified",
       "packServings": 4,
       "packLabel": "16 oz box (4 patties)",
-      "note": "Air fry 380°F ~12 min from frozen, flip once"
+      "note": "Air fry 380°F ~12 min from frozen, flip once",
+      "aliases": [
+        "chile lime chicken burger",
+        "chili lime chicken burger"
+      ]
     },
     {
       "id": "turkey-meatballs-frozen",
@@ -1000,7 +1074,10 @@
       "confidence": "verified",
       "packServings": 6,
       "packLabel": "16 oz bag",
-      "note": "Air fry 350°F 8-10 min or simmer in sauce"
+      "note": "Air fry 350°F 8-10 min or simmer in sauce",
+      "aliases": [
+        "turkey meatballs"
+      ]
     },
     {
       "id": "fully-cooked-falafel",
@@ -1013,7 +1090,11 @@
       "confidence": "estimated",
       "packServings": 3,
       "packLabel": "12 oz pack",
-      "note": "Air fry 375°F 6-8 min from frozen"
+      "note": "Air fry 375°F 6-8 min from frozen",
+      "aliases": [
+        "tj falafel",
+        "frozen falafel"
+      ]
     },
     {
       "id": "mahi-mahi-fillets",
@@ -1065,7 +1146,10 @@
       "confidence": "verified",
       "packServings": 2,
       "packLabel": "9 oz box",
-      "note": "Air fry 375°F 10-12 min from frozen"
+      "note": "Air fry 375°F 10-12 min from frozen",
+      "aliases": [
+        "protein veggie burger"
+      ]
     },
     {
       "id": "shelled-edamame",
@@ -1092,7 +1176,10 @@
       "confidence": "verified",
       "packServings": 2,
       "packLabel": "2-serving tray",
-      "note": "Simmer covered in pan 8-10 min from frozen"
+      "note": "Simmer covered in pan 8-10 min from frozen",
+      "aliases": [
+        "birria"
+      ]
     },
     {
       "id": "bbq-teriyaki-chicken",
@@ -1105,7 +1192,11 @@
       "confidence": "verified",
       "packServings": 3.5,
       "packLabel": "1 lb bag",
-      "note": "Stir-fry in pan ~10 min from frozen"
+      "note": "Stir-fry in pan ~10 min from frozen",
+      "aliases": [
+        "teriyaki chicken",
+        "bbq teriyaki chicken"
+      ]
     },
     {
       "id": "chicken-shawarma-bowl-frozen",
@@ -1118,7 +1209,11 @@
       "confidence": "verified",
       "packServings": 1,
       "packLabel": "11.3 oz bowl",
-      "note": "Empty into covered pan, low heat 10-12 min"
+      "note": "Empty into covered pan, low heat 10-12 min",
+      "aliases": [
+        "frozen shawarma bowl",
+        "tj shawarma bowl"
+      ]
     },
     {
       "id": "tj-daily-baked-bread",
@@ -1170,7 +1265,8 @@
       "confidence": "estimated",
       "packServings": 3,
       "packLabel": "16 oz tub",
-      "note": "Third-party label data (FatSecret/MyFoodDiary)"
+      "note": "Third-party label data (FatSecret/MyFoodDiary)",
+      "aliases": []
     },
     {
       "id": "tj-pulled-chicken-bbq",
@@ -1183,7 +1279,780 @@
       "confidence": "estimated",
       "packServings": 3,
       "packLabel": "16 oz tub",
-      "note": "Third-party data (Eat This Much); protein derived from macro split"
+      "note": "Third-party data (Eat This Much); protein derived from macro split",
+      "aliases": [
+        "bbq pulled chicken"
+      ]
+    },
+    {
+      "id": "tj-mandarin-orange-chicken",
+      "name": "Mandarin Orange Chicken",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 cup",
+      "calories": 320,
+      "protein": 15,
+      "confidence": "estimated",
+      "packServings": 5,
+      "packLabel": "22 oz bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "orange chicken",
+        "mandarin orange chicken",
+        "mandarin chicken"
+      ],
+      "grams": 140
+    },
+    {
+      "id": "tj-chicken-tikka-masala",
+      "name": "Chicken Tikka Masala (frozen meal)",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 package",
+      "calories": 360,
+      "protein": 22,
+      "confidence": "estimated",
+      "packServings": 1,
+      "packLabel": "1 meal",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "tikka masala",
+        "chicken tikka masala"
+      ]
+    },
+    {
+      "id": "tj-butter-chicken",
+      "name": "Butter Chicken with Basmati Rice (frozen meal)",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 package",
+      "calories": 370,
+      "protein": 22,
+      "confidence": "estimated",
+      "packServings": 1,
+      "packLabel": "1 meal",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "butter chicken"
+      ]
+    },
+    {
+      "id": "tj-kung-pao-chicken",
+      "name": "Kung Pao Chicken",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 cup",
+      "calories": 280,
+      "protein": 16,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "20 oz bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "kung pao chicken",
+        "kung pao"
+      ],
+      "grams": 140
+    },
+    {
+      "id": "tj-chicken-fried-rice",
+      "name": "Chicken Fried Rice",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 cup",
+      "calories": 230,
+      "protein": 9,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "20 oz bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "chicken fried rice"
+      ],
+      "grams": 160
+    },
+    {
+      "id": "tj-vegetable-fried-rice",
+      "name": "Vegetable Fried Rice",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 cup",
+      "calories": 200,
+      "protein": 5,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "20 oz bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "vegetable fried rice",
+        "veggie fried rice"
+      ],
+      "grams": 160
+    },
+    {
+      "id": "tj-cauliflower-gnocchi",
+      "name": "Cauliflower Gnocchi",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 cup",
+      "calories": 140,
+      "protein": 2,
+      "confidence": "estimated",
+      "packServings": 2.5,
+      "packLabel": "12 oz bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "cauliflower gnocchi",
+        "cauli gnocchi",
+        "gnocchi"
+      ],
+      "grams": 113
+    },
+    {
+      "id": "tj-chicken-gyoza",
+      "name": "Chicken Gyoza Potstickers",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "7 pieces",
+      "calories": 220,
+      "protein": 9,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "16 oz bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "gyoza",
+        "chicken gyoza",
+        "potstickers",
+        "chicken potstickers"
+      ]
+    },
+    {
+      "id": "tj-chicken-cilantro-wontons",
+      "name": "Chicken Cilantro Mini Wontons",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "8 pieces",
+      "calories": 200,
+      "protein": 9,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "wontons",
+        "chicken wontons",
+        "cilantro wontons",
+        "mini wontons"
+      ]
+    },
+    {
+      "id": "tj-soup-dumplings",
+      "name": "Steamed Chicken Soup Dumplings",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "6 pieces",
+      "calories": 230,
+      "protein": 10,
+      "confidence": "estimated",
+      "packServings": 1,
+      "packLabel": "6 oz box",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "soup dumplings",
+        "xiao long bao"
+      ]
+    },
+    {
+      "id": "tj-mac-cheese-frozen",
+      "name": "Trader Joe's Diner Mac 'n Cheese",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 package",
+      "calories": 400,
+      "protein": 16,
+      "confidence": "estimated",
+      "packServings": 1,
+      "packLabel": "package",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "frozen mac and cheese",
+        "diner mac",
+        "mac n cheese tj"
+      ]
+    },
+    {
+      "id": "tj-margherita-pizza",
+      "name": "Margherita Pizza",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1/3 pizza",
+      "calories": 270,
+      "protein": 12,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "1 pizza",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "margherita pizza"
+      ]
+    },
+    {
+      "id": "tj-garlic-naan",
+      "name": "Garlic Naan (frozen)",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 naan",
+      "calories": 240,
+      "protein": 7,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "4 pieces",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "garlic naan"
+      ]
+    },
+    {
+      "id": "tj-hash-browns",
+      "name": "Hashbrowns (frozen patties)",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 patty",
+      "calories": 130,
+      "protein": 1,
+      "confidence": "estimated",
+      "packServings": 10,
+      "packLabel": "bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": []
+    },
+    {
+      "id": "tj-salmon-burgers",
+      "name": "Salmon Burgers",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 burger",
+      "calories": 170,
+      "protein": 19,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "box",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "salmon burgers"
+      ]
+    },
+    {
+      "id": "tj-mochi",
+      "name": "Mochi Ice Cream",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 piece",
+      "calories": 90,
+      "protein": 1,
+      "confidence": "estimated",
+      "packServings": 6,
+      "packLabel": "box",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "mochi ice cream"
+      ]
+    },
+    {
+      "id": "tj-hold-the-cone",
+      "name": "Hold the Cone! Mini Ice Cream Cones",
+      "brand": "Trader Joe's",
+      "section": "Frozen",
+      "unit": "1 cone",
+      "calories": 85,
+      "protein": 1,
+      "confidence": "estimated",
+      "packServings": 8,
+      "packLabel": "box",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "hold the cone",
+        "mini cones",
+        "mini ice cream cones"
+      ]
+    },
+    {
+      "id": "tj-chicken-sausage-apple",
+      "name": "Sweet Apple Chicken Sausage",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "1 link",
+      "calories": 110,
+      "protein": 13,
+      "confidence": "estimated",
+      "packServings": 5,
+      "packLabel": "5 links",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "chicken sausage",
+        "apple chicken sausage",
+        "sweet apple chicken sausage"
+      ]
+    },
+    {
+      "id": "tj-chicken-sausage-italian",
+      "name": "Spicy Italian Chicken Sausage",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "1 link",
+      "calories": 120,
+      "protein": 14,
+      "confidence": "estimated",
+      "packServings": 5,
+      "packLabel": "5 links",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "italian chicken sausage",
+        "spicy chicken sausage"
+      ]
+    },
+    {
+      "id": "tj-lemon-pepper-chicken",
+      "name": "Grilled Lemon Pepper Chicken (fully cooked)",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "3 oz",
+      "calories": 120,
+      "protein": 20,
+      "confidence": "estimated",
+      "packServings": 3,
+      "packLabel": "package",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "lemon pepper chicken",
+        "grilled lemon pepper chicken"
+      ]
+    },
+    {
+      "id": "tj-carne-asada",
+      "name": "Carne Asada Autentica",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "4 oz raw",
+      "calories": 230,
+      "protein": 20,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "package",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "carne asada"
+      ]
+    },
+    {
+      "id": "tj-pollo-asado",
+      "name": "Pollo Asado Autentico",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "4 oz raw",
+      "calories": 180,
+      "protein": 20,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "package",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "pollo asado"
+      ]
+    },
+    {
+      "id": "tj-ground-chicken",
+      "name": "Ground Chicken",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "4 oz raw",
+      "calories": 170,
+      "protein": 21,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "1 lb pack",
+      "note": "Estimated — confirm from the package",
+      "aliases": []
+    },
+    {
+      "id": "tj-chicken-thighs",
+      "name": "Boneless Skinless Chicken Thighs",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "4 oz raw",
+      "calories": 150,
+      "protein": 21,
+      "confidence": "estimated",
+      "packServings": 5,
+      "packLabel": "package",
+      "note": "Estimated — confirm from the package",
+      "aliases": []
+    },
+    {
+      "id": "tj-uncured-bacon",
+      "name": "Uncured Bacon",
+      "brand": "Trader Joe's",
+      "section": "Meat & Seafood",
+      "unit": "2 slices",
+      "calories": 90,
+      "protein": 6,
+      "confidence": "estimated",
+      "packServings": 6,
+      "packLabel": "12 oz pack",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "uncured bacon"
+      ]
+    },
+    {
+      "id": "tj-vanilla-greek-yogurt",
+      "name": "Nonfat Vanilla Greek Yogurt",
+      "brand": "Trader Joe's",
+      "section": "Dairy & Eggs",
+      "unit": "3/4 cup",
+      "calories": 130,
+      "protein": 16,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "32 oz tub",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "vanilla greek yogurt"
+      ],
+      "grams": 170
+    },
+    {
+      "id": "tj-hummus",
+      "name": "Mediterranean Hummus",
+      "brand": "Trader Joe's",
+      "section": "Condiments & Sauces",
+      "unit": "2 tbsp",
+      "calories": 60,
+      "protein": 2,
+      "confidence": "estimated",
+      "packServings": 8,
+      "packLabel": "16 oz tub",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 30
+    },
+    {
+      "id": "tj-sourdough-bread",
+      "name": "Sliced Sourdough Bread",
+      "brand": "Trader Joe's",
+      "section": "Bread & Bakery",
+      "unit": "1 slice",
+      "calories": 120,
+      "protein": 4,
+      "confidence": "estimated",
+      "packServings": 12,
+      "packLabel": "loaf",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "sourdough bread"
+      ],
+      "grams": 43
+    },
+    {
+      "id": "tj-sprouted-bread",
+      "name": "Sprouted Wheat Bread",
+      "brand": "Trader Joe's",
+      "section": "Bread & Bakery",
+      "unit": "1 slice",
+      "calories": 100,
+      "protein": 5,
+      "confidence": "estimated",
+      "packServings": 16,
+      "packLabel": "loaf",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "sprouted bread",
+        "sprouted wheat bread",
+        "ezekiel bread"
+      ],
+      "grams": 38
+    },
+    {
+      "id": "tj-flour-tortillas",
+      "name": "Handmade Flour Tortillas",
+      "brand": "Trader Joe's",
+      "section": "Bread & Bakery",
+      "unit": "1 tortilla",
+      "calories": 150,
+      "protein": 4,
+      "confidence": "estimated",
+      "packServings": 10,
+      "packLabel": "pack",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "handmade tortillas"
+      ],
+      "grams": 49
+    },
+    {
+      "id": "tj-corn-tortillas",
+      "name": "Corn Tortillas",
+      "brand": "Trader Joe's",
+      "section": "Bread & Bakery",
+      "unit": "2 tortillas",
+      "calories": 100,
+      "protein": 2,
+      "confidence": "estimated",
+      "packServings": 9,
+      "packLabel": "pack",
+      "note": "Estimated — confirm from the package",
+      "aliases": []
+    },
+    {
+      "id": "tj-plantain-chips",
+      "name": "Plantain Chips",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "1 oz",
+      "calories": 150,
+      "protein": 1,
+      "confidence": "estimated",
+      "packServings": 6,
+      "packLabel": "bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "plantain chips"
+      ],
+      "grams": 28
+    },
+    {
+      "id": "tj-pita-chips",
+      "name": "Pita Chips",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "1 oz",
+      "calories": 130,
+      "protein": 3,
+      "confidence": "estimated",
+      "packServings": 8,
+      "packLabel": "bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "pita chips"
+      ],
+      "grams": 28
+    },
+    {
+      "id": "tj-trail-mix",
+      "name": "Simply the Best Trail Mix",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "1/4 cup",
+      "calories": 190,
+      "protein": 5,
+      "confidence": "estimated",
+      "packServings": 10,
+      "packLabel": "bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "simply the best"
+      ],
+      "grams": 35
+    },
+    {
+      "id": "tj-almonds",
+      "name": "Raw Almonds",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "1 oz",
+      "calories": 170,
+      "protein": 6,
+      "confidence": "estimated",
+      "packServings": 16,
+      "packLabel": "1 lb bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 28
+    },
+    {
+      "id": "tj-pb-cups",
+      "name": "Dark Chocolate Peanut Butter Cups",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "2 cups",
+      "calories": 190,
+      "protein": 4,
+      "confidence": "estimated",
+      "packServings": 8,
+      "packLabel": "tub",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "peanut butter cups",
+        "pb cups",
+        "dark chocolate peanut butter cups"
+      ]
+    },
+    {
+      "id": "tj-joe-joes",
+      "name": "Joe-Joe's Cookies",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "2 cookies",
+      "calories": 140,
+      "protein": 1,
+      "confidence": "estimated",
+      "packServings": 10,
+      "packLabel": "box",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "joe joes",
+        "joe joe",
+        "joe joes cookies"
+      ]
+    },
+    {
+      "id": "tj-dried-mango",
+      "name": "Dried Mango",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "1/3 cup",
+      "calories": 120,
+      "protein": 1,
+      "confidence": "estimated",
+      "packServings": 4,
+      "packLabel": "bag",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "dried mango",
+        "mango slices"
+      ],
+      "grams": 40
+    },
+    {
+      "id": "tj-pb-pretzels",
+      "name": "Peanut Butter Filled Pretzels",
+      "brand": "Trader Joe's",
+      "section": "Snacks",
+      "unit": "1 oz",
+      "calories": 140,
+      "protein": 5,
+      "confidence": "estimated",
+      "packServings": 16,
+      "packLabel": "tub",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "peanut butter pretzels",
+        "pb pretzels",
+        "filled pretzels"
+      ],
+      "grams": 28
+    },
+    {
+      "id": "tj-peanut-butter",
+      "name": "Creamy Peanut Butter",
+      "brand": "Trader Joe's",
+      "section": "Pantry",
+      "unit": "2 tbsp",
+      "calories": 190,
+      "protein": 8,
+      "confidence": "estimated",
+      "packServings": 14,
+      "packLabel": "jar",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 32
+    },
+    {
+      "id": "tj-almond-butter",
+      "name": "Almond Butter",
+      "brand": "Trader Joe's",
+      "section": "Pantry",
+      "unit": "2 tbsp",
+      "calories": 190,
+      "protein": 7,
+      "confidence": "estimated",
+      "packServings": 14,
+      "packLabel": "jar",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 32
+    },
+    {
+      "id": "tj-rolled-oats",
+      "name": "Rolled Oats",
+      "brand": "Trader Joe's",
+      "section": "Pantry",
+      "unit": "1/2 cup dry",
+      "calories": 150,
+      "protein": 5,
+      "confidence": "estimated",
+      "packServings": 15,
+      "packLabel": "container",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 40
+    },
+    {
+      "id": "tj-chickpeas",
+      "name": "Garbanzo Beans (canned)",
+      "brand": "Trader Joe's",
+      "section": "Pantry",
+      "unit": "1/2 cup",
+      "calories": 120,
+      "protein": 6,
+      "confidence": "estimated",
+      "packServings": 3.5,
+      "packLabel": "15 oz can",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 130
+    },
+    {
+      "id": "tj-maple-syrup",
+      "name": "Maple Syrup",
+      "brand": "Trader Joe's",
+      "section": "Pantry",
+      "unit": "2 tbsp",
+      "calories": 105,
+      "protein": 0,
+      "confidence": "estimated",
+      "packServings": 16,
+      "packLabel": "bottle",
+      "note": "Estimated — confirm from the package",
+      "aliases": [],
+      "grams": 30
+    },
+    {
+      "id": "tj-green-goddess",
+      "name": "Green Goddess Dressing",
+      "brand": "Trader Joe's",
+      "section": "Condiments & Sauces",
+      "unit": "2 tbsp",
+      "calories": 20,
+      "protein": 0,
+      "confidence": "estimated",
+      "packServings": 6,
+      "packLabel": "bottle",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "green goddess",
+        "green goddess dressing"
+      ],
+      "grams": 30
+    },
+    {
+      "id": "tj-chili-crunch",
+      "name": "Chili Onion Crunch",
+      "brand": "Trader Joe's",
+      "section": "Condiments & Sauces",
+      "unit": "1 tsp",
+      "calories": 40,
+      "protein": 0,
+      "confidence": "estimated",
+      "packServings": 50,
+      "packLabel": "jar",
+      "note": "Estimated — confirm from the package",
+      "aliases": [
+        "chili onion crunch",
+        "chili crunch"
+      ],
+      "grams": 5
     }
   ]
 }

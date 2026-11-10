@@ -46,7 +46,7 @@ test("quantities: numbers, words, halves, ounces, sizes", () => {
   const [pz, beer] = parse("3 slices of pizza and 2 beers");
   assert.equal(pz.qty, 3); assert.equal(beer.id, "f:beer"); assert.equal(beer.qty, 2);
   const [big] = parse("large oat latte");
-  assert.equal(big.id, "f:latte-oat"); assert.equal(big.qty, 1.4);
+  assert.equal(big.id, "f:latte-oat"); assert.equal(big.qty, 1.25, "large = 20 oz vs a 16 oz standard");
   const [tacos, marg] = parse("two tacos and a margarita");
   assert.equal(tacos.qty, 2); assert.equal(marg.id, "f:cocktail");
 });
@@ -84,7 +84,7 @@ test("home combos: change what's in them", () => {
 
 test("splitting: lists, run-ons, and add-ons that belong to the previous item", () => {
   assert.deepEqual(parse("a burger and fries and a diet coke").map((i) => i.id), ["f:burger", "f:fries", "f:diet-soda"]);
-  assert.deepEqual(parse("eggs toast coffee").map((i) => i.name.split(" ")[0]), ["Egg", "Toast", "Pret"]);
+  assert.deepEqual(parse("eggs toast coffee").map((i) => i.id), ["f:egg", "f:toast", "f:coffee"], "plain 'coffee' is coffee; 'my coffee' is the Pret usual");
   const [y] = parse("greek yogurt with berries and honey");
   assert.equal(y.id, "f:greek-yogurt");
   assert.deepEqual(labels(y), ["+ berries", "+ honey"]);
@@ -130,5 +130,150 @@ test("describe() summarizes what was understood", () => {
   const [bowl] = parse("chipotle bowl no rice extra guac");
   assert.match(PZ.describe(bowl), /no rice, \+ guac/);
   const [eggs] = parse("3 eggs");
-  assert.equal(PZ.describe(eggs), "×3");
+  assert.equal(PZ.describe(eggs), "3 eggs");
+});
+
+// ---------- measurements, spoken numbers, coffee, recipes (the "say anything" battery) ----------
+
+const one = (text, st) => { const items = parse(text, st); assert.equal(items.length, 1, `${text}: expected one item, got ${items.map((i) => i.name).join(" | ")}`); return items[0]; };
+const near = (a, b, tol = 0.02) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(b));
+
+test("spoken numbers become digits", () => {
+  const n = PZ.normalize;
+  assert.equal(n("one and a half cups of rice"), "1.5 cups of rice");
+  assert.equal(n("a cup and a half of rice"), "1.5 cup of rice");
+  assert.equal(n("twenty five grams of almonds"), "25 grams of almonds");
+  assert.equal(n("one hundred fifty grams chicken"), "150 grams chicken");
+  assert.equal(n("half a cup of oats"), "0.5 cup of oats");
+  assert.equal(n("a quarter cup granola"), "0.25 cup granola");
+  assert.equal(n("three quarters of a cup"), "0.75 of a cup");
+  assert.equal(n("two point five ounces"), "2.5 ounces");
+  assert.equal(n("1 1/2 cups"), "1.5 cups");
+  assert.equal(n("2% milk"), "2pct milk");
+  assert.equal(n("90/10 ground beef"), "lean90 ground beef");
+  assert.equal(n("6oz steak"), "6 oz steak");
+  assert.equal(n("½ avocado"), "0.5 avocado");
+});
+
+test("weights and volumes convert against each food's serving", () => {
+  const cases = [
+    ["200 grams chicken breast", "f:chicken-breast", 200 / 113],
+    ["12 oz steak", "f:steak", 2],
+    ["a cup and a half of rice", "f:rice", 1.5],
+    ["half a cup of oats", "f:oats-dry", 1],
+    ["two tablespoons of olive oil", "f:olive-oil-food", 2],
+    ["a quarter cup of granola", "f:granola", 0.5],
+    ["one and a half cups of greek yogurt", "f:greek-yogurt", 1.5],
+    ["3 oz turkey slices", "f:turkey-slices", 1],
+    ["a pound of ground turkey", "f:ground-turkey-raw", 4],
+    ["16 oz latte", "f:latte", 1],
+    ["8 fl oz of milk", "f:milk", 1],
+    ["4 meatballs", "p:turkey-meatballs-frozen", 2],
+  ];
+  for (const [text, id, qty] of cases) {
+    const it = one(text);
+    assert.equal(it.id, id, text);
+    assert.ok(near(it.qty, qty), `${text}: qty ${it.qty} ≠ ${qty}`);
+  }
+});
+
+test("an amount never multiplies something with no known size", () => {
+  const it = one("16 oz latte");
+  assert.ok(total(it) < 400, "a 16 oz latte is one latte, not sixteen");
+});
+
+test("coffee orders: sizes, milk swaps, pumps, shots, sugar", () => {
+  const a = one("coffee with an extra pump of vanilla");
+  assert.equal(a.id, "f:coffee"); assert.equal(total(a), 5 + 20);
+  const b = one("grande latte with oat milk and 2 pumps of caramel");
+  assert.equal(b.id, "f:latte-oat"); assert.equal(total(b), 190 + 40);
+  const c = one("venti iced coffee with milk and 2 sugars");
+  assert.equal(c.id, "f:coffee"); assert.equal(total(c), 15 + 20 + 32, "24 oz of coffee, milk and sugar once per drink");
+  const d = one("tall almond milk latte");
+  assert.equal(d.id, "f:latte-almond"); assert.ok(near(total(d), 75, 0.05));
+  const e = one("black coffee with a splash of cream");
+  assert.ok(e.calories > 5 && e.calories < 60);
+  assert.ok(labels(one("latte with an extra shot")).some((l) => /shot/.test(l)));
+  assert.equal(one("my coffee").id, "pret-usual-coffee");
+});
+
+test("numbers said outright win: calories, protein, each", () => {
+  const a = one("a 250 calorie protein bar");
+  assert.equal(a.id, "f:protein-bar"); assert.equal(total(a), 250);
+  const b = one("protein shake 160 calories 30g protein");
+  assert.equal(total(b), 160); assert.equal(Math.round(b.protein * b.qty), 30);
+  const c = one("2 bars 200 calories each");
+  assert.equal(c.qty, 2); assert.equal(total(c), 400);
+  const d = one("street cart thing 650 calories");
+  assert.equal(d.status, "ok"); assert.equal(total(d), 650);
+});
+
+test("portions: shared, bites, most of, seconds", () => {
+  assert.equal(one("split a pizza").qty, 0.5);
+  assert.ok(near(one("a few bites of cake").qty, 0.3));
+  assert.equal(one("most of a burrito").qty, 0.75);
+  assert.equal(one("seconds of the shawarma bowl").qty, 2);
+});
+
+test("cooking method: fried adds oil, air fried doesn't", () => {
+  const fried = one("fried chicken breast");
+  const air = one("air fried chicken breast");
+  assert.equal(air.ignored.length, 0);
+  assert.equal(total(fried) - total(air), 60);
+  assert.equal(labels(air).length, 0);
+});
+
+test("'yesterday' moves the log to yesterday", () => {
+  const r = PZ.parseMeal("yesterday I had a burger and fries", lexFor());
+  assert.equal(r.dayOffset, -1);
+  assert.deepEqual(r.items.map((i) => i.id), ["f:burger", "f:fries"]);
+  assert.equal(PZ.parseMeal("2 eggs", lexFor()).dayOffset, 0);
+});
+
+test("recipes: totals, servings, what you ate, name, raw/dry weights", () => {
+  const chili = one("turkey chili: 1 lb ground turkey, 1 can black beans, 2 cups marinara, 1 onion, makes 4, I had 1");
+  assert.equal(chili.kind, "recipe"); assert.equal(chili.name, "Turkey chili");
+  assert.equal(chili.servings, 4); assert.equal(chili.qty, 1);
+  assert.equal(chili.totalCalories, 680 + 385 + 320 + 64);
+  assert.equal(chili.calories, Math.round(1449 / 4));
+  const bake = one("pasta bake 12 oz dry penne 1 lb ground beef 24 oz marinara 2 cups shredded mozzarella makes 6 servings ate 2");
+  assert.equal(bake.name, "Pasta bake", "a leading phrase with no amount names the dish");
+  assert.equal(bake.ingredients.length, 4);
+  assert.equal(bake.ingredients[0].id, "f:pasta-dry", "recipe weights are dry/raw");
+  assert.equal(bake.qty, 2);
+  const stir = one("chicken stir fry: 2 chicken breasts, 1 bag broccoli, 2 tbsp soy sauce, 1 tbsp olive oil, serves 3");
+  assert.equal(stir.ingredients[0].id, "f:chicken-breast-raw");
+  assert.equal(stir.ingredients[0].qty, 3.5, "a whole chicken breast is ~7 oz raw");
+  assert.equal(stir.servings, 3);
+  const r = PZ.recomputeRecipe({ ...stir, servings: 2 });
+  assert.equal(r.calories, Math.round(stir.totalCalories / 2));
+});
+
+test("a recipe with an ingredient Fuel doesn't know flags it instead of guessing", () => {
+  const r = one("recipe: 1 lb chicken breast, 2 tbsp zorblax paste, makes 2");
+  assert.equal(r.status, "check");
+  assert.ok(r.ingredients.some((i) => i.status === "unknown"));
+});
+
+test("Trader Joe's products: packs and the items you buy", () => {
+  const beans = one("a can of tj black beans");
+  assert.ok(near(beans.qty, 3.5, 0.15), `can = whole pack, got ${beans.qty}`);
+  assert.ok(one("2 carb balance tortillas").id === "p:mission-carb-balance-tortilla");
+  assert.equal(one("2 carb balance tortillas").qty, 2);
+});
+
+test("Trader Joe's items by their own names; generic words stay generic", () => {
+  assert.equal(one("orange chicken").id, "p:tj-mandarin-orange-chicken");
+  assert.equal(one("8 gyoza").id, "p:tj-chicken-gyoza");
+  assert.ok(near(one("8 gyoza").qty, 8 / 7));
+  assert.equal(one("2 chicken sausages").id, "p:tj-chicken-sausage-apple");
+  assert.equal(one("half a bag of cauliflower gnocchi").qty, 1.25);
+  assert.equal(one("a third of a margherita pizza").qty, 0.99, "a serving is already a third of the pizza");
+  assert.equal(one("fried rice").id, "f:fried-rice");
+  assert.equal(one("tj fried rice").id, "p:tj-chicken-fried-rice", "saying TJ's picks their product");
+  assert.equal(one("half a pizza").qty, 4, "half a pizza = 4 slices");
+  assert.equal(one("greek yogurt").id, "f:greek-yogurt");
+  const fr = one("fried chicken breast");
+  assert.ok(labels(fr).includes("+ cooking oil (fried)"));
+  assert.equal(fr.ignored.length, 0);
 });

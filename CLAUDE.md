@@ -14,7 +14,10 @@ around Trader Joe's shopping. Deployed via GitHub Pages; used entirely from the 
   When the owner says "add my usual X order", add it here (not to templates.json); `tests/count.test.js`
   checks every reference resolves.
 - `js/count.js` + `js/ai.js` — count-mode UI and the Claude API food estimator (owner's own key, kept out of state)
-- `js/parse.js` + `data/foods.json` — "✍️ Type it": on-phone parser for typed/dictated meals (no AI). `js/history.js` — History & stats.
+- `js/parse.js` + `js/units.js` + `data/foods.json` — "✍️ Type it": on-phone parser for typed/dictated meals,
+  amounts, drinks and recipes (no AI). Foods carry `g`/`ml` per serving, `prep` (raw/dry/cooked), `per`
+  (servings per whole item, e.g. `{"can": 3.5}`); products may carry `aliases` (their own short names).
+  `js/history.js` — History & stats.
 
 ## Tuning "Type it" (owner will paste "Fuel Type-it misses" from Settings)
 
