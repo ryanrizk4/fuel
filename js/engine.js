@@ -878,21 +878,35 @@ function bingesOn(state, key) {
 }
 
 /** Where each planned eating time stands right now: done / now / next / missed / later. */
-function scheduleStatus(schedule, entries, nowMin, isToday = true) {
-  const eaten = (entries || []).filter((e) => !e.binge).map((e) => {
-    if (e.slot) return { slot: e.slot };
-    const d = new Date(e.at || 0);
-    return { min: d.getHours() * 60 + d.getMinutes() };
-  });
-  const used = new Set();
-  const out = schedule.map((s) => ({ ...s, min: hm(s.time), status: "later" }));
-  // match each logged eating occasion to its slot (explicit slot, or nearest time within 90 min)
-  for (const e of eaten) {
+/** Which planned eating time each logged entry belongs to: a slot id, "extra" (off-plan, fine), or
+ *  "binge". New entries carry their slot; older ones are matched to the nearest time within 90 min. */
+function entrySlots(schedule, entries) {
+  const slots = (schedule || []).map((s) => ({ id: s.id, min: hm(s.time) }));
+  const out = {};
+  for (const e of entries || []) {
+    if (e.binge) { out[e.id] = "binge"; continue; }
+    if (e.slot) { out[e.id] = slots.some((s) => s.id === e.slot) ? e.slot : "extra"; continue; }
+    const d = new Date(e.at || 0), m = d.getHours() * 60 + d.getMinutes();
     let best = null;
-    if (e.slot) best = out.find((s) => s.id === e.slot && !used.has(s.id));
-    else for (const s of out) if (!used.has(s.id) && Math.abs(s.min - e.min) <= 90 && (!best || Math.abs(s.min - e.min) < Math.abs(best.min - e.min))) best = s;
-    if (best) { used.add(best.id); best.status = "done"; }
+    for (const s of slots) if (Math.abs(s.min - m) <= 90 && (!best || Math.abs(s.min - m) < Math.abs(best.min - m))) best = s;
+    out[e.id] = best ? best.id : "extra";
   }
+  return out;
+}
+
+/** The meal someone is most likely logging right now: the latest planned time that has started and
+ *  isn't logged yet, else the next one coming up, else "extra" once every time is covered. */
+function guessSlot(schedule, entries, nowMin) {
+  const tl = scheduleStatus(schedule, entries, nowMin);
+  const open = tl.filter((s) => s.status !== "done");
+  if (!open.length) return "extra";
+  const started = open.filter((s) => s.min - 30 <= nowMin);
+  return (started.length ? started[started.length - 1] : open[0]).id;
+}
+
+function scheduleStatus(schedule, entries, nowMin, isToday = true) {
+  const done = new Set(Object.values(entrySlots(schedule, entries)));
+  const out = schedule.map((s) => ({ ...s, min: hm(s.time), status: done.has(s.id) ? "done" : "later" }));
   let nextSet = false;
   for (const s of out) {
     if (s.status === "done") continue;
@@ -1191,7 +1205,7 @@ export {
   componentTotals, productTotals, catalogItems, logTotals, settleCountDays, resettleDay, weekBalance, suggestFits, parseOpenFoodFacts,
   dailyHistory, historyStats, weeklySummary, topFoods, historyCsv,
   streakCalendar, STREAK_MILESTONES, unsettleDay,
-  defaultSchedule, newRecovery, recoveryOn, bingesOn, scheduleStatus, recoveryWeek, bingeDaysBetween, evaluateStage,
+  defaultSchedule, newRecovery, recoveryOn, bingesOn, scheduleStatus, entrySlots, guessSlot, recoveryWeek, bingeDaysBetween, evaluateStage,
   recoveryTarget, weekAverageIntake, recoveryFlags, riskPlanFor, REC_STAGE2_DEFICIT, REC_RAPID_RESPONSE, STREAK_GRACE, SHIELD_EVERY, MAX_SHIELDS,
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,

@@ -10,6 +10,7 @@ import * as S from "./streak.js";
 let ctx = null;
 let urge = null;            // { started, timer } while the urge tool is open
 let draft = {};             // in-progress sheet answers
+let prevDone = null;        // timeline slots ticked at the last render, so a new tick can "pop"
 
 const st = () => ctx.state();
 const R = () => st().recovery;
@@ -61,10 +62,11 @@ export function renderToday(el) {
     <div class="card rec-hero">
       <div class="list-title-row"><h3>Your eating today</h3><button class="link small" data-action="r-sheet-schedule">edit times</button></div>
       <div class="timeline">${tl.map((x) => `
-        <button class="tl-node ${x.status}" data-action="r-log-slot" data-slot="${x.id}" aria-label="${x.label} at ${time12(x.time)}: ${x.status}">
+        <button class="tl-node ${x.status}${x.status === "done" && prevDone && !prevDone.has(x.id) ? " pop" : ""}" data-action="${x.status === "done" ? "r-meal" : "r-log-slot"}" data-slot="${x.id}" aria-label="${x.label} at ${time12(x.time)}: ${x.status}">
           <span class="tl-dot">${x.status === "done" ? "✓" : ""}</span>
           <b>${time12(x.time)}</b><i>${esc(x.label)}</i>
         </button>`).join("")}</div>
+      ${loggedListHTML(day?.entries || [])}
       <div class="rec-next">${allDone ? "Everything on plan today ✓ Nice and steady."
         : next ? `${next.status === "now" ? "Now" : "Next"}: <b>${esc(next.label)}</b> around ${time12(next.time)} — anything you like.`
         : "Missed one? No making up — just eat at the next time."}</div>
@@ -82,6 +84,52 @@ export function renderToday(el) {
       }).join("")}</div>
       <div class="small muted mt8">${week.days.filter((d) => !d.future && !d.binges && (d.checkin || d.logged)).length} binge-free day${week.days.filter((d) => !d.future && !d.binges && (d.checkin || d.logged)).length === 1 ? "" : "s"}${week.ridden ? ` · ${week.ridden} urge${week.ridden === 1 ? "" : "s"} ridden out` : ""}${avg ? ` · avg ${fmt(avg)} / ~${fmt(target)} kcal` : ""}</div>
     </div>`;
+  prevDone = new Set(tl.filter((x) => x.status === "done").map((x) => x.id));
+}
+
+/** What's been logged today, one line per meal in timeline order: tap a line to fix or delete. */
+function loggedListHTML(entries) {
+  if (!entries.length) return "";
+  return `<div class="rec-logged">${mealGroups(entries).map((g) => `
+    <button class="rec-logged-row${g.id === "binge" ? " binge" : ""}" data-action="r-meal" data-slot="${g.id}">
+      <span class="rl-label">${esc(g.label)}</span><span class="rl-foods">${esc(g.items.map((e) => e.name).join(", "))}</span><span class="rl-go">›</span>
+    </button>`).join("")}</div>`;
+}
+
+function mealGroups(entries) {
+  const sch = R().schedule;
+  const map = E.entrySlots(sch, entries);
+  const order = [...sch.map((s) => ({ id: s.id, label: s.label })), { id: "extra", label: "Extra" }, { id: "binge", label: "Felt like a binge" }];
+  return order.map((o) => ({ ...o, items: entries.filter((e) => map[e.id] === o.id) })).filter((g) => g.items.length);
+}
+
+export function slotLabel(id) {
+  if (id === "extra") return "Extra";
+  return R()?.schedule.find((s) => s.id === id)?.label || "Meal";
+}
+
+/** The meal someone is most likely logging right now (engine rule), for the log sheet's default. */
+export function guessSlotNow() {
+  return E.guessSlot(R().schedule, st().foodLog?.[today()]?.entries || [], nowMin());
+}
+
+function sheetMeal(slot) {
+  const entries = st().foodLog?.[today()]?.entries || [];
+  const g = mealGroups(entries).find((x) => x.id === slot);
+  if (!g) { ctx.closeSheet(); return; }
+  const s = R().schedule.find((x) => x.id === slot);
+  ctx.openSheet(`
+    <h3>${esc(g.label)}${s ? ` <span class="muted small">· ${time12(s.time)}</span>` : ""}</h3>
+    <div class="rec-meal-items">${g.items.map((e) => `
+      <div class="rec-meal-item"><span class="rmi-emoji">${esc(e.emoji || "🍽")}</span><div class="rmi-text"><b>${esc(e.name)}</b>${e.detail ? `<div class="small muted">${esc(e.detail)}</div>` : ""}</div>
+        <button class="btn small ghost danger" data-action="r-meal-del" data-id="${e.id}" data-slot="${slot}" aria-label="Delete ${esc(e.name)}">Delete</button></div>`).join("")}</div>
+    ${slot === "binge" ? `<div class="small muted mt8">Logged honestly. That's the part that helps. Nothing to make up.</div>` : `
+    <div class="ob-section">This was</div>
+    <div class="chips wrap">${[...R().schedule, { id: "extra", label: "Extra" }].map((x) => `<button class="chip ${x.id === slot ? "on" : ""}" data-action="r-meal-move" data-from="${slot}" data-to="${x.id}">${esc(x.label)}</button>`).join("")}</div>`}
+    <div class="btn-row" style="margin-top:14px">
+      ${slot !== "binge" ? `<button class="btn" data-action="r-log-slot" data-slot="${slot}">＋ Add to ${esc(g.label.toLowerCase())}</button>` : ""}
+      <button class="btn primary" data-action="close-sheet">Done</button>
+    </div>`);
 }
 
 /** The cards that matter right now, most important first — at most two, so it never piles up. */
@@ -454,8 +502,12 @@ export function settingsCard() {
 export function logExtrasHTML() {
   if (!active()) return "";
   const d = ctx.typedRecovery?.() || {};
+  const slots = [...R().schedule, { id: "extra", label: "Extra" }];
   return `<div class="rec-log-extras">
     <div class="seg" style="margin:8px 0 6px"><button class="${!d.binge ? "on" : ""}" data-action="r-lx-binge" data-v="0">As planned</button><button class="${d.binge ? "on" : ""}" data-action="r-lx-binge" data-v="1">Felt like a binge</button></div>
+    ${d.binge ? "" : `<div class="ob-section" style="margin-top:6px">Which meal?</div>
+    <div class="chips wrap">${slots.map((x) => `<button class="chip ${d.slot === x.id ? "on" : ""}" data-action="r-lx-slot" data-v="${x.id}">${esc(x.label)}</button>`).join("")}</div>`}
+    <div class="ob-section" style="margin-top:6px">How were you feeling? <span class="muted">(optional)</span></div>
     <div class="chips wrap">${CONTEXTS.map((c) => `<button class="chip ${(d.context || []).includes(c) ? "on" : ""}" data-action="r-lx-ctx" data-v="${esc(c)}">${esc(c)}</button>`).join("")}</div>
   </div>`;
 }
@@ -485,7 +537,22 @@ export function handleRecovery(el) {
       if (!confirm("Turn off the recovery program? Your recovery history stays saved.")) return true;
       s.recovery.enabled = false; ctx.save(); ctx.renderAll(); return true;
     }
-    case "r-log": ctx.openType(today(), ""); return true;
+    case "r-log": ctx.openType(today(), "", { slot: guessSlotNow() }); return true;
+    case "r-lx-slot": ctx.typedRecovery({ slot: el.dataset.v }); return true;
+    case "r-meal": sheetMeal(el.dataset.slot); return true;
+    case "r-meal-del": {
+      const day = st().foodLog?.[today()];
+      if (day) { day.entries = day.entries.filter((x) => x.id !== el.dataset.id); ctx.save(); ctx.renderAll(); ctx.toast("Deleted"); sheetMeal(el.dataset.slot); }
+      return true;
+    }
+    case "r-meal-move": {
+      const day = st().foodLog?.[today()];
+      if (!day) return true;
+      const map = E.entrySlots(R().schedule, day.entries);
+      for (const e of day.entries) if (map[e.id] === el.dataset.from) e.slot = el.dataset.to;
+      ctx.save(); ctx.renderAll(); ctx.toast(`Moved to ${slotLabel(el.dataset.to).toLowerCase()}`); sheetMeal(el.dataset.to);
+      return true;
+    }
     case "r-log-slot": ctx.closeSheet(); ctx.openType(today(), "", { slot: el.dataset.slot || null }); return true;
     case "r-log-binge": ctx.openType(today(), "", { binge: true }); return true;
     case "r-urge": sheetUrge(); return true;

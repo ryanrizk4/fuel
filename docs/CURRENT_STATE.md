@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v22`.
+Current visible version: `fuel-v23`.
 
 ## Core behavior
 
@@ -94,6 +94,10 @@ evening check-in → plan a risky evening → tonight's plan → weekly check-in
   many days" questions written for Fuel (NOT the validated EDE-QS; swap in once its wording is
   verified from the source) plus a purging screen, week summary, one focus.
 - `.ics` calendar reminders for meal times, plan-ahead evenings, check-ins (no server).
+- Logging: the log sheet asks "Which meal?" with a guess pre-picked (`guessSlot`: the latest
+  started, unlogged time, else the next one, else "Extra"); every entry stores its `slot`.
+  Today lists what was logged, one line per meal (`entrySlots`); tapping a line or a ticked dot
+  opens that meal to delete items, move it to another meal, or add to it. A new tick pops.
 All recovery data lives in `state.recovery` on the phone; it is never sent anywhere.
 
 ## Streaks & "day passed" (js/streak.js)
