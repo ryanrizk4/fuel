@@ -5,6 +5,7 @@ import * as P from "./persistence.js";
 import * as C from "./count.js";
 import * as H from "./history.js";
 import * as S from "./streak.js";
+import * as R from "./recovery.js";
 import "./release.js";
 import { createReloadGuard } from "./reloadGuard.js";
 
@@ -154,6 +155,11 @@ async function boot() {
     renderProgress: () => renderProgress(),
     openDayInToday,
   });
+  R.initRecovery({
+    state: () => state, todayKey, esc, save, openSheet, closeSheet, renderAll, toast, switchTab,
+    openType: (key, prefill, opts) => C.sheetType(key, prefill, opts),
+    typedRecovery: (patch) => C.typedRecovery(patch),
+  });
   S.initStreak({ state: () => state, data: () => DATA, todayKey, save, renderAll, toast, openDayInToday, renderProgress: () => renderProgress() });
   DATA_UPDATED = p.updated || t.updated || "";
   load();
@@ -251,7 +257,8 @@ function openDayInToday(key) {
 
 let booted = false;
 function renderAll() {
-  const counting = state.trackMode === "count";
+  const counting = state.trackMode === "count" || !!state.recovery?.enabled;
+  document.body.classList.toggle("mode-recovery", !!state.recovery?.enabled);
   document.body.classList.toggle("mode-count", counting);
   if (counting && (currentTab === "plan" || currentTab === "shop")) switchTab("today", "replace");
   renderToday();
@@ -418,6 +425,7 @@ function renderToday() {
   const day = state.plan.days[key];
   const p = state.profile;
   if (!p) return;
+  if (R.active()) { C.settle(); R.renderToday(el); return; }
   if (state.trackMode === "count") {
     const msg = C.settle();
     C.renderCountToday(el);
@@ -446,7 +454,7 @@ function renderToday() {
   const remaining = Math.max(0, effBudget - consumed.calories);
   const pct = Math.min(1, consumed.calories / effBudget);
   const over = consumed.calories > effBudget;
-  const R = 52, CIRC = 2 * Math.PI * R;
+  const RING = 52, CIRC = 2 * Math.PI * RING;
 
   const mealRows = (day.meals || []).map((m, i) => {
     const t = mealTitle(m);
@@ -530,8 +538,8 @@ function renderToday() {
       <div class="today-hero">
         <div class="ring-wrap">
           <svg width="118" height="118" viewBox="0 0 118 118">
-            <circle cx="59" cy="59" r="${R}" fill="none" stroke="var(--surface-2)" stroke-width="10"/>
-            <circle cx="59" cy="59" r="${R}" fill="none" stroke="${over ? "var(--critical)" : "var(--accent)"}" stroke-width="10"
+            <circle cx="59" cy="59" r="${RING}" fill="none" stroke="var(--surface-2)" stroke-width="10"/>
+            <circle cx="59" cy="59" r="${RING}" fill="none" stroke="${over ? "var(--critical)" : "var(--accent)"}" stroke-width="10"
               stroke-linecap="round" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - pct)}"/>
           </svg>
           <div class="ring-center">
@@ -741,6 +749,24 @@ function renderProgress() {
       <button class="btn small ghost danger" data-action="del-weight" data-date="${w.date}">✕</button>
     </div>`).join("");
 
+  // Recovery: one calm page. Binge days, urges ridden out, the weekly check, weekly weight.
+  // Calorie goals, payback, goal dates and the daily weight box are out of the way; calorie
+  // history comes back in stage 2.
+  if (R.active()) {
+    el.innerHTML = `
+      <div class="list-title-row"><div class="screen-title">Progress</div><button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
+      <div class="screen-sub">Fewer binges first. Weight follows.</div>
+      ${R.progressCard()}
+      <div class="card">
+        <h3>Weight (weekly)</h3>
+        <div class="chart-box" id="chart-box">${weightChartSVG()}</div>
+        <div class="chart-tip" id="chart-tip"></div>
+        <div class="small muted mt8">Weigh in once a week in your weekly check-in. Day-to-day numbers swing with water and salt — the weekly trend is the honest one.</div>
+      </div>
+      ${state.recovery.stage === 2 ? H.historySection() : ""}`;
+    return;
+  }
+
   el.innerHTML = `
     <div class="list-title-row"><div class="screen-title">Progress</div><button class="btn small ghost" data-action="open-settings" aria-label="Settings">⚙️</button></div>
     <div class="screen-sub">Goal: ${target} lb (−${p.goalLossLb} from ${p.startWeightLb}) · your history from both modes lives here</div>
@@ -872,7 +898,9 @@ function renderMore() {
       <button class="btn small ghost" data-action="back-today">← Back</button></div>
     <div class="screen-sub">Profile, goal, freezer, data.</div>
 
-    <div class="card">
+    ${R.settingsCard()}
+
+    <div class="card" ${R.active() ? "hidden" : ""}>
       <h3>How you use Fuel</h3>
       <div class="small muted" style="margin:4px 0 10px">“Just count” is a fast calorie counter with your usuals, restaurant orders, barcode scan and AI estimates. “Full plan” is the weekly planner with shopping lists. Switch any week — nothing is lost.</div>
       ${C.modeSwitch()}
@@ -1470,6 +1498,7 @@ function readKcal(el) {
 
 function handleAction(el) {
   const a = el.dataset.action;
+  if (R.handleRecovery(el)) return;
   if (C.handleCount(el)) return;
   if (S.handleStreak(el)) return;
   if (H.handleHistory(el)) return;

@@ -113,6 +113,7 @@ const MILESTONE_TITLE = { 3: "Three in a row", 7: "One full week!", 14: "Two wee
 export function maybeCelebrate() {
   const s = st();
   if (!s.profile || document.querySelector("#celebrate")) return;
+  if (s.recovery?.enabled) return; // recovery celebrates behaviors, from recovery.js — never calorie days
   const k = streak();
   if (!k) return;
   const today = ctx.todayKey();
@@ -187,6 +188,40 @@ function confetti(n) {
     const r = Math.round(Math.random() * 720 - 360), dl = (Math.random() * 0.18).toFixed(2), sz = 5 + Math.round(Math.random() * 6);
     return `<i style="--x:${x}px;--y:${y}px;--r:${r}deg;--d:${dl}s;--s:${sz}px;background:${colors[i % colors.length]}"></i>`;
   }).join("");
+}
+
+/**
+ * A generic "moment" with the same calendar-page visuals, for recovery: celebrate behaviors
+ * (rode out an urge, checked in, binge-free day) or note a hard day calmly.
+ * opts: { kind: "win"|"calm", date?, title, big?, lines?: [], button? }
+ */
+export function celebrate({ kind = "win", date = null, title, big = "", lines = [], button = "Keep going" }) {
+  if (document.querySelector("#celebrate")) return;
+  const d = date ? E.parseKey(date) : new Date();
+  const win = kind === "win";
+  const el = document.createElement("div");
+  el.id = "celebrate";
+  el.className = win ? "win" : "calm";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", title);
+  el.innerHTML = `
+    <div class="cel-card">
+      ${win && !reduceMotion() ? `<div class="confetti">${confetti(48)}</div>` : ""}
+      <div class="cal-page">
+        <div class="cal-page-top">${d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</div>
+        <div class="cal-page-day">${d.getDate()}</div>
+        <div class="cal-page-wd">${d.toLocaleDateString("en-US", { weekday: "long" })}</div>
+        ${win ? `<div class="stamp">✓</div>` : ""}
+      </div>
+      <div class="cel-title">${title}</div>
+      ${big ? `<div class="cel-streak">${big}</div>` : ""}
+      ${lines.map((l) => `<div class="cel-line">${l}</div>`).join("")}
+      <div style="height:14px"></div>
+      <button class="btn primary" data-action="s-dismiss" style="width:100%">${button}</button>
+    </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  if (win) navigator.vibrate?.([25, 50, 25]);
 }
 
 function dismiss() {

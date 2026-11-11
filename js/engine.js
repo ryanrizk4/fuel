@@ -147,6 +147,7 @@ function paybackRate(state) {
 // Today's trim toward the overage bank: the chosen speed, never more than what's owed,
 // never enough to push the budget under the safety floor.
 function dailyTrim(state) {
+  if (state.recovery?.enabled) return 0; // recovery: nothing is ever "paid back"
   const p = state.profile;
   const room = Math.max(0, dailyBudget(p) - (BUDGET_FLOOR[p.sex] || 1200));
   return Math.min(paybackRate(state), Math.max(0, state.overageBank || 0), room);
@@ -681,7 +682,8 @@ function settleCountDays(state, todayK) {
     if (!day || day.settled || !(day.entries || []).length) continue;
     const { budget, trim } = effectiveBudget(state, day);
     const eaten = logTotals(day.entries).calories;
-    const over = Math.max(0, eaten - budget);
+    // In recovery a big day is data, not a debt: nothing goes into a payback bank.
+    const over = state.recovery?.enabled ? 0 : Math.max(0, eaten - budget);
     state.overageBank = Math.max(0, (state.overageBank || 0) - trim) + over;
     day.settled = { budget, trim, over, eaten };
     settled.push({ key: k, ...day.settled });
@@ -829,6 +831,172 @@ function dailyHistory(data, state, fromKey, toKey) {
     out.push({ key, source: null, calories: 0, protein: 0, budget: base, walked, items: 0, approx: false });
   }
   return out;
+}
+
+// ---------- recovery program (binge eating, CBT guided self-help structure) ----------
+
+const REC_STAGE2_DEFICIT = 275;     // gentle: about half a pound a week, judged as a weekly average
+const REC_ADVANCE_DAYS = 28;        // at least 4 weeks in stage 1…
+const REC_ADVANCE_MAX_BINGES = 2;   // …with ≤ 2 binge days in the last 28 (about 1 every 2 weeks)
+const REC_BRAKE_BINGES = 2;         // 2 binge days in 14 → back to stage 1 (no shame, just speed)
+const REC_RAPID_RESPONSE = 0.65;    // ≥65% fewer binges by week 4 predicts recovery (Grilo, Hilbert)
+
+const hm = (t) => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
+
+/** A regular-eating schedule from wake time and evening routine: no gap over ~4 hours. */
+function defaultSchedule({ wake = "09:00", dinner = "19:00" } = {}) {
+  const w = hm(wake), d = hm(dinner);
+  const fmt = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const lunch = Math.min(w + 240, d - 360), snack = Math.round((lunch + d) / 2 / 15) * 15;
+  return [
+    { id: "breakfast", label: "Breakfast", time: fmt(w + 30) },
+    { id: "lunch", label: "Lunch", time: fmt(lunch) },
+    { id: "snack", label: "Snack", time: fmt(snack) },
+    { id: "dinner", label: "Dinner", time: fmt(d) },
+    { id: "evening", label: "Evening treat", time: fmt(d + 150) },
+  ];
+}
+
+function newRecovery({ today, schedule, baseline = 2, contact = null, riskDays = [4, 5, 0], weighDay = 0 } = {}) {
+  return {
+    enabled: true, startedAt: today, stage: 1, stageSince: today, baselinePerWeek: baseline,
+    schedule: schedule || defaultSchedule(), riskDays, weighDay, contact,
+    alternatives: ["Walk outside 15 min", "Shower", "Text Alan", "Call someone", "Tea + a show", "Leave the kitchen", "Eat my planned snack"],
+    checkins: {}, urges: [], plans: {}, reflections: {}, weekly: {}, events: [],
+  };
+}
+
+const recoveryOn = (state) => !!state.recovery?.enabled;
+
+/** Binge episodes on a day: entries flagged as a binge, plus "it happened" from the urge tool. */
+function bingesOn(state, key) {
+  const day = state.foodLog?.[key];
+  const fromLog = new Set((day?.entries || []).filter((e) => e.binge).map((e) => e.episode || e.id)).size;
+  const fromUrge = (state.recovery?.urges || []).filter((u) => u.date === key && u.outcome === "binge" && !u.logged).length;
+  const fromCheckin = state.recovery?.checkins?.[key]?.binge ? 1 : 0;
+  return Math.max(fromLog + fromUrge, fromCheckin);
+}
+
+/** Where each planned eating time stands right now: done / now / next / missed / later. */
+function scheduleStatus(schedule, entries, nowMin, isToday = true) {
+  const eaten = (entries || []).filter((e) => !e.binge).map((e) => {
+    if (e.slot) return { slot: e.slot };
+    const d = new Date(e.at || 0);
+    return { min: d.getHours() * 60 + d.getMinutes() };
+  });
+  const used = new Set();
+  const out = schedule.map((s) => ({ ...s, min: hm(s.time), status: "later" }));
+  // match each logged eating occasion to its slot (explicit slot, or nearest time within 90 min)
+  for (const e of eaten) {
+    let best = null;
+    if (e.slot) best = out.find((s) => s.id === e.slot && !used.has(s.id));
+    else for (const s of out) if (!used.has(s.id) && Math.abs(s.min - e.min) <= 90 && (!best || Math.abs(s.min - e.min) < Math.abs(best.min - e.min))) best = s;
+    if (best) { used.add(best.id); best.status = "done"; }
+  }
+  let nextSet = false;
+  for (const s of out) {
+    if (s.status === "done") continue;
+    if (!isToday) { s.status = "missed"; continue; }
+    if (nowMin > s.min + 90) s.status = "missed";
+    else if (nowMin >= s.min - 30) { s.status = "now"; nextSet = true; }
+    else if (!nextSet) { s.status = "next"; nextSet = true; }
+  }
+  return out;
+}
+
+/** One week (Mon–Sun) of recovery signals. */
+function recoveryWeek(state, weekStartKey, todayKey) {
+  const days = [];
+  let binges = 0, bingeDays = 0, urges = 0, ridden = 0, checkins = 0, onSchedule = 0;
+  for (let i = 0; i < 7; i++) {
+    const k = dateKey(addDays(parseKey(weekStartKey), i));
+    if (k > todayKey) { days.push({ key: k, future: true }); continue; }
+    const b = bingesOn(state, k);
+    const u = (state.recovery?.urges || []).filter((x) => x.date === k);
+    const c = state.recovery?.checkins?.[k];
+    binges += b; if (b) bingeDays++;
+    urges += u.length; ridden += u.filter((x) => x.outcome === "passed").length;
+    if (c) { checkins++; if (c.schedule === "yes") onSchedule++; }
+    days.push({ key: k, binges: b, urges: u.length, ridden: u.filter((x) => x.outcome === "passed").length, checkin: c || null, logged: !!state.foodLog?.[k]?.entries?.length });
+  }
+  return { days, binges, bingeDays, urges, ridden, checkins, onSchedule };
+}
+
+function bingeDaysBetween(state, fromKey, toKey) {
+  let n = 0;
+  for (let d = parseKey(fromKey); dateKey(d) <= toKey; d = addDays(d, 1)) if (bingesOn(state, dateKey(d))) n++;
+  return n;
+}
+
+/**
+ * Stage logic. Stage 1 (stop the binges, eat at maintenance) → stage 2 (gentle weekly-average
+ * deficit) after ≥28 days with ≤2 binge days in the last 28. Stage 2 → back to 1 if 2 binge
+ * days in the last 14. Returns { stage, changed, reason }. Mutates state.recovery when it changes.
+ */
+function evaluateStage(state, todayKey) {
+  const r = state.recovery;
+  if (!r?.enabled) return null;
+  const since = Math.round((parseKey(todayKey) - parseKey(r.stageSince || r.startedAt)) / 86400000);
+  const last = (n) => bingeDaysBetween(state, dateKey(addDays(parseKey(todayKey), -n)), dateKey(addDays(parseKey(todayKey), -1)));
+  let changed = false, reason = "";
+  if (r.stage === 1 && since >= REC_ADVANCE_DAYS && last(28) <= REC_ADVANCE_MAX_BINGES) {
+    r.stage = 2; r.stageSince = todayKey; changed = true; reason = "advance";
+  } else if (r.stage === 2 && last(14) >= REC_BRAKE_BINGES) {
+    r.stage = 1; r.stageSince = todayKey; changed = true; reason = "brake";
+  }
+  if (changed) (r.events ||= []).push({ date: todayKey, type: `stage-${reason}`, stage: r.stage });
+  return { stage: r.stage, changed, reason, daysInStage: changed ? 0 : since };
+}
+
+/** Calorie target in recovery: maintenance in stage 1; maintenance − 275 (weekly average) in stage 2. */
+function recoveryTarget(state) {
+  const maint = tdee({ ...state.profile, budgetKcal: 0 });
+  return state.recovery?.stage === 2 ? Math.max(BUDGET_FLOOR[state.profile.sex] || 1200, maint - REC_STAGE2_DEFICIT) : maint;
+}
+
+/** Mon–today average intake over logged days, for the stage-2 weekly gauge. */
+function weekAverageIntake(state, todayKey) {
+  const start = weekStart(parseKey(todayKey));
+  const vals = [];
+  for (let d = start; dateKey(d) <= todayKey; d = addDays(d, 1)) {
+    const e = state.foodLog?.[dateKey(d)]?.entries;
+    if (e?.length && dateKey(d) < todayKey) vals.push(logTotals(e).calories);
+  }
+  return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+}
+
+/**
+ * When to say "add a human" (NICE steps up at ~4 weeks; rapid response predicts remission):
+ *  - week ≥4 and binges not down ≥65% from the starting baseline
+ *  - any purging / laxatives / fasting / compensatory exercise reported
+ *  - mood ≤2/5 on 5 of the last 7 check-ins
+ */
+function recoveryFlags(state, todayKey) {
+  const r = state.recovery;
+  if (!r?.enabled) return [];
+  const flags = [];
+  const days = Math.round((parseKey(todayKey) - parseKey(r.startedAt)) / 86400000);
+  if (days >= 28) {
+    const recentPerWeek = bingeDaysBetween(state, dateKey(addDays(parseKey(todayKey), -14)), dateKey(addDays(parseKey(todayKey), -1))) / 2;
+    const base = Math.max(0.5, r.baselinePerWeek || 1);
+    if (recentPerWeek > base * (1 - REC_RAPID_RESPONSE)) flags.push({ type: "slow", recentPerWeek, base });
+  }
+  const weeks = Object.entries(r.weekly || {}).sort(([a], [b]) => b.localeCompare(a));
+  if (weeks[0] && (weeks[0][1].compensate > 0 || weeks[0][1].purge > 0)) flags.push({ type: "compensation" });
+  const moods = Object.entries(r.checkins || {}).filter(([k]) => k < todayKey).sort(([a], [b]) => b.localeCompare(a)).slice(0, 7).map(([, c]) => c.mood).filter((m) => m != null);
+  if (moods.length >= 5 && moods.filter((m) => m <= 2).length >= 5) flags.push({ type: "mood" });
+  return flags;
+}
+
+/** The evening before a high-risk day (or the morning of it) is planning time. */
+function riskPlanFor(state, now = new Date()) {
+  const r = state.recovery;
+  if (!r?.enabled) return null;
+  const today = dateKey(now), tomorrow = dateKey(addDays(now, 1));
+  const isRisk = (d) => (r.riskDays || []).includes(d.getDay());
+  if (isRisk(now)) return { key: today, when: "today" };
+  if (isRisk(addDays(now, 1)) && now.getHours() >= 17) return { key: tomorrow, when: "tomorrow" };
+  return null;
 }
 
 // ---------- streaks ----------
@@ -1022,7 +1190,9 @@ export {
   paybackRate, dailyTrim, walkCredit, walkMinutesFor, paybackOptions, goalPlan,
   componentTotals, productTotals, catalogItems, logTotals, settleCountDays, resettleDay, weekBalance, suggestFits, parseOpenFoodFacts,
   dailyHistory, historyStats, weeklySummary, topFoods, historyCsv,
-  streakCalendar, STREAK_MILESTONES, unsettleDay, STREAK_GRACE, SHIELD_EVERY, MAX_SHIELDS,
+  streakCalendar, STREAK_MILESTONES, unsettleDay,
+  defaultSchedule, newRecovery, recoveryOn, bingesOn, scheduleStatus, recoveryWeek, bingeDaysBetween, evaluateStage,
+  recoveryTarget, weekAverageIntake, recoveryFlags, riskPlanFor, REC_STAGE2_DEFICIT, REC_RAPID_RESPONSE, STREAK_GRACE, SHIELD_EVERY, MAX_SHIELDS,
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,

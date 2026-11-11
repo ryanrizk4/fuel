@@ -7,6 +7,7 @@ import * as AI from "./ai.js";
 import * as PZ from "./parse.js";
 import * as U from "./units.js";
 import * as S from "./streak.js";
+import * as R from "./recovery.js";
 
 let ctx = null;
 let viewOffset = 0;          // 0 = today, -1 = yesterday … up to a year back
@@ -146,6 +147,7 @@ function addEntry(key, item, qty = 1, extra = {}) {
   };
   day.entries.push(entry);
   afterLogChange(key);
+  if (recovering()) { ctx.toast(`✓ ${item.name} logged`); return entry; }
   const { left } = dayStatus(key);
   ctx.toast(left < 0 ? `⚠️ ${item.name} logged — ${fmt(-left)} over. See “Cancel it out” below.` : `✓ ${item.name} · ${fmt(left)} kcal left`);
   return entry;
@@ -859,8 +861,21 @@ function lexicon() {
 const Speech = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 let listening = null;
 
-export function sheetType(key, prefill = "") {
-  typed = { key, text: prefill, items: [], edits: {}, dayOffset: 0, dayOverride: false };
+/** Recovery flags for what's being typed (binge?, context, slot). recovery.js reads and sets them. */
+export function typedRecovery(patch) {
+  if (!typed) return null;
+  if (patch) {
+    typed.rec = { ...(typed.rec || {}), ...patch };
+    const box = $("#rec-extras"); if (box) box.innerHTML = R.logExtrasHTML();
+    renderType();
+  }
+  return typed.rec || {};
+}
+const recovering = () => !!st().recovery?.enabled;
+const hideNumbers = () => recovering() && st().recovery.stage !== 2;
+
+export function sheetType(key, prefill = "", opts = {}) {
+  typed = { key, text: prefill, items: [], edits: {}, dayOffset: 0, dayOverride: false, rec: { binge: !!opts.binge, context: [], slot: opts.slot || null } };
   ctx.openSheet(`
     <h3>✍️ What did you eat?</h3>
     <div class="sub">Say it however you'd say it: amounts (“8 oz pasta”, “a cup and a half of rice”), changes (<b>no</b>, <b>extra</b>, <b>double</b>, <b>light</b>, “2 pumps of vanilla”), sizes (tall, grande, venti), calories you know (“a 250 calorie bar”), or a recipe (“…makes 4, I had 1”). Runs on your phone, no AI.</div>
@@ -868,6 +883,7 @@ export function sheetType(key, prefill = "") {
       <textarea id="type-text" class="io type-box" placeholder="e.g. chipotle bowl double chicken no rice extra guac, and a grande oat latte with an extra pump of vanilla" aria-label="What you ate">${esc(prefill)}</textarea>
       ${Speech ? `<button class="mic-btn" data-action="c-type-mic" aria-label="Speak what you ate">🎤</button>` : ""}
     </div>
+    ${recovering() ? `<div id="rec-extras">${R.logExtrasHTML()}</div>` : ""}
     <div id="type-day"></div>
     <div class="type-examples small muted">Try: <button class="link" data-action="c-type-example">2 eggs, toast and a latte</button> · <button class="link" data-action="c-type-example">grande oat latte with 2 pumps of caramel</button> · <button class="link" data-action="c-type-example">turkey chili: 1 lb ground turkey, 1 can black beans, 2 cups marinara, makes 4, I had 1</button></div>
     <div class="small muted" style="margin-top:6px">📷 Photo or a tricky meal? <button class="link" data-action="c-type-ai" data-date="${key}">✨ AI estimate</button></div>
@@ -967,6 +983,16 @@ function renderType() {
       </div>`;
   }).join("");
   const after = left - total;
+  if (hideNumbers()) {
+    out.classList.add("rec-nonum");
+    out.innerHTML = `${rows}
+    <div class="build-total">
+      <div class="small muted">${typed.rec?.binge ? "Logging honestly is the hard part. Next meal at its normal time 💙" : "Numbers stay out of the way in stage 1 — just log what you ate."}</div>
+      <div class="btn-row" style="margin-top:8px"><button class="btn primary" data-action="c-type-log" ${count ? "" : "disabled"}>Log ${count} item${count === 1 ? "" : "s"}</button></div>
+    </div>`;
+    return;
+  }
+  out.classList.remove("rec-nonum");
   out.innerHTML = `
     ${rows}
     <div class="build-total">
@@ -1132,6 +1158,7 @@ function typeLog(saveAsOne) {
   recordMisses(typed.text, typed.items.map((it, i) => ({ ...it, edited: typed.edits[i]?.calories != null && it.status !== "unknown" && +typed.edits[i].calories !== Math.round(it.calories * (it.qty || 1)) })).filter((_, i) => !typed.edits[i]?.removed));
   const day = logDay(key);
   const picked = [];
+  const episodeId = uid(); // one binge = one episode, however many items it had
   typed.items.forEach((it, i) => {
     const ed = typed.edits[i] || {};
     if (ed.removed) return;
@@ -1139,14 +1166,24 @@ function typeLog(saveAsOne) {
     const cal = Math.max(0, Math.round(+t.calories || 0)), pro = Math.max(0, Math.round((+t.protein || 0) * 10) / 10);
     const q = it.status === "unknown" ? 1 : it.qty || 1;
     const name = (t.name || it.text).trim();
-    day.entries.push({ id: uid(), name, emoji: it.emoji === "❓" ? "✏️" : it.emoji, calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, qty: q, ref: it.id || null, detail: it.status === "unknown" ? "" : PZ.describe(it), source: it.kind === "recipe" ? "Recipe" : "Typed", at: new Date().toISOString() });
+    const rec = recovering() ? { slot: typed.rec?.slot || null, ...(typed.rec?.binge ? { binge: true, episode: episodeId } : {}), ...(typed.rec?.context?.length ? { context: typed.rec.context } : {}) } : {};
+    day.entries.push({ id: uid(), name, emoji: it.emoji === "❓" ? "✏️" : it.emoji, calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, qty: q, ref: it.id || null, detail: it.status === "unknown" ? "" : PZ.describe(it), source: it.kind === "recipe" ? "Recipe" : "Typed", at: new Date().toISOString(), ...rec });
     // a recipe is remembered per serving: "turkey chili" or "2 bowls of turkey chili" next time
     if (it.kind === "recipe" && ed.saveRecipe !== false) saveUsual({ name, emoji: "🍲", calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, detail: `${U.fmtAmount(it.servings, null)} servings: ${PZ.describe(it)}`, aliases: [name.toLowerCase()] });
     picked.push({ name, emoji: it.emoji, calories: cal, protein: pro });
     // teach the parser: next time this phrase is recognized with these numbers
-    if (it.status === "unknown" && ed.remember !== false) saveUsual({ name, emoji: "✏️", calories: cal, protein: pro, aliases: [it.text] });
+    if (it.status === "unknown" && ed.remember !== false && cal > 0) saveUsual({ name, emoji: "✏️", calories: cal, protein: pro, aliases: [it.text] });
   });
   if (!picked.length) return;
+  if (recovering()) {
+    const binge = !!typed.rec?.binge;
+    if (binge) { const u = st().recovery.urges.find((x) => x.date === key && x.outcome === "binge" && !x.logged); if (u) u.logged = true; }
+    typed = null;
+    afterLogChange(key);
+    ctx.closeSheet();
+    ctx.toast(binge ? "Logged. Next meal at its normal time — no making up 💙" : `✓ Logged ${picked.length} item${picked.length === 1 ? "" : "s"}`);
+    return;
+  }
   if (saveAsOne) saveUsual({ name: picked.length === 1 ? picked[0].name : typed.text.trim().slice(0, 70), emoji: picked[0].emoji === "❓" ? "✏️" : picked[0].emoji, calories: picked.reduce((n, p) => n + p.calories, 0), protein: picked.reduce((n, p) => n + p.protein, 0), detail: typed.text.trim(), aliases: [typed.text.trim()] });
   typed = null;
   afterLogChange(key);

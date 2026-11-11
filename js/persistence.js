@@ -11,7 +11,7 @@ export const BACKUP_FORMAT = "fuel-backup.v1";
 
 // Bump when the persisted shape changes, and add a migration below. Records
 // written before versioning existed have no schemaVersion and are treated as 1.
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const LEGACY_VERSION = 1;
 export const MAX_RECOVERY_SNAPSHOTS = 5;
 
@@ -45,6 +45,8 @@ function defaultState() {
     barcodes: {},        // barcode -> food looked up once, so scanning works offline after
     // v4: foods the owner adds from a label (often Trader Joe's), usable everywhere by amount
     myFoods: [],         // { id, name, emoji, unit, grams?, ml?, calories, protein, barcode?, aliases? }
+    // v5: recovery program (binge eating). null until the owner starts it; never sent anywhere.
+    recovery: null,
   };
 }
 
@@ -77,6 +79,12 @@ function normalizeState(raw) {
   if (out.trackMode !== "plan" && out.trackMode !== "count") out.trackMode = "plan";
   if (!Number.isFinite(out.paybackPerDay)) out.paybackPerDay = 150;
   if (typeof out.usualsSeeded !== "boolean") out.usualsSeeded = false;
+  if (out.recovery !== null && !isObj(out.recovery)) out.recovery = null;
+  if (isObj(out.recovery)) {
+    const r = out.recovery = { ...out.recovery };
+    for (const f of ["checkins", "plans", "reflections", "weekly"]) if (!isObj(r[f])) r[f] = {};
+    for (const f of ["urges", "events", "schedule", "alternatives", "riskDays"]) if (!Array.isArray(r[f])) r[f] = [];
+  }
   return out;
 }
 
@@ -134,6 +142,13 @@ const MIGRATIONS = [
     describe: "add 'my foods' — products added from a label or a barcode",
     migrate(state) {
       return normalizeState(state); // additive: myFoods starts empty
+    },
+  },
+  {
+    to: 5,
+    describe: "add the recovery program record (off until started)",
+    migrate(state) {
+      return normalizeState(state); // additive: recovery starts as null
     },
   },
 ];

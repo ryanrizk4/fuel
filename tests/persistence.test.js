@@ -47,7 +47,7 @@ test("an unversioned v1 record migrates forward instead of being discarded", () 
   const result = P.loadState(storage);
 
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [2, 3, 4]);
+  assert.deepEqual(result.migrated, [2, 3, 4, 5]);
   assert.equal(result.state.schemaVersion, P.SCHEMA_VERSION);
   // every field the owner cared about survived the upgrade
   assert.equal(Object.keys(result.state.plan.days).length, 1);
@@ -228,7 +228,7 @@ test("an export taken before the archive format still restores", () => {
   const { state, source, migrated } = P.importArchive(JSON.parse(JSON.stringify(legacy)));
 
   assert.equal(source, "legacy");
-  assert.deepEqual(migrated, [2, 3, 4]);
+  assert.deepEqual(migrated, [2, 3, 4, 5]);
   assert.equal(state.schemaVersion, P.SCHEMA_VERSION);
   assert.equal(state.weighIns[0].lb, 184.2);
   assert.equal(state.profile.proteinPerLb, 1.0);
@@ -265,7 +265,7 @@ test("a v2 record upgrades to v3 with every field intact and count mode off", ()
   const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(v2) });
   const result = P.loadState(storage);
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [3, 4]);
+  assert.deepEqual(result.migrated, [3, 4, 5]);
   assert.equal(result.state.trackMode, "plan", "the owner stays in planning mode until they choose to switch");
   assert.deepEqual(result.state.foodLog, {});
   assert.deepEqual(result.state.usuals, []);
@@ -274,7 +274,7 @@ test("a v2 record upgrades to v3 with every field intact and count mode off", ()
   assert.equal(result.state.overageBank, 120);
   assert.equal(result.state.weighIns[0].lb, 184.2);
   assert.equal(result.state.customFutureField, "keep me");
-  assert.equal(P.describeRecoverySnapshots(storage)[0].reason, "before upgrade to v4");
+  assert.equal(P.describeRecoverySnapshots(storage)[0].reason, "before upgrade to v5");
 });
 
 test("count-mode logs survive a backup round trip and show in recovery summaries", () => {
@@ -303,7 +303,7 @@ test("a v3 record upgrades to v4 with an empty 'my foods' list and nothing else 
   const storage = fakeStorage({ [P.STORE_KEY]: JSON.stringify(v3) });
   const result = P.loadState(storage);
   assert.equal(result.status, "migrated");
-  assert.deepEqual(result.migrated, [4]);
+  assert.deepEqual(result.migrated, [4, 5]);
   assert.deepEqual(result.state.myFoods, []);
   assert.equal(result.state.trackMode, "count");
   assert.deepEqual(result.state.foodLog, v3.foodLog);

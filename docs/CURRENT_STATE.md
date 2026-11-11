@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v21`.
+Current visible version: `fuel-v22`.
 
 ## Core behavior
 
@@ -72,6 +72,30 @@ barcode; a scan checks My foods first and an unknown barcode goes straight to th
 button uses the browser's speech recognition (Chrome sends audio to Google to transcribe) alongside
 the keyboard's own dictation.
 
+## Recovery program (js/recovery.js) — binge eating, guided self-help structure
+
+Started from Settings (one prefilled setup screen). Built on CBT guided self-help (NICE first-line;
+Fairburn's *Overcoming Binge Eating*) and designed to be calm: Today becomes one screen — a 5-point
+eating timeline (regular eating every 3–4 h, ending in a planned evening treat), two buttons (Log /
+I have an urge), and at most two context cards in priority order (support → last-night reflection →
+evening check-in → plan a risky evening → tonight's plan → weekly check-in). Rules (engine.js):
+- No compensation, ever: `dailyTrim` is 0 and settlement adds nothing to a payback bank while on;
+  walk-it-off, the calorie countdown, calorie streaks/celebrations and goal dates are hidden.
+- Stage 1 eats at maintenance with numbers hidden in Type it; stage 2 (maintenance − 275 as a
+  weekly average) starts after ≥28 days with ≤2 binge days in the last 28; 2 binge days in 14
+  brakes back to stage 1 (a speed change, not a reset).
+- Escalation (`recoveryFlags`): week ≥4 with binges not down ≥65% from the starting baseline,
+  any compensation/purging in the weekly check, or low mood on 5 of 7 check-ins → "add a human"
+  card with real resources (Alliance helpline, in-network CBT therapist, EAP, 988).
+- Urge tool: 20-minute timer with breathing animation, the owner's alternatives, one-tap text to
+  his support person, "It passed" (celebrated; never-resetting count) / "It happened" (no-judgment
+  path: next meal at its normal time, optional binge-flagged log).
+- Weekly check-in (default Sunday): weekly weigh-in (no daily weight box in recovery), 6 "on how
+  many days" questions written for Fuel (NOT the validated EDE-QS; swap in once its wording is
+  verified from the source) plus a purging screen, week summary, one focus.
+- `.ics` calendar reminders for meal times, plan-ahead evenings, check-ins (no server).
+All recovery data lives in `state.recovery` on the phone; it is never sent anywhere.
+
 ## Streaks & "day passed" (js/streak.js)
 
 A day closes on the next open, or right away with "✓ Done eating today" (count mode; plan mode
@@ -108,7 +132,7 @@ Switching modes never removes data. Settings shows browser storage used (localSt
 - Shared product and recipe data live in `data/products.json` and `data/templates.json`.
 - Personal state lives only in browser localStorage under `fuel.state.v1`.
 - The repository does not contain the owner's personal logs.
-- The record carries an explicit `schemaVersion` (currently 4; v3 added `trackMode`, `foodLog`, `usuals`, `paybackPerDay`, `barcodes`; v4 added `myFoods`) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
+- The record carries an explicit `schemaVersion` (currently 5; v5 added `recovery`; v3 added `trackMode`, `foodLog`, `usuals`, `paybackPerDay`, `barcodes`; v4 added `myFoods`) and migrates forward on load. Records written before versioning existed are treated as v1 and upgraded, not discarded.
 - A migration that fails leaves the stored record untouched, keeps a recovery copy, and lets the app run on the last good state.
 - Fuel keeps a rolling ring of up to five recovery copies, taken before any write that replaces or deletes the record: upgrades, restores, imports, and resets. The ring shrinks rather than failing when phone storage is full.
 - An unreadable record no longer falls back to blank state. It is quarantined intact and a full-screen recovery path offers the copies, a pasted backup, or an explicit start-fresh.
