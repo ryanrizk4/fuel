@@ -8,7 +8,7 @@ Fuel is a responsive meal-planning website and installable PWA used primarily fr
 Samsung Galaxy. Desktop and laptop browsers remain supported. It is deliberately small,
 framework-free, and offline-capable.
 
-Current visible version: `fuel-v20`.
+Current visible version: `fuel-v21`.
 
 ## Core behavior
 
@@ -71,6 +71,19 @@ how much (servings, grams/oz, cups/tbsp). "My foods" (v4) are added from a label
 barcode; a scan checks My foods first and an unknown barcode goes straight to the label form. A 🎤
 button uses the browser's speech recognition (Chrome sends audio to Google to transcribe) alongside
 the keyboard's own dictation.
+
+## Streaks & "day passed" (js/streak.js)
+
+A day closes on the next open, or right away with "✓ Done eating today" (count mode; plan mode
+closes when the day is marked). The most recent closed day (never older than two days) gets one
+full-screen moment: on budget → calendar page stamped ✓, confetti, streak count-up, banked
+fat-loss estimate, the week's dots, haptics, and milestone titles at 3/7/14/21/30/50/75/100/…;
+shield used → "Streak saved"; over with no shield → a calm "Fresh tile today" note pointing to the
+payback plan (no confetti, no red alarm); unlogged → nothing. Rules (`engine.streakCalendar`):
+within budget + 50 kcal counts; every 7 good days earns a 🛡 (max 2) that absorbs an over or
+unlogged day; days before the first log don't count. Today shows a 7-day streak row; Progress shows
+a month calendar (tap a day to open it). `celebratedThrough` (optional state field) prevents
+replays. Reduced-motion settings drop the confetti and stamp animation.
 
 ## Daily budget calibration
 

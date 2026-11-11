@@ -4,6 +4,7 @@ import * as E from "./engine.js";
 import * as P from "./persistence.js";
 import * as C from "./count.js";
 import * as H from "./history.js";
+import * as S from "./streak.js";
 import "./release.js";
 import { createReloadGuard } from "./reloadGuard.js";
 
@@ -151,11 +152,9 @@ async function boot() {
   H.initHistory({
     state: () => state, data: () => DATA, openSheet, esc, todayKey, toast,
     renderProgress: () => renderProgress(),
-    openDayInToday: (key) => {
-      if (state.trackMode !== "count") { state.trackMode = "count"; save(); toast("Switched to Just count to edit that day — switch back anytime"); }
-      C.openDay(key); closeSheet(); renderAll(); switchTab("today");
-    },
+    openDayInToday,
   });
+  S.initStreak({ state: () => state, data: () => DATA, todayKey, save, renderAll, toast, openDayInToday, renderProgress: () => renderProgress() });
   DATA_UPDATED = p.updated || t.updated || "";
   load();
   if (!recovery) {
@@ -245,6 +244,12 @@ function finishOnboarding() {
 
 // ---------- rendering ----------
 
+function openDayInToday(key) {
+  if (state.trackMode !== "count") { state.trackMode = "count"; save(); toast("Switched to Just count to edit that day — switch back anytime"); }
+  C.openDay(key); closeSheet(); renderAll(); switchTab("today");
+}
+
+let booted = false;
 function renderAll() {
   const counting = state.trackMode === "count";
   document.body.classList.toggle("mode-count", counting);
@@ -255,6 +260,9 @@ function renderAll() {
   renderMeals();
   renderProgress();
   renderMore();
+  // a day that just closed on budget gets its moment; wait out the splash on first open
+  setTimeout(() => S.maybeCelebrate(), booted ? 150 : 1100);
+  booted = true;
 }
 
 function daysSinceEaten(tplId) {
@@ -545,6 +553,7 @@ function renderToday() {
       </div>
       ${trim > 0 ? `<div class="trim-note">💪 Absorbing a past overage: budget trimmed by ${trim} kcal/day until ${state.overageBank} kcal is paid off.</div>` : ""}
       ${credit > 0 ? `<div class="trim-note">🥾 ${esc(day.activityCredit.label)}: +${credit} kcal credited today. <button class="btn small ghost" data-action="remove-activity" data-date="${key}" style="margin-left:6px">Remove</button></div>` : ""}
+      ${S.streakRow({ showDone: false })}
     </div>
 
     <div class="card">
@@ -744,6 +753,7 @@ function renderProgress() {
     </div>
 
     ${C.calibrationCard()}
+    ${S.calendarCard()}
     ${H.historySection()}
 
     ${(() => {
@@ -1461,6 +1471,7 @@ function readKcal(el) {
 function handleAction(el) {
   const a = el.dataset.action;
   if (C.handleCount(el)) return;
+  if (S.handleStreak(el)) return;
   if (H.handleHistory(el)) return;
 
   switch (a) {
@@ -1836,6 +1847,7 @@ document.addEventListener("click", (e) => {
     setTimeout(() => (tip.style.display = "none"), 2200);
     return;
   }
+  if (S.handleBackdrop(e.target)) return;
   if (H.handleChartTap(e.target)) return;
   const nav = e.target.closest(".nav button");
   if (nav) return switchTab(nav.dataset.tab);
