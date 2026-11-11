@@ -43,6 +43,26 @@ test("timeline: logged meals tick their slot; past unlogged ones are 'missed', t
   assert.ok(E.scheduleStatus(sch, [{ id: "x", at: at(14, 0), binge: true }], 15 * 60).every((x) => x.status !== "done"), "a binge doesn't count as a planned meal");
 });
 
+test("logging guesses the meal you're on: dinner at 8:30pm, not the 9:30 treat; breakfast late at 11:15am", () => {
+  const sch = E.defaultSchedule();
+  const at = (h, m) => new Date(2026, 10, 11, h, m).toISOString();
+  assert.equal(E.guessSlot(sch, [], 20 * 60 + 30), "dinner", "8:30pm with dinner not logged → dinner");
+  assert.equal(E.guessSlot(sch, [], 11 * 60 + 15), "breakfast", "11:15am → breakfast (late, still breakfast)");
+  assert.equal(E.guessSlot(sch, [], 7 * 60), "breakfast", "before anything starts → the next one");
+  assert.equal(E.guessSlot(sch, [{ id: "d", slot: "dinner" }], 23 * 60 + 20), "evening", "11:20pm after dinner → the evening treat");
+  const all = sch.map((s, i) => ({ id: "e" + i, slot: s.id }));
+  assert.equal(E.guessSlot(sch, all, 23 * 60), "extra", "everything covered → extra (allowed, no judgement)");
+  // the 8:30pm dinner the owner logged must tick dinner and nothing else
+  const tl = E.scheduleStatus(sch, [{ id: "q", slot: "dinner", at: at(20, 30) }], 20 * 60 + 31);
+  assert.deepEqual(tl.filter((x) => x.status === "done").map((x) => x.id), ["dinner"]);
+  // several items logged together tick one meal, not the neighbours too
+  const lunch = [1, 2, 3].map((i) => ({ id: "l" + i, at: at(14, 30) }));
+  assert.deepEqual(E.scheduleStatus(sch, lunch, 15 * 60).filter((x) => x.status === "done").map((x) => x.id), ["lunch"]);
+  // the Today list groups entries by meal; "extra" and binges never tick a slot
+  const map = E.entrySlots(sch, [{ id: "x", slot: "extra" }, { id: "y", slot: "lunch", binge: true }, { id: "z", at: at(9, 50) }]);
+  assert.deepEqual(map, { x: "extra", y: "binge", z: "breakfast" });
+});
+
 test("stage 2 starts after 4 weeks with ≤2 binge days in the last 28; 2 binge days in 14 brakes back", () => {
   const s = st();
   binge(s, day(3));

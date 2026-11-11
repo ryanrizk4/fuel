@@ -144,6 +144,7 @@ function addEntry(key, item, qty = 1, extra = {}) {
     calories: Math.round(item.calories), protein: Math.round(item.protein * 10) / 10, qty,
     ref: item.id || null, detail: extra.detail ?? item.note ?? "", source: extra.source || item.group || "",
     at: new Date().toISOString(),
+    ...(recovering() ? { slot: R.guessSlotNow() } : {}),
   };
   day.entries.push(entry);
   afterLogChange(key);
@@ -1166,7 +1167,7 @@ function typeLog(saveAsOne) {
     const cal = Math.max(0, Math.round(+t.calories || 0)), pro = Math.max(0, Math.round((+t.protein || 0) * 10) / 10);
     const q = it.status === "unknown" ? 1 : it.qty || 1;
     const name = (t.name || it.text).trim();
-    const rec = recovering() ? { slot: typed.rec?.slot || null, ...(typed.rec?.binge ? { binge: true, episode: episodeId } : {}), ...(typed.rec?.context?.length ? { context: typed.rec.context } : {}) } : {};
+    const rec = recovering() ? { slot: typed.rec?.binge ? null : (typed.rec?.slot || R.guessSlotNow()), ...(typed.rec?.binge ? { binge: true, episode: episodeId } : {}), ...(typed.rec?.context?.length ? { context: typed.rec.context } : {}) } : {};
     day.entries.push({ id: uid(), name, emoji: it.emoji === "❓" ? "✏️" : it.emoji, calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, qty: q, ref: it.id || null, detail: it.status === "unknown" ? "" : PZ.describe(it), source: it.kind === "recipe" ? "Recipe" : "Typed", at: new Date().toISOString(), ...rec });
     // a recipe is remembered per serving: "turkey chili" or "2 bowls of turkey chili" next time
     if (it.kind === "recipe" && ed.saveRecipe !== false) saveUsual({ name, emoji: "🍲", calories: Math.round(cal / q), protein: Math.round((pro / q) * 10) / 10, detail: `${U.fmtAmount(it.servings, null)} servings: ${PZ.describe(it)}`, aliases: [name.toLowerCase()] });
@@ -1177,11 +1178,12 @@ function typeLog(saveAsOne) {
   if (!picked.length) return;
   if (recovering()) {
     const binge = !!typed.rec?.binge;
+    const slot = day.entries[day.entries.length - 1]?.slot || "extra";
     if (binge) { const u = st().recovery.urges.find((x) => x.date === key && x.outcome === "binge" && !x.logged); if (u) u.logged = true; }
     typed = null;
     afterLogChange(key);
     ctx.closeSheet();
-    ctx.toast(binge ? "Logged. Next meal at its normal time — no making up 💙" : `✓ Logged ${picked.length} item${picked.length === 1 ? "" : "s"}`);
+    ctx.toast(binge ? "Logged. Next meal at its normal time — no making up 💙" : `✓ ${R.slotLabel(slot)} logged: ${picked.map((p) => p.name).join(", ")}`.slice(0, 90));
     return;
   }
   if (saveAsOne) saveUsual({ name: picked.length === 1 ? picked[0].name : typed.text.trim().slice(0, 70), emoji: picked[0].emoji === "❓" ? "✏️" : picked[0].emoji, calories: picked.reduce((n, p) => n + p.calories, 0), protein: picked.reduce((n, p) => n + p.protein, 0), detail: typed.text.trim(), aliases: [typed.text.trim()] });
