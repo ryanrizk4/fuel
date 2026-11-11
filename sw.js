@@ -10,6 +10,7 @@ const SHELL = [
   "js/count.js",
   "js/ai.js",
   "js/history.js",
+  "js/streak.js",
   "js/parse.js",
   "js/units.js",
   "js/persistence.js",

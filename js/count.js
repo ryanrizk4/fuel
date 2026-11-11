@@ -6,6 +6,7 @@ import * as E from "./engine.js";
 import * as AI from "./ai.js";
 import * as PZ from "./parse.js";
 import * as U from "./units.js";
+import * as S from "./streak.js";
 
 let ctx = null;
 let viewOffset = 0;          // 0 = today, -1 = yesterday … up to a year back
@@ -124,7 +125,9 @@ export function settle() {
   const done = E.settleCountDays(s, ctx.todayKey());
   if (!done.length) return "";
   ctx.save();
-  const over = done.filter((d) => d.over > 0);
+  // within the streak grace it's noise; the last two days get the "day passed" card instead
+  const recent = E.dateKey(E.addDays(E.parseKey(ctx.todayKey()), -2));
+  const over = done.filter((d) => d.over > E.STREAK_GRACE && d.key < recent);
   if (!over.length) return "";
   const last = over[over.length - 1];
   const when = E.fmtDay(E.parseKey(last.key));
@@ -237,6 +240,7 @@ export function renderCountToday(el) {
       </div>
       ${trim > 0 ? `<div class="trim-note">💪 Paying back a big day: −${trim} kcal today. ${fmt(s.overageBank)} kcal left on the plan.</div>` : ""}
       ${credit > 0 ? `<div class="trim-note">🚶 +${credit} kcal from extra activity${day?.activityCredit ? ` (${esc(day.activityCredit.label)}) <button class="btn small ghost" data-action="remove-activity" data-date="${key}" style="margin-left:6px">Remove</button>` : ""}.</div>` : ""}
+      ${isToday ? S.streakRow() : ""}
     </div>
 
     <div class="log-actions">

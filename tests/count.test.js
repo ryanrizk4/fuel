@@ -364,3 +364,63 @@ test("the trend check compares against the calibrated plan, not the old deficit 
   assert.equal(c.plannedPerWeek, 1, "planned pace = (2300 − 1800) × 7 / 3500");
   assert.equal(c.status, "on-track");
 });
+
+// ---------- streaks: forgiving by design ----------
+
+const rowsFor = (pattern, start = "2026-11-01", budget = 1800) => [...pattern].map((c, i) => ({
+  key: E.dateKey(E.addDays(E.parseKey(start), i)),
+  source: c === "." ? null : "count",
+  calories: c === "o" ? budget + 400 : c === "g" ? budget + 40 : c === "." ? 0 : budget - 100,
+  budget,
+}));
+
+test("streak: successes count, 50 kcal grace counts, a miss without a shield resets", () => {
+  const r = E.streakCalendar(rowsFor("✓✓g✓o✓✓"), { todayKey: "2026-11-20" });
+  assert.equal(r.days["2026-11-03"].status, "success", "within 50 kcal still counts");
+  assert.equal(r.days["2026-11-05"].status, "missed");
+  assert.equal(r.current, 2);
+  assert.equal(r.best, 4);
+});
+
+test("streak: 7 good days earn a shield that absorbs the next miss (max 2 banked)", () => {
+  const r = E.streakCalendar(rowsFor("✓✓✓✓✓✓✓o✓"), { todayKey: "2026-11-20" });
+  assert.equal(r.days["2026-11-07"].earned, true);
+  assert.equal(r.days["2026-11-08"].status, "shielded");
+  assert.equal(r.current, 8, "the shield held the streak");
+  assert.equal(r.shields, 0);
+  const many = E.streakCalendar(rowsFor("✓".repeat(30)), { todayKey: "2026-12-31" });
+  assert.equal(many.shields, E.MAX_SHIELDS);
+  assert.equal(many.toNextShield, null);
+});
+
+test("streak: an unlogged day is a miss (or uses a shield); days before the first log don't count", () => {
+  const r = E.streakCalendar(rowsFor("..✓✓.✓"), { todayKey: "2026-11-20" });
+  assert.equal(r.days["2026-11-01"].status, "none");
+  assert.equal(r.days["2026-11-05"].status, "missed");
+  assert.equal(r.days["2026-11-05"].reason, "unlogged");
+  assert.equal(r.current, 1);
+});
+
+test("streak: today stays open until it's closed", () => {
+  const rows = rowsFor("✓✓✓", "2026-11-09");
+  const open = E.streakCalendar(rows, { todayKey: "2026-11-11" });
+  assert.equal(open.days["2026-11-11"].status, "open");
+  assert.equal(open.current, 2);
+  const closed = E.streakCalendar(rows, { todayKey: "2026-11-11", todayClosed: true });
+  assert.equal(closed.days["2026-11-11"].status, "success");
+  assert.equal(closed.current, 3);
+});
+
+test("closing today early settles it now; reopening undoes exactly that", () => {
+  const st = mkState({ overageBank: 300 });
+  const budget = E.dailyBudget(st.profile);
+  st.foodLog["2026-11-11"] = { entries: [entry(budget + 200)], walks: [], closed: true };
+  E.settleCountDays(st, "2026-11-11");
+  assert.ok(st.foodLog["2026-11-11"].settled, "a closed today is settled");
+  const after = st.overageBank;
+  assert.equal(after, 300 - 150 + 350, "trim paid, overage (vs trimmed budget) added");
+  E.unsettleDay(st, "2026-11-11");
+  assert.equal(st.overageBank, 300);
+  assert.equal(st.foodLog["2026-11-11"].settled, undefined);
+  assert.equal(E.settleCountDays(st, "2026-11-11").length, 0, "an open today isn't settled");
+});

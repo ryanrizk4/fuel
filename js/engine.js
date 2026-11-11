@@ -674,7 +674,8 @@ function logTotals(entries) {
  */
 function settleCountDays(state, todayK) {
   const settled = [];
-  const keys = Object.keys(state.foodLog || {}).filter((k) => k < todayK).sort();
+  // finished days, plus today once the owner has closed it ("done eating today")
+  const keys = Object.keys(state.foodLog || {}).filter((k) => k < todayK || (k === todayK && state.foodLog[k]?.closed)).sort();
   for (const k of keys) {
     const day = state.foodLog[k];
     if (!day || day.settled || !(day.entries || []).length) continue;
@@ -686,6 +687,15 @@ function settleCountDays(state, todayK) {
     settled.push({ key: k, ...day.settled });
   }
   return settled;
+}
+
+/** Reopen a day that was closed early: undo exactly what closing it did to the bank. */
+function unsettleDay(state, key) {
+  const day = state.foodLog?.[key];
+  if (!day) return;
+  if (day.settled) state.overageBank = Math.max(0, (state.overageBank || 0) - day.settled.over + day.settled.trim);
+  delete day.settled;
+  delete day.closed;
 }
 
 /**
@@ -820,6 +830,50 @@ function dailyHistory(data, state, fromKey, toKey) {
   }
   return out;
 }
+
+// ---------- streaks ----------
+
+const STREAK_GRACE = 50;      // kcal: logging is never exact, so "within 50" still counts
+const SHIELD_EVERY = 7;       // a shield for every 7 good days…
+const MAX_SHIELDS = 2;        // …banked up to 2
+
+/**
+ * Walk the owner's days in order and score the streak, forgivingly:
+ *   success  — logged and within budget (+50 grace): streak +1, and every 7th earns a shield
+ *   shielded — over budget or not logged, but a banked shield absorbs it: streak holds
+ *   missed   — over or not logged with no shield: streak resets (never anything louder)
+ *   open     — today, until the day is closed
+ * Days before the first logged day don't count. Returns per-day statuses plus
+ * { current, best, shields, toNextShield }.
+ */
+function streakCalendar(rows, { todayKey, todayClosed = false } = {}) {
+  const days = {};
+  let current = 0, best = 0, shields = 0, since = 0, started = false;
+  for (const r of rows) {
+    const isToday = r.key === todayKey;
+    if (!started && !r.source) { days[r.key] = { status: "none" }; continue; }
+    started = true;
+    if (r.key > todayKey) break;
+    if (isToday && !todayClosed) { days[r.key] = { status: "open", calories: r.calories, budget: r.budget, logged: !!r.source }; continue; }
+    const ok = r.source && r.calories <= r.budget + STREAK_GRACE;
+    if (ok) {
+      current++; since++;
+      best = Math.max(best, current);
+      let earned = false;
+      if (since >= SHIELD_EVERY) { since = 0; if (shields < MAX_SHIELDS) { shields++; earned = true; } }
+      days[r.key] = { status: "success", calories: r.calories, budget: r.budget, streak: current, earned };
+    } else if (shields > 0) {
+      shields--;
+      days[r.key] = { status: "shielded", reason: r.source ? "over" : "unlogged", calories: r.calories, budget: r.budget, streak: current };
+    } else {
+      days[r.key] = { status: "missed", reason: r.source ? "over" : "unlogged", calories: r.calories, budget: r.budget, over: r.source ? r.calories - r.budget : null };
+      current = 0; since = 0;
+    }
+  }
+  return { days, current, best, shields, toNextShield: shields >= MAX_SHIELDS ? null : SHIELD_EVERY - since };
+}
+
+const STREAK_MILESTONES = [3, 7, 14, 21, 30, 50, 75, 100, 150, 200, 365];
 
 /** Headline numbers for a range of dailyHistory rows. Today (if present) is excluded from adherence. */
 function historyStats(rows, { maintenance, proteinTarget, todayKey } = {}) {
@@ -968,6 +1022,7 @@ export {
   paybackRate, dailyTrim, walkCredit, walkMinutesFor, paybackOptions, goalPlan,
   componentTotals, productTotals, catalogItems, logTotals, settleCountDays, resettleDay, weekBalance, suggestFits, parseOpenFoodFacts,
   dailyHistory, historyStats, weeklySummary, topFoods, historyCsv,
+  streakCalendar, STREAK_MILESTONES, unsettleDay, STREAK_GRACE, SHIELD_EVERY, MAX_SHIELDS,
   dateKey, parseKey, addDays, weekStart, fmtDay,
   bmr, tdee, dailyBudget, budgetIsFloored, proteinTarget, effectiveBudget, activityCreditFromTracker, goalProjection, latestWeight,
   productById, templateById, variantOf, mealIngredients, mealMacros, snackMacros, dayTotals, dayConsumed,
