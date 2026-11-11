@@ -28,6 +28,7 @@ Preserve the product's defining advantages:
 - `js/count.js`: "Just count" mode UI (logging, builder, barcode, AI, payback, goal sheets).
 - `js/parse.js`: "Type it" typed-meal parser (no AI); `data/foods.json` is its common-foods list.
 - `js/units.js`: measurement conversions (servings ↔ g/oz/cups/tbsp/counts/packs) for the parser and "how much?".
+- `js/recovery.js`: binge eating recovery program (calm Today, urge tool, check-ins, plans, support).
 - `js/streak.js`: streak row, month calendar, "day passed" celebration, close/reopen today.
 - `js/history.js`: History & stats on the Progress tab (charts, weekly table, CSV export).
 - `js/ai.js`: Claude API request/response for food estimates; owner's key, stored outside state.

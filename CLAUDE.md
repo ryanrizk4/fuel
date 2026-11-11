@@ -19,6 +19,13 @@ around Trader Joe's shopping. Deployed via GitHub Pages; used entirely from the 
   (servings per whole item, e.g. `{"can": 3.5}`); products may carry `aliases` (their own short names).
   `js/history.js` — History & stats.
 
+## Recovery program (binge eating) — guardrails, do not erode
+
+When `state.recovery.enabled`: never add anything that compensates for eating (payback, trimming,
+"walk it off", earned food), never show a daily calorie countdown in stage 1, never reset a count to
+zero as punishment, keep weighing weekly, and keep the escalation-to-a-human rules and resources.
+Simplicity is a requirement: Today shows the timeline, two buttons, and at most two cards.
+
 ## Tuning "Type it" (owner will paste "Fuel Type-it misses" from Settings)
 
 For each miss: add a case to `tests/parse.test.js` first (the exact phrase and what it should become),
